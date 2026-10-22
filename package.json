@@ -1,0 +1,36 @@
+{
+  "name": "time-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Apontamento de horas em Tasks/User Stories do Azure DevOps com timer, timesheet e calendário.",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:dev": "node scripts/build.mjs --dev",
+    "watch": "node scripts/build.mjs --dev --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "package": "npm run build && tfx extension create --manifest-globs vss-extension.json --output-path out",
+    "package:dev": "npm run build:dev && tfx extension create --manifest-globs vss-extension.json --overrides-file overrides.dev.json --output-path out"
+  },
+  "dependencies": {
+    "@fluentui/react-components": "^9.74.10",
+    "@fluentui/react-icons": "^2.0.344",
+    "@fullcalendar/core": "~6.1.22",
+    "@fullcalendar/interaction": "~6.1.22",
+    "@fullcalendar/react": "~6.1.22",
+    "@fullcalendar/timegrid": "~6.1.22",
+    "azure-devops-extension-api": "^5.279.1",
+    "azure-devops-extension-sdk": "^4.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2",
+    "tfx-cli": "^0.24.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}

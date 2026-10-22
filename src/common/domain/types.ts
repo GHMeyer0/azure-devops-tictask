@@ -1,0 +1,145 @@
+export type EntrySource = "timer" | "manual" | "calendar";
+
+export interface TimeSegment {
+  start: string; // ISO
+  end: string; // ISO
+}
+
+/** Hours fields + state of a work item at a point in time. */
+export interface WorkItemSnapshot {
+  original: number | null;
+  remaining: number | null;
+  completed: number | null;
+  state: string;
+}
+
+export interface EntryChange {
+  at: string;
+  by: string;
+  action: "create" | "update" | "delete";
+  detail: string;
+}
+
+export interface TimeEntry {
+  id: string;
+  projectId: string;
+  workItemId: number;
+  workItemTitle: string;
+  workItemType: string;
+  parentId?: number;
+  parentTitle?: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  /** Local day (yyyy-MM-dd) the work was done. */
+  date: string;
+  start: string;
+  end: string;
+  minutes: number;
+  /** Worked intervals; more than one means the timer was paused. */
+  segments: TimeSegment[];
+  activity: string;
+  comment: string;
+  source: EntrySource;
+  before?: WorkItemSnapshot;
+  after?: WorkItemSnapshot;
+  parentStateAtStart?: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt?: string;
+  history: EntryChange[];
+  deleted?: boolean;
+  deletedAt?: string;
+  deletedBy?: string;
+  __etag?: number;
+}
+
+export interface TimerSegment {
+  start: string;
+  end?: string;
+}
+
+export interface WorkItemRef {
+  id: number;
+  title: string;
+  type: string;
+  parentId?: number;
+  parentTitle?: string;
+}
+
+export interface ActiveTimer {
+  id: "active";
+  projectId: string;
+  workItem: WorkItemRef;
+  activity: string;
+  comment: string;
+  status: "running" | "paused";
+  segments: TimerSegment[];
+  stateAtStart?: string;
+  parentStateAtStart?: string;
+  /** State applied on pause (e.g. Stopped/Waiting) and the reason given. */
+  pauses?: { at: string; state?: string; reason?: string }[];
+  __etag?: number;
+}
+
+export interface ActivityDef {
+  name: string;
+  /** Value written to Microsoft.VSTS.Common.Activity on created tasks (if allowed by the process). */
+  witActivity?: string;
+  /** Suggested task title when creating a task for this activity. */
+  defaultTitle: string;
+  /** Part of the "standard tasks" set created under a US/Bug. */
+  standard: boolean;
+  defaultEstimate: number;
+  color: string;
+}
+
+export interface StateSettings {
+  /** State the task moves to when work starts. */
+  active: string;
+  /** Completed state used by "Concluir task". */
+  closed: string;
+  /** Task states that move to `active` automatically when work starts. */
+  autoActivateFrom: string[];
+  /** Task states considered closed (logging requires confirmation/reopen). */
+  closedStates: string[];
+  /** States offered when pausing the timer. */
+  pauseStates: string[];
+  closedPolicy: "confirm" | "block";
+  /** Parent (US/Bug) states that move to `parentActive` when work starts on a child. */
+  parentAutoActivateFrom: string[];
+  parentActive: string;
+}
+
+export interface Settings {
+  activities: ActivityDef[];
+  parentTypes: string[];
+  taskType: string;
+  /** Prefix task titles with the activity name ("Revisão: Revisão de PR"). */
+  titleWithActivityPrefix: boolean;
+  /** Days after which an entry can no longer be edited/deleted. */
+  lockDays: number;
+  dailyTargetHours: number;
+  /** Also writes a line in the work item discussion for each entry. */
+  postComment: boolean;
+  states: StateSettings;
+}
+
+export interface UserInfo {
+  id: string;
+  displayName: string;
+  email: string;
+}
+
+/** Fields of a task as read from the work item. */
+export interface TaskInfo extends WorkItemSnapshot {
+  id: number;
+  title: string;
+  type: string;
+  assignedTo?: { displayName: string; email: string; id?: string };
+  activity?: string;
+  parentId?: number;
+  areaPath?: string;
+  iterationPath?: string;
+  rev?: number;
+}

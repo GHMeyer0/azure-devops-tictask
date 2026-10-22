@@ -1,0 +1,62 @@
+{
+  "manifestVersion": 1,
+  "id": "time-tracker",
+  "publisher": "gabrielmeyer",
+  "version": "0.1.0",
+  "name": "TimeTracker - Apontamento de horas",
+  "description": "Apontamento de horas em Tasks e User Stories com timer (iniciar/pausar/parar), Remaining automático, timesheet semanal e calendário.",
+  "public": false,
+  "categories": ["Azure Boards"],
+  "tags": ["time tracking", "timesheet", "apontamento", "horas"],
+  "targets": [{ "id": "Microsoft.VisualStudio.Services" }],
+  "icons": { "default": "static/logo.png" },
+  "content": { "details": { "path": "overview.md" } },
+  "scopes": ["vso.work_write", "vso.project", "vso.extension.data_write"],
+  "files": [
+    { "path": "dist", "addressable": true },
+    { "path": "static", "addressable": true }
+  ],
+  "contributions": [
+    {
+      "id": "time-group",
+      "type": "ms.vss-work-web.work-item-form-group",
+      "description": "Botões de iniciar/pausar/parar e apontar na tela principal do work item.",
+      "targets": ["ms.vss-work-web.work-item-form"],
+      "properties": {
+        "name": "Apontamento de horas",
+        "uri": "dist/group.html",
+        "height": 120
+      }
+    },
+    {
+      "id": "time-tab",
+      "type": "ms.vss-work-web.work-item-form-page",
+      "description": "Aba com apontamentos, tasks filhas e totais.",
+      "targets": ["ms.vss-work-web.work-item-form"],
+      "properties": {
+        "name": "Apontamentos",
+        "uri": "dist/tab.html"
+      }
+    },
+    {
+      "id": "time-hub",
+      "type": "ms.vss-web.hub",
+      "description": "Timesheet, calendário e configurações de apontamento.",
+      "targets": ["ms.vss-work-web.work-hub-group"],
+      "properties": {
+        "name": "Apontamentos",
+        "uri": "dist/hub.html",
+        "iconName": "Clock",
+        "order": 100
+      }
+    },
+    {
+      "id": "time-dialog",
+      "type": "ms.vss-web.external-content",
+      "description": "Diálogos de apontamento (abertos pelo host).",
+      "properties": {
+        "uri": "dist/dialog.html"
+      }
+    }
+  ]
+}
