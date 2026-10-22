@@ -10,6 +10,7 @@ e calendário. Sem backend: os dados ficam no *Extension Data Service* do própr
 |---|---|---|
 | Tela principal do WI (aba Details) | `time-group` | ▶ Iniciar / ⏸ Pausar / ⏹ Parar / + Apontar, cronômetro e Est/Compl/Rest |
 | Aba **Apontamentos** do WI | `time-tab` | Task: lista de apontamentos (início/fim/pausas), por pessoa/atividade. US/Bug: tasks filhas com horas, alertas de inconsistência, linha do tempo |
+| Backlog e Sprint › painel lateral **TicTask** | `time-backlog-panel` | Timer em andamento, item selecionado no backlog com Iniciar/Apontar e minhas tasks abertas (o ADO não permite extensões na barra superior global) |
 | Boards › **TicTask** | `time-hub` | Timesheet semanal (eu/time/todos, CSV), Calendário, Configurações |
 | Diálogos no host | `time-dialog` | Apontar, "O que você vai fazer?", tasks padrão, pausar |
 

@@ -2,7 +2,8 @@ import { Button, makeStyles, tokens } from "@fluentui/react-components";
 import { ErrorBar } from "../common/ui/components";
 
 const useStyles = makeStyles({
-  root: { display: "flex", flexDirection: "column", gap: "12px", padding: "4px 4px 8px", minWidth: "460px", maxWidth: "640px" },
+  // Fluid: the host decides the dialog width, so nothing here may be wider than the iframe.
+  root: { display: "flex", flexDirection: "column", gap: "12px", padding: "4px 8px 8px", width: "100%", minWidth: 0 },
   footer: {
     display: "flex",
     justifyContent: "flex-end",

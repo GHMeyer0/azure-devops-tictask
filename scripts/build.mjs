@@ -11,6 +11,7 @@ const pages = {
   tab: "TicTask - Apontamentos",
   hub: "TicTask",
   dialog: "TicTask",
+  panel: "TicTask",
 };
 
 const html = (page, title) => `<!DOCTYPE html>
@@ -20,7 +21,8 @@ const html = (page, title) => `<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${title}</title>
   <style>
-    html, body { margin: 0; padding: 0; background: transparent; font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: transparent; overflow-x: hidden; font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, sans-serif; }
     body.page-hub, body.page-tab { min-height: 100vh; }
   </style>
 </head>

@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "tictask",
   "publisher": "ghmeyer0",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "name": "TicTask - Apontamento de Horas",
   "description": "Apontamento de horas em Tasks e User Stories com timer (iniciar/pausar/parar), Remaining automático, timesheet semanal e calendário.",
   "public": false,
@@ -48,6 +48,18 @@
         "uri": "dist/hub.html",
         "iconName": "Clock",
         "order": 100
+      }
+    },
+    {
+      "id": "time-backlog-panel",
+      "type": "ms.vss-work-web.backlog-panel",
+      "description": "Painel lateral no backlog com o timer em andamento, o item selecionado e minhas tasks abertas.",
+      "targets": ["ms.vss-work-web.requirement-backlog-toolpane", "ms.vss-work-web.iteration-backlog-toolpane"],
+      "properties": {
+        "title": "TicTask: timer e apontamento",
+        "name": "TicTask",
+        "uri": "dist/panel.html",
+        "registeredObjectId": "tictaskBacklogPanel"
       }
     },
     {

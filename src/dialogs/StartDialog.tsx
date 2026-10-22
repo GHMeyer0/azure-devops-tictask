@@ -12,8 +12,8 @@ import { ActivityField, DurationInput } from "./fields";
 
 const useStyles = makeStyles({
   group: { display: "flex", flexDirection: "column", gap: "2px" },
-  newTask: { display: "flex", flexDirection: "column", gap: "10px", padding: "8px 12px", marginLeft: "28px", borderLeft: `2px solid ${tokens.colorBrandStroke1}` },
-  row: { display: "flex", gap: "12px", alignItems: "flex-end" },
+  newTask: { display: "flex", flexDirection: "column", gap: "10px", padding: "8px 12px", marginLeft: "28px", minWidth: 0, borderLeft: `2px solid ${tokens.colorBrandStroke1}` },
+  row: { display: "flex", gap: "12px", alignItems: "flex-end", flexWrap: "wrap" },
   muted: { color: tokens.colorNeutralForeground3 },
   label: { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" },
 });
@@ -39,7 +39,7 @@ export function StartDialog({ request, onDone }: { request: StartRequest; onDone
   const [activity, setActivity] = useState(settings.activities[0]?.name ?? "");
   const [description, setDescription] = useState("");
   const [estimate, setEstimate] = useState<number | null>((findActivity(settings, settings.activities[0]?.name)?.defaultEstimate ?? 1) * 60);
-  const [createStandard, setCreateStandard] = useState(children.length === 0);
+  const [createStandard, setCreateStandard] = useState(false);
 
   const activityOf = (t: TaskInfo) => taskActivity[t.id] ?? guessActivity(settings, t.title, t.activity) ?? settings.activities[0]?.name ?? "";
   const selectedTask = children.find((c) => String(c.id) === selected);
@@ -97,13 +97,13 @@ export function StartDialog({ request, onDone }: { request: StartRequest; onDone
       </Text>
 
       <RadioGroup value={selected} onChange={(_, d) => setSelected(d.value)}>
-        <Caption1 className={st.muted}>{mine.length ? "Minhas tasks nesta US" : "Você ainda não tem tasks abertas nesta US."}</Caption1>
+        <Caption1 className={st.muted}>{mine.length ? `Minhas tasks em #${request.parent.id}` : `Você ainda não tem tasks abertas em #${request.parent.id}.`}</Caption1>
         <div className={st.group}>{mine.map(taskRadio)}</div>
 
         {others.length > 0 && (
           <>
             <Link onClick={() => setShowOthers(!showOthers)}>
-              {showOthers ? "▾" : "▸"} Outras tasks da US ({others.length})
+              {showOthers ? "▾" : "▸"} Outras tasks ({others.length})
             </Link>
             {showOthers && <div className={st.group}>{others.map(taskRadio)}</div>}
           </>
@@ -122,7 +122,7 @@ export function StartDialog({ request, onDone }: { request: StartRequest; onDone
       {selected === NEW && (
         <div className={st.newTask}>
           <div className={st.row}>
-            <div style={{ flexGrow: 1 }}>
+            <div style={{ flexGrow: 1, minWidth: 180 }}>
               <ActivityField settings={settings} value={activity} onChange={changeActivity} />
             </div>
             <div style={{ width: 120 }}>

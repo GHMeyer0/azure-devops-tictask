@@ -58,7 +58,7 @@ describe("dialogs render", () => {
   it("start dialog with and without tasks", () => {
     const me = { id: "u1", displayName: "Ana", email: "ana@x.com" };
     const withTasks = html(<StartDialog request={{ kind: "start", purpose: "timer", parent, children: [task], me, settings }} onDone={() => undefined} />);
-    expect(withTasks).toContain("Minhas tasks nesta US");
+    expect(withTasks).toContain("Minhas tasks em #11065");
     const empty = html(<StartDialog request={{ kind: "start", purpose: "timer", parent, children: [], me, settings }} onDone={() => undefined} />);
     expect(empty).toContain("Nova task");
     expect(empty).toContain("Criar também as tasks padrão");

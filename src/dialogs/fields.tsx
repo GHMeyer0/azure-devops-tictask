@@ -6,7 +6,7 @@ import type { Settings } from "../common/domain/types";
 export function ActivityField({ settings, value, onChange, label = "Atividade" }: { settings: Settings; value: string; onChange: (v: string) => void; label?: string }) {
   return (
     <Field label={label} required>
-      <Dropdown value={value} selectedOptions={[value]} onOptionSelect={(_, d) => d.optionValue && onChange(d.optionValue)}>
+      <Dropdown value={value} selectedOptions={[value]} onOptionSelect={(_, d) => d.optionValue && onChange(d.optionValue)} style={{ minWidth: 0, width: "100%" }}>
         {settings.activities.map((a) => (
           <Option key={a.name} value={a.name} text={a.name}>
             <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: a.color, marginRight: 8 }} />
