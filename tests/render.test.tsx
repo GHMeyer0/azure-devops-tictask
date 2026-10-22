@@ -4,7 +4,13 @@ import { FluentProvider, webLightTheme } from "@fluentui/react-components";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("azure-devops-extension-sdk", () => ({ getConfiguration: () => ({}), resize: () => undefined, register: () => undefined, unregister: () => undefined }));
+vi.mock("azure-devops-extension-sdk", () => ({
+  getConfiguration: () => ({}),
+  getExtensionContext: () => ({ publisherId: "tiino", extensionId: "time-tracker" }),
+  resize: () => undefined,
+  register: () => undefined,
+  unregister: () => undefined,
+}));
 vi.mock("azure-devops-extension-api", () => ({ getClient: () => ({}) }));
 vi.mock("azure-devops-extension-api/Core", () => ({ CoreRestClient: class {} }));
 vi.mock("azure-devops-extension-api/WorkItemTracking", () => ({
@@ -20,6 +26,7 @@ const { StandardDialog } = await import("../src/dialogs/StandardDialog");
 const { PauseDialog } = await import("../src/dialogs/PauseDialog");
 const { EntriesTable, HoursSummary, TimerControls } = await import("../src/common/ui/components");
 const { DEFAULT_SETTINGS } = await import("../src/common/domain/settings");
+const { MigrationSection } = await import("../src/hub/MigrationSection");
 
 const settings = DEFAULT_SETTINGS;
 const html = (node: React.ReactElement) => renderToString(<FluentProvider theme={webLightTheme}>{node}</FluentProvider>);
@@ -60,6 +67,15 @@ describe("dialogs render", () => {
   it("standard and pause dialogs", () => {
     expect(html(<StandardDialog request={{ kind: "standard", parent, children: [task], settings }} onDone={() => undefined} />)).toContain("Investigação");
     expect(html(<PauseDialog request={{ kind: "pause", task, settings }} onDone={() => undefined} />)).toContain("Stopped");
+  });
+});
+
+describe("hub sections render", () => {
+  it("export/import section", () => {
+    const ctx = { projectId: "p", projectName: "Tiino", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings, writer: { apply: async () => ({}) as never } };
+    const out = html(<MigrationSection ctx={ctx} onSettingsImported={() => undefined} />);
+    expect(out).toContain("Exportar dados do projeto");
+    expect(out).toContain("tiino.time-tracker");
   });
 });
 

@@ -61,6 +61,11 @@ export async function listByRange(projectId: string, from: string, to: string, u
   return sortEntries(lists.flat().filter((e) => !e.deleted && e.date >= from && e.date <= to && (!userId || e.userId === userId)));
 }
 
+/** All documents of one month ("yyyyMM"), deleted ones included. */
+export function listMonth(projectId: string, key: string): Promise<TimeEntry[]> {
+  return readCollection(`te-${projectId}-${key}`);
+}
+
 export function newEntryId(): string {
   return crypto.randomUUID();
 }

@@ -58,12 +58,28 @@ src/pages           entradas de cada contribuição
 
 ## Publicar (privado)
 
-1. Crie um publisher em https://marketplace.visualstudio.com/manage e troque `"publisher"` em
-   `vss-extension.json`.
+1. O manifesto usa o publisher `ghmeyer0` (https://marketplace.visualstudio.com/manage/publishers/ghmeyer0).
+   Para publicar em outro, troque `"publisher"` em `vss-extension.json` — o upload exige que sejam iguais.
 2. `npm run package` e faça upload do `.vsix` em *New extension › Azure DevOps* (fica privado).
 3. Compartilhe com a organização (ex.: uma org pessoal de teste, depois `tunesoft`) e instale em
    *Organization settings › Extensions*.
 4. A cada nova versão, aumente `"version"` no manifesto antes de empacotar.
+
+### Trocar de publisher (ex.: do interno para o pessoal)
+
+A identidade da extensão é `publisher.id`: outro publisher é outra extensão, e o Extension Data
+Service separa os dados por extensão — a nova começa vazia. Para levar os apontamentos:
+
+1. Na extensão atual: termine o timer em andamento e use *Boards › Apontamentos › Configurações ›
+   Exportar dados do projeto* (um JSON por projeto, com apontamentos excluídos e configurações).
+2. Troque `"publisher"` no manifesto, empacote (`npm run package`), publique e instale a nova extensão.
+3. Na nova: *Configurações › Escolher arquivo de exportação › Importar*. Os ids são mantidos
+   (importar de novo sobrescreve, não duplica) e cada apontamento ganha a linha "importado de …"
+   no histórico. Os campos dos work items não são alterados.
+4. Confira o timesheet e só então desinstale a extensão antiga e remova o publisher.
+
+A exportação lê os meses de jan/2024 até 12 meses à frente (`EXPORT_FIRST_MONTH` em
+`src/common/data/migration.ts`).
 
 Para esconder o grupo/aba em tipos de WI onde não fazem sentido (ex.: Epic/Feature):
 *Organization settings › Process › (processo) › tipo de WI › Layout* → ocultar o grupo

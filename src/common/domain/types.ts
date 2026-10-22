@@ -16,7 +16,7 @@ export interface WorkItemSnapshot {
 export interface EntryChange {
   at: string;
   by: string;
-  action: "create" | "update" | "delete";
+  action: "create" | "update" | "delete" | "import";
   detail: string;
 }
 

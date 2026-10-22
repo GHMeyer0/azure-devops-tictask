@@ -52,10 +52,15 @@ export function coreClient(): CoreRestClient {
   return getClient(CoreRestClient);
 }
 
+/** "publisher.extension" of the running extension (e.g. tiino.time-tracker). */
+export function extensionFullId(): string {
+  const ext = SDK.getExtensionContext();
+  return `${ext.publisherId}.${ext.extensionId}`;
+}
+
 /** Full id of one of this extension's contributions. */
 export function contributionId(shortId: string): string {
-  const ext = SDK.getExtensionContext();
-  return `${ext.publisherId}.${ext.extensionId}.${shortId}`;
+  return `${extensionFullId()}.${shortId}`;
 }
 
 export async function hostLayout(): Promise<IHostPageLayoutService> {

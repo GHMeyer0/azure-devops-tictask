@@ -1,6 +1,6 @@
 {
   "name": "time-tracker",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "description": "Apontamento de horas em Tasks/User Stories do Azure DevOps com timer, timesheet e calendário.",
   "type": "module",
@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "package": "npm run build && tfx extension create --manifest-globs vss-extension.json --output-path out",
-    "package:dev": "npm run build:dev && tfx extension create --manifest-globs vss-extension.json --overrides-file overrides.dev.json --output-path out"
+    "package:dev":"npm run build:dev && tfx extension create --manifest-globs vss-extension.json --overrides-file overrides.dev.json --output-path out"
   },
   "dependencies": {
     "@fluentui/react-components": "^9.74.10",

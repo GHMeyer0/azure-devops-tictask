@@ -7,6 +7,7 @@ import { DEFAULT_SETTINGS } from "../common/domain/settings";
 import type { ActivityDef, Settings, StateSettings } from "../common/domain/types";
 import { ErrorBar, Section } from "../common/ui/components";
 import { useRunner } from "../common/ui/hooks";
+import { MigrationSection } from "./MigrationSection";
 
 const useStyles = makeStyles({
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "12px 24px" },
@@ -152,6 +153,14 @@ export function SettingsView({ ctx, onSaved }: { ctx: Ctx; onSaved: (s: Settings
           Restaurar padrão
         </Button>
       </div>
+
+      <MigrationSection
+        ctx={ctx}
+        onSettingsImported={(imported) => {
+          setS(structuredClone(imported));
+          onSaved(imported);
+        }}
+      />
     </div>
   );
 }
