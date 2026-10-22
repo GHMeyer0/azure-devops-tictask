@@ -16,7 +16,7 @@ import { ActivityField, DurationInput } from "./fields";
 const useStyles = makeStyles({
   row: { display: "flex", gap: "12px", alignItems: "flex-end", flexWrap: "wrap" },
   grow: { flexGrow: 1 },
-  quick: { display: "flex", gap: "4px" },
+  quick: { display: "flex", gap: "4px", flexWrap: "wrap" },
   task: { padding: "8px 12px", borderRadius: tokens.borderRadiusMedium, backgroundColor: tokens.colorNeutralBackground3, display: "flex", flexDirection: "column", gap: "4px" },
   results: { maxHeight: "220px", overflowY: "auto", border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium, padding: "4px" },
   muted: { color: tokens.colorNeutralForeground3 },

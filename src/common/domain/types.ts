@@ -111,6 +111,21 @@ export interface StateSettings {
   parentActive: string;
 }
 
+export interface ChatSettings {
+  /** Hourly "sem apontamento na última hora" reminder by DM. */
+  remindersEnabled: boolean;
+  /** E-mails that receive the reminder (they also need a DM with the Chat app). */
+  recipients: string[];
+  workStart: string; // "HH:mm"
+  workEnd: string;
+  lunchStart: string;
+  lunchEnd: string;
+  /** Gap reminders per person per day (the end-of-day total is sent regardless). */
+  maxRemindersPerDay: number;
+  /** Adds "O que fiz ontem" to the morning summary. */
+  yesterdayInDaily: boolean;
+}
+
 export interface Settings {
   activities: ActivityDef[];
   parentTypes: string[];
@@ -119,13 +134,14 @@ export interface Settings {
   titleWithActivityPrefix: boolean;
   /** Days after which an entry can no longer be edited/deleted. */
   lockDays: number;
-  dailyTargetHours: number;
   /** Also writes a line in the work item discussion for each entry. */
   postComment: boolean;
   /** Shares each user's timer status (running/paused, which task) with managers ("Time agora"). */
   teamPresence: boolean;
   /** Extra managers (e-mails) besides team administrators: see the team views and edit settings. */
   managers: string[];
+  /** Read by the n8n workflows that talk to Google Chat (reminders and the daily summary). */
+  chat: ChatSettings;
   states: StateSettings;
 }
 

@@ -92,6 +92,22 @@ describe("hub sections render", () => {
     expect(out).toContain("Exportar dados do projeto");
     expect(out).toContain("tiino.time-tracker");
   });
+
+  it("settings use pickers and have no daily target", async () => {
+    const { SettingsView } = await import("../src/hub/SettingsView");
+    const ctx = { projectId: "p", projectName: "Tiino", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings, writer: { apply: async () => ({}) as never } };
+    const out = html(<SettingsView ctx={ctx} onSaved={() => undefined} />);
+    expect(out).toContain("Estado ao iniciar trabalho");
+    expect(out).toContain("Gestores");
+    expect(out).not.toContain("Meta diária");
+  });
+
+  it("pickers show saved values, also those ADO did not return", async () => {
+    const { MultiPicker, Picker } = await import("../src/hub/Pickers");
+    const multi = html(<MultiPicker options={[{ value: "Active", label: "Active" }]} values={["Active", "Waiting"]} onChange={() => undefined} />);
+    expect(multi).toContain("Active, Waiting");
+    expect(html(<Picker options={null} value="Task" onChange={() => undefined} />)).toContain("Task");
+  });
 });
 
 describe("components render", () => {

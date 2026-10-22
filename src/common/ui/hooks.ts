@@ -63,16 +63,28 @@ export function useTrackerEvents(ids: number[] | null, fn: (e: TrackerEvent) => 
   }, [key]);
 }
 
-/** Resizes the host container (form group / dialog) to the content height. */
-export function useAutoResize(enabled = true): void {
+/**
+ * Resizes the host container (form group / dialog) to the content height. The width is always
+ * explicit: without it the SDK sends document.body.scrollWidth, and with fluid content the host
+ * widens the iframe, the content follows and the dialog grows forever. `width` is a fixed size in
+ * px (dialogs); omitted, the current iframe width is kept (form group).
+ */
+export function useAutoResize(width?: number, enabled = true): void {
   useEffect(() => {
     if (!enabled) return;
-    const resize = () => SDK.resize(undefined, Math.ceil(document.body.scrollHeight));
+    let last = "";
+    const resize = () => {
+      const w = width ?? document.documentElement.clientWidth;
+      const h = Math.ceil(document.body.scrollHeight);
+      if (`${w}x${h}` === last) return;
+      last = `${w}x${h}`;
+      SDK.resize(w, h);
+    };
     const observer = new ResizeObserver(resize);
     observer.observe(document.body);
     resize();
     return () => observer.disconnect();
-  }, [enabled]);
+  }, [width, enabled]);
 }
 
 /** Runs an async action, exposing busy/error state. */

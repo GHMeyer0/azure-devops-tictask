@@ -15,10 +15,19 @@ export const DEFAULT_SETTINGS: Settings = {
   taskType: "Task",
   titleWithActivityPrefix: false,
   lockDays: 7,
-  dailyTargetHours: 8,
   postComment: false,
   teamPresence: true,
   managers: [],
+  chat: {
+    remindersEnabled: false,
+    recipients: [],
+    workStart: "08:00",
+    workEnd: "17:00",
+    lunchStart: "12:00",
+    lunchEnd: "14:00",
+    maxRemindersPerDay: 2,
+    yesterdayInDaily: true,
+  },
   states: {
     active: "Active",
     closed: "Closed",
@@ -32,13 +41,16 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 /** Fills fields missing from a stored settings document (older versions) with defaults. */
-export function mergeSettings(stored: Partial<Settings> | undefined | null): Settings {
-  if (!stored) return structuredClone(DEFAULT_SETTINGS);
+export function mergeSettings(input: Partial<Settings> | undefined | null): Settings {
+  if (!input) return structuredClone(DEFAULT_SETTINGS);
+  // Dropped in 0.5.0 (no hour targets); old documents still carry it.
+  const { dailyTargetHours: _dropped, ...stored } = input as Partial<Settings> & { dailyTargetHours?: number };
   return {
     ...structuredClone(DEFAULT_SETTINGS),
     ...stored,
     activities: stored.activities?.length ? stored.activities : structuredClone(DEFAULT_ACTIVITIES),
     states: { ...DEFAULT_SETTINGS.states, ...(stored.states ?? {}) },
+    chat: { ...DEFAULT_SETTINGS.chat, ...(stored.chat ?? {}) },
   };
 }
 

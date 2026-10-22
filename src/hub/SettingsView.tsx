@@ -1,13 +1,19 @@
 import { Button, Caption1, Checkbox, Field, Input, MessageBar, MessageBarBody, Radio, RadioGroup, Switch, Table, TableBody, TableCell, TableHeader, TableHeaderCell, TableRow, makeStyles, tokens } from "@fluentui/react-components";
 import { AddRegular, ArrowResetRegular, DeleteRegular, SaveRegular } from "@fluentui/react-icons";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Ctx } from "../common/actions";
+import { loadPeople } from "../common/data/people";
+import { isManager } from "../common/data/roles";
 import { saveSettings } from "../common/data/settingsRepo";
+import { plainOptions, type PickOption } from "../common/domain/options";
 import { DEFAULT_SETTINGS } from "../common/domain/settings";
 import type { ActivityDef, Settings, StateSettings } from "../common/domain/types";
 import { ErrorBar, Section } from "../common/ui/components";
 import { useRunner } from "../common/ui/hooks";
+import { allowedActivities, statesOfTypes, workItemTypes, workItemTypeStates } from "../common/wit/witService";
+import { ChatSection } from "./ChatSection";
 import { MigrationSection } from "./MigrationSection";
+import { MultiPicker, Picker } from "./Pickers";
 
 const useStyles = makeStyles({
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "12px 24px" },
@@ -15,20 +21,24 @@ const useStyles = makeStyles({
   actions: { display: "flex", gap: "8px", marginTop: "16px" },
 });
 
-const list = (s: string) =>
-  s
-    .split(",")
-    .map((x) => x.trim())
-    .filter(Boolean);
-
-function ListField({ label, value, onChange, hint }: { label: string; value: string[]; onChange: (v: string[]) => void; hint?: string }) {
-  const [text, setText] = useState(value.join(", "));
-  return (
-    <Field label={label} hint={hint}>
-      <Input value={text} onChange={(_, d) => setText(d.value)} onBlur={() => onChange(list(text))} />
-    </Field>
-  );
+/** Options loaded from Azure DevOps; null while loading, [] when the request fails. */
+function useOptions(load: () => Promise<PickOption[]>, key: string): PickOption[] | null {
+  const [options, setOptions] = useState<PickOption[] | null>(null);
+  useEffect(() => {
+    let alive = true;
+    setOptions(null);
+    load()
+      .then((o) => alive && setOptions(o))
+      .catch(() => alive && setOptions([]));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  return options;
 }
+
+const lower = (e: string) => e.trim().toLowerCase();
 
 /** Project settings (stored once per project, shared by everyone). */
 export function SettingsView({ ctx, onSaved }: { ctx: Ctx; onSaved: (s: Settings) => void }) {
@@ -40,8 +50,19 @@ export function SettingsView({ ctx, onSaved }: { ctx: Ctx; onSaved: (s: Settings
   const setStates = (patch: Partial<StateSettings>) => set({ states: { ...s.states, ...patch } });
   const setActivity = (i: number, patch: Partial<ActivityDef>) => set({ activities: s.activities.map((a, j) => (j === i ? { ...a, ...patch } : a)) });
 
+  const types = useOptions(() => workItemTypes(ctx.projectName).then(plainOptions), ctx.projectName);
+  const taskStates = useOptions(() => workItemTypeStates(ctx.projectName, s.taskType).then(plainOptions), `${ctx.projectName}/${s.taskType}`);
+  const parentStates = useOptions(() => statesOfTypes(ctx.projectName, s.parentTypes).then(plainOptions), `${ctx.projectName}/${s.parentTypes.join("|")}`);
+  const witActivities = useOptions(() => allowedActivities(ctx.projectName, s.taskType).then(plainOptions), `${ctx.projectName}/${s.taskType}`);
+  const people = useOptions(
+    () => loadPeople(ctx.projectId).then((list) => list.map((p) => ({ value: p.email, label: `${p.name} (${p.email})`, short: p.name }))),
+    ctx.projectId,
+  );
+
   const save = () =>
     run(async () => {
+      // The tab is hidden from non-managers; checked again here because saving affects everyone.
+      if (!(await isManager(ctx))) throw new Error("Somente gestores (administradores de time ou listados em Gestores) podem alterar as configurações.");
       const clean = { ...s, activities: s.activities.filter((a) => a.name.trim()) };
       await saveSettings(ctx.projectId, clean);
       onSaved(clean);
@@ -61,7 +82,7 @@ export function SettingsView({ ctx, onSaved }: { ctx: Ctx; onSaved: (s: Settings
               <TableHeaderCell style={{ width: 48 }}>Cor</TableHeaderCell>
               <TableHeaderCell>Nome</TableHeaderCell>
               <TableHeaderCell>Título sugerido da task</TableHeaderCell>
-              <TableHeaderCell style={{ width: 150 }}>Activity (campo ADO)</TableHeaderCell>
+              <TableHeaderCell style={{ width: 170 }}>Activity (campo ADO)</TableHeaderCell>
               <TableHeaderCell style={{ width: 90 }}>Estimativa (h)</TableHeaderCell>
               <TableHeaderCell style={{ width: 90 }}>Padrão</TableHeaderCell>
               <TableHeaderCell style={{ width: 44 }} />
@@ -80,7 +101,7 @@ export function SettingsView({ ctx, onSaved }: { ctx: Ctx; onSaved: (s: Settings
                   <Input size="small" value={a.defaultTitle} onChange={(_, d) => setActivity(i, { defaultTitle: d.value })} style={{ width: "100%" }} />
                 </TableCell>
                 <TableCell>
-                  <Input size="small" value={a.witActivity ?? ""} placeholder="Development" onChange={(_, d) => setActivity(i, { witActivity: d.value || undefined })} style={{ width: "100%" }} />
+                  <Picker size="small" ariaLabel="Activity (campo ADO)" options={witActivities} value={a.witActivity ?? ""} allowEmpty emptyText="(não preencher)" onChange={(v) => setActivity(i, { witActivity: v || undefined })} />
                 </TableCell>
                 <TableCell>
                   <Input size="small" type="number" min={0} step={0.5} value={String(a.defaultEstimate)} onChange={(_, d) => setActivity(i, { defaultEstimate: Number(d.value) || 0 })} style={{ width: 70 }} />
@@ -95,26 +116,22 @@ export function SettingsView({ ctx, onSaved }: { ctx: Ctx; onSaved: (s: Settings
             ))}
           </TableBody>
         </Table>
-        <Caption1 className={st.muted}>"Padrão" = criada pelo botão "Criar tasks padrão". "Activity" preenche Microsoft.VSTS.Common.Activity quando o valor existe no processo.</Caption1>
+        <Caption1 className={st.muted}>"Padrão" = criada pelo botão "Criar tasks padrão". "Activity" preenche Microsoft.VSTS.Common.Activity das tasks criadas (valores do processo para {s.taskType}).</Caption1>
       </Section>
 
       <Section title="Tipos e apontamento">
         <div className={st.grid}>
-          <ListField
-            label="Gestores (e-mails)"
-            value={s.managers}
-            onChange={(v) => set({ managers: v })}
-            hint="Além dos administradores de time: veem Time agora, timesheet/calendário de todos e as Configurações"
-          />
-          <ListField label="Tipos pai (US/Bug…)" value={s.parentTypes} onChange={(v) => set({ parentTypes: v })} hint="Separados por vírgula" />
+          <Field label="Gestores" hint="Além dos administradores de time: veem Time agora, timesheet/calendário de todos e as Configurações">
+            <MultiPicker ariaLabel="Gestores" options={people} values={s.managers} keyOf={lower} onChange={(v) => set({ managers: v.map(lower) })} placeholder="Só os administradores de time" />
+          </Field>
+          <Field label="Tipos pai (US/Bug…)">
+            <MultiPicker ariaLabel="Tipos pai" options={types} values={s.parentTypes} onChange={(v) => set({ parentTypes: v })} />
+          </Field>
           <Field label="Tipo de task">
-            <Input value={s.taskType} onChange={(_, d) => set({ taskType: d.value })} />
+            <Picker ariaLabel="Tipo de task" options={types} value={s.taskType} onChange={(v) => set({ taskType: v })} />
           </Field>
           <Field label="Bloquear edição após (dias)">
             <Input type="number" min={0} value={String(s.lockDays)} onChange={(_, d) => set({ lockDays: Number(d.value) || 0 })} />
-          </Field>
-          <Field label="Meta diária (horas)">
-            <Input type="number" min={0} step={0.5} value={String(s.dailyTargetHours)} onChange={(_, d) => set({ dailyTargetHours: Number(d.value) || 0 })} />
           </Field>
           <Switch label="Prefixar título da task com a atividade" checked={s.titleWithActivityPrefix} onChange={(_, d) => set({ titleWithActivityPrefix: d.checked })} />
           <Switch label="Registrar cada apontamento na discussão da task" checked={s.postComment} onChange={(_, d) => set({ postComment: d.checked })} />
@@ -125,17 +142,25 @@ export function SettingsView({ ctx, onSaved }: { ctx: Ctx; onSaved: (s: Settings
       <Section title="Estados">
         <div className={st.grid}>
           <Field label="Estado ao iniciar trabalho">
-            <Input value={s.states.active} onChange={(_, d) => setStates({ active: d.value })} />
+            <Picker ariaLabel="Estado ao iniciar trabalho" options={taskStates} value={s.states.active} onChange={(v) => setStates({ active: v })} />
           </Field>
           <Field label="Estado ao concluir">
-            <Input value={s.states.closed} onChange={(_, d) => setStates({ closed: d.value })} />
+            <Picker ariaLabel="Estado ao concluir" options={taskStates} value={s.states.closed} onChange={(v) => setStates({ closed: v })} />
           </Field>
-          <ListField label="Ativar automaticamente quando estiver em" value={s.states.autoActivateFrom} onChange={(v) => setStates({ autoActivateFrom: v })} />
-          <ListField label="Estados fechados" value={s.states.closedStates} onChange={(v) => setStates({ closedStates: v })} />
-          <ListField label="Estados oferecidos ao pausar" value={s.states.pauseStates} onChange={(v) => setStates({ pauseStates: v })} />
-          <ListField label="US/Bug: ativar quando estiver em" value={s.states.parentAutoActivateFrom} onChange={(v) => setStates({ parentAutoActivateFrom: v })} />
+          <Field label="Ativar automaticamente quando estiver em">
+            <MultiPicker ariaLabel="Ativar automaticamente quando estiver em" options={taskStates} values={s.states.autoActivateFrom} onChange={(v) => setStates({ autoActivateFrom: v })} />
+          </Field>
+          <Field label="Estados fechados">
+            <MultiPicker ariaLabel="Estados fechados" options={taskStates} values={s.states.closedStates} onChange={(v) => setStates({ closedStates: v })} />
+          </Field>
+          <Field label="Estados oferecidos ao pausar">
+            <MultiPicker ariaLabel="Estados oferecidos ao pausar" options={taskStates} values={s.states.pauseStates} onChange={(v) => setStates({ pauseStates: v })} />
+          </Field>
+          <Field label="US/Bug: ativar quando estiver em" hint="Estados dos tipos pai selecionados">
+            <MultiPicker ariaLabel="US/Bug: ativar quando estiver em" options={parentStates} values={s.states.parentAutoActivateFrom} onChange={(v) => setStates({ parentAutoActivateFrom: v })} />
+          </Field>
           <Field label="US/Bug: estado ativo">
-            <Input value={s.states.parentActive} onChange={(_, d) => setStates({ parentActive: d.value })} />
+            <Picker ariaLabel="US/Bug: estado ativo" options={parentStates} value={s.states.parentActive} onChange={(v) => setStates({ parentActive: v })} />
           </Field>
           <Field label="Apontar em task fechada">
             <RadioGroup value={s.states.closedPolicy} onChange={(_, d) => setStates({ closedPolicy: d.value as StateSettings["closedPolicy"] })}>
@@ -145,6 +170,8 @@ export function SettingsView({ ctx, onSaved }: { ctx: Ctx; onSaved: (s: Settings
           </Field>
         </div>
       </Section>
+
+      <ChatSection ctx={ctx} value={s.chat} onChange={(chat) => set({ chat })} />
 
       <ErrorBar error={error} />
       {saved && (

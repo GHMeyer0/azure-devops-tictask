@@ -82,6 +82,13 @@ describe("settings helpers", () => {
     expect(s.states.closed).toBe("Closed");
     expect(s.activities.length).toBeGreaterThan(0);
   });
+
+  it("drops the old daily target from stored settings", () => {
+    const s = mergeSettings({ lockDays: 3, dailyTargetHours: 8 } as never);
+    expect(s.lockDays).toBe(3);
+    expect("dailyTargetHours" in s).toBe(false);
+    expect("dailyTargetHours" in DEFAULT_SETTINGS).toBe(false);
+  });
 });
 
 describe("buildSheet", () => {

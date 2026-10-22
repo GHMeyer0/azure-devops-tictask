@@ -38,7 +38,6 @@ const useStyles = makeStyles({
   level0: { fontWeight: tokens.fontWeightSemibold, backgroundColor: tokens.colorNeutralBackground2 },
   total: { fontWeight: tokens.fontWeightSemibold, backgroundColor: tokens.colorNeutralBackground3 },
   weekend: { color: tokens.colorNeutralForeground4 },
-  under: { color: tokens.colorPaletteRedForeground1 },
   scroll: { overflowX: "auto" },
   muted: { color: tokens.colorNeutralForeground3 },
 });
@@ -97,8 +96,6 @@ export function TimesheetView({ ctx, manager }: { ctx: Ctx; manager: boolean }) 
 
   const days = useMemo(() => dayRange(from, to), [from, to]);
   const sheet = useMemo(() => buildSheet(visible, days, mode), [visible, days, mode]);
-  const target = ctx.settings.dailyTargetHours * 60;
-  const singleUser = scope.kind === "me" || !manager;
 
   const shift = (n: number) => {
     setFrom(addDays(from, n));
@@ -190,7 +187,7 @@ export function TimesheetView({ ctx, manager }: { ctx: Ctx; manager: boolean }) 
                 <TableRow key={r.key} className={r.level === 0 ? st.level0 : undefined}>
                   <TableCell style={{ paddingLeft: 8 + r.level * 20 }}>{r.workItemId ? <WorkItemLink id={r.workItemId} title={r.label.replace(/^#\d+\s*/, "")} /> : <Text weight={r.level === 0 ? "semibold" : "regular"}>{r.label}</Text>}</TableCell>
                   {r.perDay.map((m, i) => (
-                    <TableCell key={i} className={mergeClasses(st.num, r.level === 0 && mode === "user" && !isWeekend(days[i]) && days[i] <= today && m < target && st.under)}>
+                    <TableCell key={i} className={st.num}>
                       {m ? formatMinutes(m) : ""}
                     </TableCell>
                   ))}
@@ -202,7 +199,7 @@ export function TimesheetView({ ctx, manager }: { ctx: Ctx; manager: boolean }) 
               <TableRow className={st.total}>
                 <TableCell>Total</TableCell>
                 {sheet.dayTotals.map((m, i) => (
-                  <TableCell key={i} className={mergeClasses(st.num, singleUser && !isWeekend(days[i]) && days[i] <= today && m < target && st.under)}>
+                  <TableCell key={i} className={st.num}>
                     {m ? formatMinutes(m) : ""}
                   </TableCell>
                 ))}
@@ -210,7 +207,6 @@ export function TimesheetView({ ctx, manager }: { ctx: Ctx; manager: boolean }) 
               </TableRow>
             </TableBody>
           </Table>
-          {singleUser && <Caption1 className={st.muted}>Dias úteis abaixo da meta de {ctx.settings.dailyTargetHours}h ficam em vermelho.</Caption1>}
         </div>
       )}
 

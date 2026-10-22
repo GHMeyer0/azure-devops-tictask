@@ -12,11 +12,20 @@ interface DialogConfig {
   dialog?: { close: (result?: unknown) => void };
 }
 
+/** Fixed dialog widths (px); the content is fluid and must fit them without horizontal scroll. */
+const DIALOG_WIDTH = 560;
+const DIALOG_WIDTH_WIDE = 640;
+
+function dialogWidth(request: DialogRequest): number {
+  // The log dialog without a task shows the task picker, whose rows are long.
+  return request.kind === "log" && request.task === null ? DIALOG_WIDTH_WIDE : DIALOG_WIDTH;
+}
+
 function DialogPage() {
-  useAutoResize();
   const config = SDK.getConfiguration() as DialogConfig;
-  const close = (result?: unknown) => config.dialog?.close(result);
   const request = config.request;
+  useAutoResize(dialogWidth(request));
+  const close = (result?: unknown) => config.dialog?.close(result);
   switch (request.kind) {
     case "log":
       return <LogDialog request={request} onDone={close} />;

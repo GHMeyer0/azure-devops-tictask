@@ -5,6 +5,7 @@ import type { NewTaskInput, StartRequest, StartResult } from "../common/dialogs"
 import { buildTaskTitle, findActivity, guessActivity } from "../common/domain/settings";
 import { isClosedState } from "../common/domain/state";
 import { formatHours, minutesToHours } from "../common/domain/time";
+import { isAssignedTo } from "../common/domain/tree";
 import type { TaskInfo } from "../common/domain/types";
 import { StateBadge } from "../common/ui/components";
 import { DialogShell } from "./DialogShell";
@@ -15,15 +16,12 @@ const useStyles = makeStyles({
   newTask: { display: "flex", flexDirection: "column", gap: "10px", padding: "8px 12px", marginLeft: "28px", minWidth: 0, borderLeft: `2px solid ${tokens.colorBrandStroke1}` },
   row: { display: "flex", gap: "12px", alignItems: "flex-end", flexWrap: "wrap" },
   muted: { color: tokens.colorNeutralForeground3 },
-  label: { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" },
+  label: { display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap", minWidth: 0 },
 });
 
 const NEW = "new";
 
-const isMine = (t: TaskInfo, req: StartRequest) => {
-  const a = t.assignedTo;
-  return !!a && (a.id === req.me.id || a.email.toLowerCase() === req.me.email.toLowerCase());
-};
+const isMine = (t: TaskInfo, req: StartRequest) => isAssignedTo(t, req.me);
 
 /** "O que você vai fazer?" — pick one of my tasks under the US/Bug, or create a new one from a description. */
 export function StartDialog({ request, onDone }: { request: StartRequest; onDone: (r?: StartResult) => void }) {
@@ -122,7 +120,7 @@ export function StartDialog({ request, onDone }: { request: StartRequest; onDone
       {selected === NEW && (
         <div className={st.newTask}>
           <div className={st.row}>
-            <div style={{ flexGrow: 1, minWidth: 180 }}>
+            <div style={{ flex: "1 1 180px", minWidth: 0 }}>
               <ActivityField settings={settings} value={activity} onChange={changeActivity} />
             </div>
             <div style={{ width: 120 }}>

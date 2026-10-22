@@ -156,20 +156,56 @@ export async function createTask(projectName: string, t: NewTask): Promise<TaskI
   return fromWorkItem(wi);
 }
 
-const allowedCache = new Map<string, Promise<string[]>>();
+// Process metadata (types, states, picklists) rarely changes: one request per key per page load.
+// Failures resolve to [] and are not cached, so a later call retries.
+const metaCache = new Map<string, Promise<string[]>>();
+
+function cachedList(key: string, load: () => Promise<string[]>): Promise<string[]> {
+  let p = metaCache.get(key);
+  if (!p) {
+    p = Promise.resolve()
+      .then(load)
+      .catch(() => {
+        metaCache.delete(key);
+        return [];
+      });
+    metaCache.set(key, p);
+  }
+  return p;
+}
 
 /** Allowed values of Microsoft.VSTS.Common.Activity (empty when the process has no picklist). */
 export function allowedActivities(projectName: string, taskType: string): Promise<string[]> {
-  const key = `${projectName}/${taskType}`;
-  let p = allowedCache.get(key);
-  if (!p) {
-    p = witClient()
+  return cachedList(`activity/${projectName}/${taskType}`, () =>
+    witClient()
       .getWorkItemTypeFieldWithReferences(projectName, taskType, F.activity, WorkItemTypeFieldsExpandLevel.AllowedValues)
-      .then((f) => (f.allowedValues ?? []).map(String))
-      .catch(() => []);
-    allowedCache.set(key, p);
-  }
-  return p;
+      .then((f) => (f.allowedValues ?? []).map(String)),
+  );
+}
+
+/** Enabled work item types of the project (names, sorted). */
+export function workItemTypes(projectName: string): Promise<string[]> {
+  return cachedList(`types/${projectName}`, () =>
+    witClient()
+      .getWorkItemTypes(projectName)
+      .then((types) => types.filter((t) => !t.isDisabled).map((t) => t.name).sort((a, b) => a.localeCompare(b, "pt-BR"))),
+  );
+}
+
+/** States of a work item type, in the process order. */
+export function workItemTypeStates(projectName: string, type: string): Promise<string[]> {
+  if (!type.trim()) return Promise.resolve([]);
+  return cachedList(`states/${projectName}/${type}`, () =>
+    witClient()
+      .getWorkItemTypeStates(projectName, type)
+      .then((states) => states.map((s) => s.name)),
+  );
+}
+
+/** Union of the states of several types (e.g. the parent types US/Bug/TS), first-seen order. */
+export async function statesOfTypes(projectName: string, types: string[]): Promise<string[]> {
+  const lists = await Promise.all(types.map((t) => workItemTypeStates(projectName, t)));
+  return [...new Set(lists.flat())];
 }
 
 /** Tasks for the picker: open tasks assigned to me, or matching an id / title text. */
