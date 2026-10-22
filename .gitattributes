@@ -1,0 +1,5 @@
+# LF everywhere, regardless of core.autocrlf on the machine.
+* text=auto eol=lf
+
+*.png binary
+*.vsix binary
