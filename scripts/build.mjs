@@ -12,6 +12,7 @@ const pages = {
   hub: "TicTask",
   dialog: "TicTask",
   panel: "TicTask",
+  mytime: "Meu tempo",
 };
 
 const html = (page, title) => `<!DOCTYPE html>

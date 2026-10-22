@@ -1,6 +1,7 @@
 import { emit } from "../events";
 import { getDataManager } from "../sdk";
 import type { ActiveTimer } from "../domain/types";
+import { publishPresence, removePresence } from "./presenceRepo";
 
 // One running timer per user, stored in the user's private scope. It only holds timestamps,
 // so it keeps counting with the browser closed.
@@ -20,12 +21,15 @@ export async function saveTimer(timer: ActiveTimer): Promise<ActiveTimer> {
   const dm = await getDataManager();
   const { __etag: _ignored, ...doc } = timer;
   const saved = (await dm.setDocument(COLLECTION, doc, USER_SCOPE)) as ActiveTimer;
+  // The team view is a convenience: failing to publish it must not break the timer.
+  await publishPresence(saved).catch((e) => console.warn("presence", e));
   emit({ type: "timer" });
   return saved;
 }
 
-export async function clearTimer(): Promise<void> {
+export async function clearTimer(projectId: string): Promise<void> {
   const dm = await getDataManager();
   await dm.deleteDocument(COLLECTION, "active", USER_SCOPE).catch(() => undefined);
+  await removePresence(projectId).catch(() => undefined);
   emit({ type: "timer" });
 }

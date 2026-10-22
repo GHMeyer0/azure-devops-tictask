@@ -70,6 +70,21 @@ describe("dialogs render", () => {
   });
 });
 
+describe("team view render", () => {
+  it("says when the team view is disabled", async () => {
+    const { TeamNow } = await import("../src/common/ui/TeamNow");
+    const ctx = { projectId: "p", projectName: "Tiino", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings: { ...settings, teamPresence: false }, writer: { apply: async () => ({}) as never } };
+    expect(html(<TeamNow ctx={ctx} />)).toContain("desativada");
+  });
+});
+
+describe("Meu tempo render", () => {
+  it("renders the loading state outside ADO", async () => {
+    const { MyTimeView } = await import("../src/hub/MyTimeView");
+    expect(html(<MyTimeView />)).toContain("Carregando");
+  });
+});
+
 describe("hub sections render", () => {
   it("export/import section", () => {
     const ctx = { projectId: "p", projectName: "Tiino", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings, writer: { apply: async () => ({}) as never } };

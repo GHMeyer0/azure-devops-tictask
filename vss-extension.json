@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "tictask",
   "publisher": "ghmeyer0",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "name": "TicTask - Apontamento de Horas",
   "description": "Apontamento de horas em Tasks e User Stories com timer (iniciar/pausar/parar), Remaining automático, timesheet semanal e calendário.",
   "public": false,
@@ -36,6 +36,18 @@
       "properties": {
         "name": "Apontamentos",
         "uri": "dist/tab.html"
+      }
+    },
+    {
+      "id": "my-time-hub",
+      "type": "ms.vss-web.hub",
+      "description": "Meu tempo: timer, horas de hoje e da semana, tasks paradas e sem apontamento recente.",
+      "targets": ["ms.vss-work-web.work-hub-group"],
+      "properties": {
+        "name": "Meu tempo",
+        "uri": "dist/mytime.html",
+        "iconName": "Timer",
+        "order": 99
       }
     },
     {

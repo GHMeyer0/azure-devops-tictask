@@ -100,6 +100,12 @@ export function SettingsView({ ctx, onSaved }: { ctx: Ctx; onSaved: (s: Settings
 
       <Section title="Tipos e apontamento">
         <div className={st.grid}>
+          <ListField
+            label="Gestores (e-mails)"
+            value={s.managers}
+            onChange={(v) => set({ managers: v })}
+            hint="Além dos administradores de time: veem Time agora, timesheet/calendário de todos e as Configurações"
+          />
           <ListField label="Tipos pai (US/Bug…)" value={s.parentTypes} onChange={(v) => set({ parentTypes: v })} hint="Separados por vírgula" />
           <Field label="Tipo de task">
             <Input value={s.taskType} onChange={(_, d) => set({ taskType: d.value })} />
@@ -112,6 +118,7 @@ export function SettingsView({ ctx, onSaved }: { ctx: Ctx; onSaved: (s: Settings
           </Field>
           <Switch label="Prefixar título da task com a atividade" checked={s.titleWithActivityPrefix} onChange={(_, d) => set({ titleWithActivityPrefix: d.checked })} />
           <Switch label="Registrar cada apontamento na discussão da task" checked={s.postComment} onChange={(_, d) => set({ postComment: d.checked })} />
+          <Switch label='Mostrar aos gestores quem está com timer rodando ("Time agora")' checked={s.teamPresence} onChange={(_, d) => set({ teamPresence: d.checked })} />
         </div>
       </Section>
 

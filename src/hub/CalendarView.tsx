@@ -43,7 +43,7 @@ const useStyles = makeStyles({
 });
 
 /** Week calendar (like the 7pace calendar): select a range to log, drag/resize to edit, duplicate. */
-export function CalendarView({ ctx }: { ctx: Ctx }) {
+export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
   const st = useStyles();
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   const [entries, setEntries] = useState<TimeEntry[] | null>(null);
@@ -157,15 +157,17 @@ export function CalendarView({ ctx }: { ctx: Ctx }) {
   return (
     <div>
       <div className={st.toolbar}>
-        <Field label="Calendário de">
-          <Dropdown value={users.find(([id]) => id === userId)?.[1] ?? ""} selectedOptions={[userId]} onOptionSelect={(_, d) => d.optionValue && (setUserId(d.optionValue), setSelectedId(null))}>
-            {users.map(([id, name]) => (
-              <Option key={id} value={id}>
-                {name}
-              </Option>
-            ))}
-          </Dropdown>
-        </Field>
+        {manager && (
+          <Field label="Calendário de">
+            <Dropdown value={users.find(([id]) => id === userId)?.[1] ?? ""} selectedOptions={[userId]} onOptionSelect={(_, d) => d.optionValue && (setUserId(d.optionValue), setSelectedId(null))}>
+              {users.map(([id, name]) => (
+                <Option key={id} value={id}>
+                  {name}
+                </Option>
+              ))}
+            </Dropdown>
+          </Field>
+        )}
         <Text>
           Total no período: <b>{formatMinutes(weekTotal)}</b>
         </Text>

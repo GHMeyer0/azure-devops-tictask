@@ -51,7 +51,8 @@ const MODES: { value: GroupMode; label: string }[] = [
 
 type Scope = { kind: "me" } | { kind: "all" } | { kind: "team"; teamId: string };
 
-export function TimesheetView({ ctx }: { ctx: Ctx }) {
+/** Non-managers only see their own hours (`manager` gates the "Quem" selector). */
+export function TimesheetView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
   const st = useStyles();
   const today = toLocalDate(new Date());
   const [from, setFrom] = useState(weekStart(today));
@@ -67,8 +68,8 @@ export function TimesheetView({ ctx }: { ctx: Ctx }) {
   const { busy, error, run } = useRunner();
 
   useEffect(() => {
-    coreClient().getTeams(ctx.projectId).then(setTeams).catch(() => setTeams([]));
-  }, [ctx.projectId]);
+    if (manager) coreClient().getTeams(ctx.projectId).then(setTeams).catch(() => setTeams([]));
+  }, [ctx.projectId, manager]);
 
   useEffect(() => {
     if (scope.kind !== "team") return setMembers(null);
@@ -89,15 +90,15 @@ export function TimesheetView({ ctx }: { ctx: Ctx }) {
 
   const visible = useMemo(() => {
     if (!entries) return [];
-    if (scope.kind === "me") return entries.filter((e) => e.userId === ctx.user.id);
+    if (scope.kind === "me" || !manager) return entries.filter((e) => e.userId === ctx.user.id);
     if (scope.kind === "team") return members ? entries.filter((e) => members.has(e.userId)) : [];
     return entries;
-  }, [entries, scope, members, ctx.user.id]);
+  }, [entries, scope, members, ctx.user.id, manager]);
 
   const days = useMemo(() => dayRange(from, to), [from, to]);
   const sheet = useMemo(() => buildSheet(visible, days, mode), [visible, days, mode]);
   const target = ctx.settings.dailyTargetHours * 60;
-  const singleUser = scope.kind === "me";
+  const singleUser = scope.kind === "me" || !manager;
 
   const shift = (n: number) => {
     setFrom(addDays(from, n));
@@ -118,6 +119,7 @@ export function TimesheetView({ ctx }: { ctx: Ctx }) {
         <Field label="Até">
           <Input type="date" value={to} onChange={(_, d) => d.value && d.value >= from && setTo(d.value)} />
         </Field>
+        {manager && (
         <Field label="Quem">
           <Dropdown
             value={scopeLabel}
@@ -136,6 +138,7 @@ export function TimesheetView({ ctx }: { ctx: Ctx }) {
             ))}
           </Dropdown>
         </Field>
+        )}
         <Field label="Agrupar por">
           <Dropdown value={MODES.find((m) => m.value === mode)!.label} selectedOptions={[mode]} onOptionSelect={(_, d) => setMode(d.optionValue as GroupMode)}>
             {MODES.map((m) => (

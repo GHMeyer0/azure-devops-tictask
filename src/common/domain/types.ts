@@ -122,7 +122,26 @@ export interface Settings {
   dailyTargetHours: number;
   /** Also writes a line in the work item discussion for each entry. */
   postComment: boolean;
+  /** Shares each user's timer status (running/paused, which task) with managers ("Time agora"). */
+  teamPresence: boolean;
+  /** Extra managers (e-mails) besides team administrators: see the team views and edit settings. */
+  managers: string[];
   states: StateSettings;
+}
+
+/** Public copy of a user's timer, readable by the whole project (team view). */
+export interface Presence {
+  id: string; // user id
+  projectId: string;
+  userName: string;
+  userEmail: string;
+  status: "running" | "paused";
+  workItem: WorkItemRef;
+  activity: string;
+  segments: TimerSegment[];
+  pausedState?: string;
+  pausedReason?: string;
+  updatedAt: string;
 }
 
 export interface UserInfo {

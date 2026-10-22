@@ -187,6 +187,16 @@ export async function searchTasks(projectName: string, taskType: string, closedS
   return ids.length ? getWorkItems(ids).then((list) => ids.map((id) => list.find((t) => t.id === id)!).filter(Boolean)) : [];
 }
 
+/** My tasks currently in one of `states` (e.g. Stopped/Waiting, or Active). */
+export async function myTasksInStates(projectName: string, taskType: string, states: string[]): Promise<TaskInfo[]> {
+  if (!states.length) return [];
+  const esc = (s: string) => s.replace(/'/g, "''");
+  const query = `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.WorkItemType] = '${esc(taskType)}' AND [System.AssignedTo] = @Me AND [System.State] IN (${states.map((s) => `'${esc(s)}'`).join(",")}) ORDER BY [System.ChangedDate] DESC`;
+  const result = await witClient().queryByWiql({ query }, projectName, undefined, false, 50);
+  const ids = result.workItems.map((w) => w.id);
+  return ids.length ? getWorkItems(ids) : [];
+}
+
 /** Titles of the given ids (used for parent titles). */
 export async function titlesOf(ids: number[]): Promise<Map<number, string>> {
   if (!ids.length) return new Map();

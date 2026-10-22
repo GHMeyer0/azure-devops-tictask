@@ -1,12 +1,13 @@
 import { emit } from "./events";
 import { getSettings } from "./data/settingsRepo";
 import { listByWorkItem, newEntryId, saveEntry } from "./data/entriesRepo";
+import { listPresence } from "./data/presenceRepo";
 import { clearTimer, getTimer, saveTimer } from "./data/timerRepo";
 import { openDialog, type LogDraft, type LogResult, type NewTaskInput } from "./dialogs";
 import { applyCreate, applyDelete, applyEdit } from "./domain/remaining";
 import { buildTaskTitle, findActivity, guessActivity } from "./domain/settings";
 import { decideParentStart, decideStart, isClosedState } from "./domain/state";
-import { combineLocal, daysBetween, formatMinutes, minutesToHours, toLocalDate, toLocalTime } from "./domain/time";
+import { combineLocal, daysBetween, formatMinutes, minutesToHours, segmentsMinutes, toLocalDate, toLocalTime } from "./domain/time";
 import type { ActiveTimer, Settings, TaskInfo, TimeEntry, UserInfo, WorkItemSnapshot } from "./domain/types";
 import { confirmDialog, getProject, getUser, messageDialog } from "./sdk";
 import { createTask, getChildren, getWorkItem, titlesOf, type FieldChanges } from "./wit/witService";
@@ -80,24 +81,42 @@ async function withParentTitle(task: TaskInfo): Promise<{ parentId?: number; par
 // ---------------------------------------------------------------- timer
 
 /**
- * Starts the timer on a task. If another timer is running, the user chooses to stop it first
- * (which opens the log dialog for it). Returns the new timer, or null when cancelled.
+ * Checked before any timer starts (and before the "O que você vai fazer?" dialog, so nothing is
+ * created for nothing): the user's own timer elsewhere must be stopped first, and the user is told
+ * when a teammate already has a timer on the same task. Returns false when the user gives up.
  */
+export async function ensureCanStart(ctx: Ctx, targetId?: number): Promise<boolean> {
+  const existing = await getTimer();
+  if (existing && existing.workItem.id !== targetId) {
+    const elapsed = formatMinutes(segmentsMinutes(existing.segments));
+    const state = existing.status === "running" ? "rodando" : "pausado";
+    const ok = await confirmDialog(
+      `Você já tem um timer ${state} em #${existing.workItem.id} ${existing.workItem.title} (${elapsed}, ${existing.activity}). ` +
+        "Só pode haver um timer por vez: para iniciar outro, o atual será parado e você aponta esse tempo antes.",
+      "Já existe um timer",
+      "Parar e apontar o atual",
+      "Manter o atual",
+    );
+    if (!ok) return false;
+    if (!(await stopTimer(ctx, existing))) return false;
+  }
+  if (targetId && ctx.settings.teamPresence) {
+    const others = (await listPresence(ctx.projectId).catch(() => [])).filter((p) => p.id !== ctx.user.id && p.workItem.id === targetId && p.status === "running");
+    if (others.length) {
+      const names = others.map((p) => `${p.userName} (desde ${toLocalTime(p.segments.at(-1)?.start ?? p.updatedAt)})`).join(", ");
+      return confirmDialog(`${names} já está com timer rodando em #${targetId}. Iniciar o seu também?`, "Timer de outra pessoa", "Iniciar mesmo assim");
+    }
+  }
+  return true;
+}
+
+/** Starts the timer on a task (after ensureCanStart). Returns the new timer, or null when cancelled. */
 export async function startTimer(ctx: Ctx, task: TaskInfo, activity?: string): Promise<ActiveTimer | null> {
   const existing = await getTimer();
   if (existing && existing.workItem.id === task.id) {
     return existing.status === "paused" ? resumeTimer(ctx, existing) : existing;
   }
-  if (existing) {
-    const ok = await confirmDialog(
-      `Já existe um timer em #${existing.workItem.id} ${existing.workItem.title}. Parar e apontar esse tempo antes de iniciar o novo?`,
-      "Timer em andamento",
-      "Parar e apontar",
-    );
-    if (!ok) return null;
-    const stopped = await stopTimer(ctx, existing);
-    if (!stopped) return null;
-  }
+  if (!(await ensureCanStart(ctx, task.id))) return null;
   if (!(await confirmStart(ctx, task))) return null;
 
   let stateAtStart = task.state;
@@ -165,11 +184,11 @@ export async function stopTimer(ctx: Ctx, timer: ActiveTimer): Promise<TimeEntry
   const result = await openDialog(`Apontar #${task.id}`, { kind: "log", mode: "create", task, draft, settings: ctx.settings, projectName: ctx.projectName, fromTimer: true });
   if (!result) {
     const discard = await confirmDialog(`Descartar o tempo do timer (${formatMinutes(minutes)})? Ele não será apontado.`, "Descartar timer", "Descartar", "Manter timer");
-    if (discard) await clearTimer();
+    if (discard) await clearTimer(timer.projectId);
     return null;
   }
   const entry = await createEntry(ctx, result, "timer", { stateAtStart: timer.stateAtStart, parentStateAtStart: timer.parentStateAtStart });
-  await clearTimer();
+  await clearTimer(timer.projectId);
   return entry;
 }
 
@@ -333,6 +352,7 @@ export async function createChildTask(ctx: Ctx, parent: TaskInfo, input: NewTask
  * description), creates what is needed and starts the timer or opens the log dialog.
  */
 export async function startOnParent(ctx: Ctx, parent: TaskInfo, purpose: "timer" | "log"): Promise<void> {
+  if (purpose === "timer" && !(await ensureCanStart(ctx))) return;
   const children = (await getChildren(parent.id)).filter((c) => isTask(ctx, c));
   const choice = await openDialog(purpose === "timer" ? `Iniciar apontamento – #${parent.id}` : `Apontar horas – #${parent.id}`, {
     kind: "start",

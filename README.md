@@ -11,7 +11,13 @@ e calendário. Sem backend: os dados ficam no *Extension Data Service* do própr
 | Tela principal do WI (aba Details) | `time-group` | ▶ Iniciar / ⏸ Pausar / ⏹ Parar / + Apontar, cronômetro e Est/Compl/Rest |
 | Aba **Apontamentos** do WI | `time-tab` | Task: lista de apontamentos (início/fim/pausas), por pessoa/atividade. US/Bug: tasks filhas com horas, alertas de inconsistência, linha do tempo |
 | Backlog e Sprint › painel lateral **TicTask** | `time-backlog-panel` | Timer em andamento, item selecionado no backlog com Iniciar/Apontar e minhas tasks abertas (o ADO não permite extensões na barra superior global) |
-| Boards › **TicTask** | `time-hub` | Timesheet semanal (eu/time/todos, CSV), Calendário, Configurações |
+| Boards › **Meu tempo** | `my-time-hub` | Timer com pausar/parar, horas de hoje/semana vs. meta, tasks paradas (Stopped/Waiting), tasks Active sem apontamento há 3+ dias e os apontamentos de hoje |
+| Boards › **TicTask** | `time-hub` | Timesheet semanal e Calendário (cada um vê só o seu). Gestores: timesheet/calendário de todos, **Time agora** (quem está com timer rodando, em qual task, há quanto tempo) e Configurações |
+
+**Gestores** = administradores de qualquer time do projeto, mais os e-mails listados em
+*Configurações › Gestores*. A checagem usa o escopo `vso.project` que a extensão já tem; o grupo
+Project Administrators exigiria `vso.security_manage`, permissão ampla demais. Essa restrição é da
+interface: tecnicamente, qualquer membro do projeto consegue ler os dados do Extension Data pela API REST.
 | Diálogos no host | `time-dialog` | Apontar, "O que você vai fazer?", tasks padrão, pausar |
 
 ### Fluxo numa US/Bug
@@ -93,6 +99,11 @@ Para esconder o grupo/aba em tipos de WI onde não fazem sentido (ex.: Epic/Feat
 - `timer/active` (escopo do usuário): timer em andamento, só timestamps — continua contando com o
   navegador fechado.
 - `settings-{projeto}`: configurações.
+- `presence-{projeto}` (compartilhado no projeto, um documento por usuário): cópia do status do timer
+  para o "Time agora" dos gestores. Desligável em Configurações.
+
+Antes de iniciar qualquer timer, a extensão verifica se o usuário já tem um rodando ou pausado (só pode
+haver um; o atual é parado e apontado antes) e avisa se outra pessoa está com timer na mesma task.
 
 Cada apontamento guarda início/fim/trechos, usuário, atividade, comentário, estado e horas da task
 antes/depois e um histórico de alterações. Exclusão é lógica (`deleted: true`), e o Completed/Remaining

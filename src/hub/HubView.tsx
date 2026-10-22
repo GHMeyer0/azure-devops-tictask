@@ -1,9 +1,11 @@
 import { Spinner, Tab, TabList, Title3, makeStyles, tokens } from "@fluentui/react-components";
-import { CalendarLtrRegular, SettingsRegular, TableRegular } from "@fluentui/react-icons";
+import { CalendarLtrRegular, PeopleRegular, SettingsRegular, TableRegular } from "@fluentui/react-icons";
 import { useEffect, useState } from "react";
 import { pauseTimer, resumeTimer, stopTimer, type Ctx } from "../common/actions";
 import { ErrorBar, TimerControls } from "../common/ui/components";
 import { useCtx, useRunner, useTimer } from "../common/ui/hooks";
+import { TeamNow } from "../common/ui/TeamNow";
+import { useIsManager } from "../common/data/roles";
 import { CalendarView } from "./CalendarView";
 import { SettingsView } from "./SettingsView";
 import { TimesheetView } from "./TimesheetView";
@@ -14,7 +16,7 @@ const useStyles = makeStyles({
   timer: { marginLeft: "auto", padding: "6px 12px", borderRadius: tokens.borderRadiusMedium, border: `1px solid ${tokens.colorNeutralStroke2}` },
 });
 
-type TabKey = "timesheet" | "calendar" | "settings";
+type TabKey = "timesheet" | "calendar" | "team" | "settings";
 
 function readTab(): TabKey {
   try {
@@ -40,23 +42,34 @@ export function HubView() {
     }
   }, [tab]);
 
+  const manager = useIsManager(ctx);
+
   if (error) return <ErrorBar error={error} />;
-  if (!ctx) return <Spinner label="Carregando…" style={{ marginTop: 48 }} />;
+  if (!ctx || manager === null) return <Spinner label="Carregando…" style={{ marginTop: 48 }} />;
+  // Team-wide tabs are for managers (team admins / Settings › Gestores) only.
+  const current: TabKey = !manager && (tab === "team" || tab === "settings") ? "timesheet" : tab;
 
   return (
     <div className={st.root}>
       <div className={st.header}>
         <Title3>TicTask</Title3>
-        <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as TabKey)}>
+        <TabList selectedValue={current} onTabSelect={(_, d) => setTab(d.value as TabKey)}>
           <Tab value="timesheet" icon={<TableRegular />}>
             Timesheet
           </Tab>
           <Tab value="calendar" icon={<CalendarLtrRegular />}>
             Calendário
           </Tab>
-          <Tab value="settings" icon={<SettingsRegular />}>
-            Configurações
-          </Tab>
+          {manager && (
+            <Tab value="team" icon={<PeopleRegular />}>
+              Time agora
+            </Tab>
+          )}
+          {manager && (
+            <Tab value="settings" icon={<SettingsRegular />}>
+              Configurações
+            </Tab>
+          )}
         </TabList>
         {timer && (
           <div className={st.timer}>
@@ -73,9 +86,14 @@ export function HubView() {
         )}
       </div>
       <ErrorBar error={runner.error} />
-      {tab === "timesheet" && <TimesheetView ctx={ctx} />}
-      {tab === "calendar" && <CalendarView ctx={ctx} />}
-      {tab === "settings" && <SettingsView ctx={ctx} onSaved={(settings) => setCtx({ ...ctx, settings })} />}
+      {current === "timesheet" && <TimesheetView ctx={ctx} manager={manager} />}
+      {current === "calendar" && <CalendarView ctx={ctx} manager={manager} />}
+      {current === "team" && (
+        <div style={{ maxWidth: 720 }}>
+          <TeamNow ctx={ctx} />
+        </div>
+      )}
+      {current === "settings" && <SettingsView ctx={ctx} onSaved={(settings) => setCtx({ ...ctx, settings })} />}
     </div>
   );
 }

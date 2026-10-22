@@ -17,6 +17,8 @@ export const DEFAULT_SETTINGS: Settings = {
   lockDays: 7,
   dailyTargetHours: 8,
   postComment: false,
+  teamPresence: true,
+  managers: [],
   states: {
     active: "Active",
     closed: "Closed",
