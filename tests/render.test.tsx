@@ -41,6 +41,12 @@ describe("dialogs render", () => {
     expect(out).toContain("Concluir task");
   });
 
+  it("log dialog shows the task picker when no task comes (null or lost on the host bridge)", () => {
+    const req = { kind: "log" as const, mode: "create" as const, draft, settings, projectName: "Tiino" };
+    expect(html(<LogDialog request={{ ...req, task: null }} onDone={() => undefined} />)).toContain("Buscar task");
+    expect(html(<LogDialog request={{ ...req, task: undefined as never }} onDone={() => undefined} />)).toContain("Buscar task");
+  });
+
   it("log dialog asks for an estimate when the task has none", () => {
     const out = html(<LogDialog request={{ kind: "log", mode: "create", task: { ...task, original: null, remaining: null }, draft, settings, projectName: "Tiino" }} onDone={() => undefined} />);
     expect(out).toContain("Estimativa da task");
@@ -96,10 +102,14 @@ describe("hub sections render", () => {
   it("settings use pickers and have no daily target", async () => {
     const { SettingsView } = await import("../src/hub/SettingsView");
     const ctx = { projectId: "p", projectName: "Tiino", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings, writer: { apply: async () => ({}) as never } };
-    const out = html(<SettingsView ctx={ctx} onSaved={() => undefined} />);
-    expect(out).toContain("Estado ao iniciar trabalho");
-    expect(out).toContain("Gestores");
-    expect(out).not.toContain("Meta diária");
+    const geral = html(<SettingsView ctx={ctx} onSaved={() => undefined} initialSection="geral" />);
+    expect(geral).toContain("Gestores adicionais");
+    expect(geral).toContain("Google Chat"); // side navigation
+    expect(geral).not.toContain("Meta diária");
+    expect(html(<SettingsView ctx={ctx} onSaved={() => undefined} initialSection="estados" />)).toContain("Estado ao iniciar trabalho");
+    const chat = html(<SettingsView ctx={ctx} onSaved={() => undefined} initialSection="chat" />);
+    expect(chat).toContain("Como funciona");
+    expect(chat).not.toContain("total do fim do dia");
   });
 
   it("pickers show saved values, also those ADO did not return", async () => {

@@ -25,6 +25,7 @@ import { consumption } from "../domain/remaining";
 import { formatClock, formatDateBr, formatHours, formatMinutes, toLocalTime } from "../domain/time";
 import type { ActiveTimer, Settings, TimeEntry, WorkItemSnapshot } from "../domain/types";
 import { SDK } from "../sdk";
+import { PageCard } from "./page";
 
 const useStyles = makeStyles({
   stats: { display: "flex", gap: "8px", flexWrap: "wrap" },
@@ -47,6 +48,8 @@ const useStyles = makeStyles({
   muted: { color: tokens.colorNeutralForeground3 },
   segments: { color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 },
   deleted: { textDecorationLine: "line-through", color: tokens.colorNeutralForeground4 },
+  // Link without href renders a <button>: truncate it here, an ellipsis on the parent can't reach it.
+  link: { display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "inherit", verticalAlign: "bottom" },
 });
 
 export async function openWorkItem(id: number): Promise<void> {
@@ -55,8 +58,9 @@ export async function openWorkItem(id: number): Promise<void> {
 }
 
 export function WorkItemLink({ id, title }: { id: number; title?: string }) {
+  const st = useStyles();
   return (
-    <Link onClick={() => openWorkItem(id)} title={title}>
+    <Link className={st.link} onClick={() => openWorkItem(id)} title={title}>
       #{id}
       {title ? ` ${title}` : ""}
     </Link>
@@ -257,16 +261,25 @@ function historyText(e: TimeEntry): string {
   return e.history.map((h) => `${new Date(h.at).toLocaleString("pt-BR")} · ${h.by} · ${h.action} ${h.detail}`).join("\n");
 }
 
-export function Section({ title, actions, children }: { title: string; actions?: React.ReactNode; children: React.ReactNode }) {
+/** Work item type of a parent (Bug / User Story / Technical Story…) as a small colored badge. */
+export function TypeBadge({ type }: { type: string }) {
+  if (!type) return null;
+  const t = type.toLowerCase();
+  const color = t.includes("bug") ? "danger" : t.includes("technical") ? "informative" : t.includes("story") || t.includes("backlog") ? "brand" : "subtle";
   return (
-    <section style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 16 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <Text weight="semibold" size={400}>
-          {title}
-        </Text>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 4 }}>{actions}</div>
-      </div>
-      {children}
-    </section>
+    <Badge appearance="tint" color={color} size="small" style={{ flexShrink: 0 }}>
+      {type}
+    </Badge>
+  );
+}
+
+/** Titled block, rendered as a Fluent card like the rest of the pages (see ui/page.tsx). */
+export function Section({ title, description, actions, children }: { title: string; description?: string; actions?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <div style={{ marginTop: 12 }}>
+      <PageCard title={title} description={description} action={actions ? <div style={{ display: "flex", gap: 4 }}>{actions}</div> : undefined}>
+        {children}
+      </PageCard>
+    </div>
   );
 }

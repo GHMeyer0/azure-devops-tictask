@@ -31,7 +31,7 @@ import { useTimerHandlers, useWorkItemForm } from "./useWorkItemForm";
 const useStyles = makeStyles({
   root: { padding: "8px 16px 24px", display: "flex", flexDirection: "column", gap: "4px" },
   row: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" },
-  cols: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "24px" },
+  cols: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: "24px" },
   muted: { color: tokens.colorNeutralForeground3 },
   timerBox: { padding: "8px 12px", borderRadius: tokens.borderRadiusMedium, border: `1px solid ${tokens.colorNeutralStroke2}` },
 });

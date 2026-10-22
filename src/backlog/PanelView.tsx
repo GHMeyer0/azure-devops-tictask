@@ -9,18 +9,30 @@ import { ErrorBar, Section, StateBadge, TimerControls, WorkItemLink } from "../c
 import { useCtx, useRunner, useTimer, useTrackerEvents } from "../common/ui/hooks";
 import { getWorkItems, searchTasks } from "../common/wit/witService";
 
-// The backlog calls workItemSelectionChanged on the object registered under the id given in the
-// manifest (registeredObjectId), so it is registered before the page reports it loaded.
+// The backlog calls workItemSelectionChanged on the object registered under the manifest's
+// registeredObjectId. The host may look it up as soon as the handshake starts, so it is registered
+// before SDK.init (registerBacklogPanelEarly) and again, after init, under the contribution ids
+// as well, since hosts differ on which id they use.
 const selectionListeners = new Set<(ids: number[]) => void>();
 let lastSelection: number[] = [];
 
+const panelObject = {
+  workItemSelectionChanged: (items: unknown[]) => {
+    lastSelection = (items ?? [])
+      .map((i) => (typeof i === "number" ? i : Number((i as { id?: number; workItemId?: number }).id ?? (i as { workItemId?: number }).workItemId)))
+      .filter((n) => Number.isFinite(n));
+    selectionListeners.forEach((fn) => fn(lastSelection));
+  },
+};
+
+export function registerBacklogPanelEarly(): void {
+  SDK.register("tictaskBacklogPanel", panelObject);
+  SDK.register("time-backlog-panel", panelObject);
+}
+
 export function registerBacklogPanel(): void {
-  SDK.register("tictaskBacklogPanel", {
-    workItemSelectionChanged: (items: unknown[]) => {
-      lastSelection = (items ?? []).map((i) => (typeof i === "number" ? i : Number((i as { id?: number }).id))).filter((n) => Number.isFinite(n));
-      selectionListeners.forEach((fn) => fn(lastSelection));
-    },
-  });
+  registerBacklogPanelEarly();
+  SDK.register(SDK.getContributionId(), panelObject);
 }
 
 function useSelection(): number[] {
@@ -59,7 +71,7 @@ export function PanelView() {
   const loadMine = useCallback(() => {
     if (!ctx) return;
     searchTasks(ctx.projectName, ctx.settings.taskType, ctx.settings.states.closedStates, "")
-      .then((list) => setMine(list.slice(0, 15)))
+      .then((list) => setMine(list.slice(0, 10)))
       .catch(() => setMine([]));
   }, [ctx]);
   useEffect(loadMine, [loadMine]);

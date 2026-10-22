@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { pauseTimer, resumeTimer, stopTimer, type Ctx } from "../common/actions";
 import { ErrorBar, TimerControls } from "../common/ui/components";
 import { useCtx, useRunner, useTimer } from "../common/ui/hooks";
+import { PageCard } from "../common/ui/page";
 import { TeamNow } from "../common/ui/TeamNow";
 import { useIsManager } from "../common/data/roles";
 import { CalendarView } from "./CalendarView";
@@ -12,9 +13,13 @@ import { SettingsView } from "./SettingsView";
 import { TimesheetView } from "./TimesheetView";
 
 const useStyles = makeStyles({
-  root: { padding: "16px 24px 32px", display: "flex", flexDirection: "column", gap: "12px", color: tokens.colorNeutralForeground1 },
-  header: { display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap" },
-  timer: { marginLeft: "auto", padding: "6px 12px", borderRadius: tokens.borderRadiusMedium, border: `1px solid ${tokens.colorNeutralStroke2}` },
+  root: { padding: "16px 24px 32px", display: "flex", flexDirection: "column", gap: "16px", minWidth: 0, color: tokens.colorNeutralForeground1, "@media (max-width: 600px)": { padding: "12px 12px 24px" } },
+  // ADO hub header: title row (actions on the right), pivot tabs right below it.
+  head: { display: "flex", flexDirection: "column", gap: "4px" },
+  titleRow: { display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap", minHeight: "36px" },
+  tabs: { marginLeft: "-10px" },
+  team: { maxWidth: "760px" },
+  timer: { marginLeft: "auto", padding: "4px 12px", borderRadius: tokens.borderRadiusMedium, border: `1px solid ${tokens.colorNeutralStroke2}` },
 });
 
 type TabKey = "mytime" | "timesheet" | "calendar" | "team" | "settings";
@@ -55,9 +60,25 @@ export function HubView() {
 
   return (
     <div className={st.root}>
-      <div className={st.header}>
-        <Title3>TicTask</Title3>
-        <TabList selectedValue={current} onTabSelect={(_, d) => setTab(d.value as TabKey)}>
+      <div className={st.head}>
+        <div className={st.titleRow}>
+          <Title3>TicTask</Title3>
+          {/* "Meu tempo" has its own timer card. */}
+          {timer && current !== "mytime" && (
+            <div className={st.timer}>
+              <TimerControls
+                timer={timer}
+                elapsedMs={elapsedMs}
+                busy={runner.busy}
+                showTarget
+                onPause={() => runner.run(() => pauseTimer(ctx, timer))}
+                onResume={() => runner.run(() => resumeTimer(ctx, timer))}
+                onStop={() => runner.run(() => stopTimer(ctx, timer))}
+              />
+            </div>
+          )}
+        </div>
+        <TabList className={st.tabs} selectedValue={current} onTabSelect={(_, d) => setTab(d.value as TabKey)}>
           <Tab value="mytime" icon={<PersonClockRegular />}>
             Meu tempo
           </Tab>
@@ -78,29 +99,15 @@ export function HubView() {
             </Tab>
           )}
         </TabList>
-        {/* "Meu tempo" has its own timer card. */}
-        {timer && current !== "mytime" && (
-          <div className={st.timer}>
-            <TimerControls
-              timer={timer}
-              elapsedMs={elapsedMs}
-              busy={runner.busy}
-              showTarget
-              onPause={() => runner.run(() => pauseTimer(ctx, timer))}
-              onResume={() => runner.run(() => resumeTimer(ctx, timer))}
-              onStop={() => runner.run(() => stopTimer(ctx, timer))}
-            />
-          </div>
-        )}
       </div>
       <ErrorBar error={runner.error} />
       {current === "mytime" && <MyTimeView />}
       {current === "timesheet" && <TimesheetView ctx={ctx} manager={manager} />}
       {current === "calendar" && <CalendarView ctx={ctx} manager={manager} />}
       {current === "team" && (
-        <div style={{ maxWidth: 720 }}>
+        <PageCard title="Quem está com timer agora" description="Atualiza sozinho a cada 30 segundos. Timer aberto há mais de 10h aparece em vermelho." className={st.team}>
           <TeamNow ctx={ctx} />
-        </div>
+        </PageCard>
       )}
       {current === "settings" && <SettingsView ctx={ctx} onSaved={(settings) => setCtx({ ...ctx, settings })} />}
     </div>

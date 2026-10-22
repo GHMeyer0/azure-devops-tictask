@@ -1,9 +1,13 @@
 import {
   Button,
-  Caption1,
   Dropdown,
-  Field,
   Input,
+  Menu,
+  MenuButton,
+  MenuItem,
+  MenuList,
+  MenuPopover,
+  MenuTrigger,
   Option,
   Spinner,
   Switch,
@@ -14,26 +18,31 @@ import {
   TableHeaderCell,
   TableRow,
   Text,
+  ToolbarDivider,
+  Tooltip,
   makeStyles,
   mergeClasses,
   tokens,
 } from "@fluentui/react-components";
-import { ArrowDownloadRegular, ChevronLeftRegular, ChevronRightRegular } from "@fluentui/react-icons";
+import { ArrowDownloadRegular, CalendarClockRegular, ChevronLeftRegular, ChevronRightRegular } from "@fluentui/react-icons";
 import type { WebApiTeam } from "azure-devops-extension-api/Core";
 import { useEffect, useMemo, useState } from "react";
 import { canEdit, deleteEntry, editEntry, type Ctx } from "../common/actions";
 import { listByRange } from "../common/data/entriesRepo";
 import { buildSheet, type GroupMode } from "../common/domain/aggregate";
 import { entriesToCsv, sheetToCsv } from "../common/domain/csv";
-import { addDays, dayRange, formatDayShort, formatMinutes, isWeekend, toLocalDate, weekStart } from "../common/domain/time";
+import { addDays, dayRange, formatDateBr, formatDayShort, formatMinutes, isWeekend, toLocalDate, weekStart } from "../common/domain/time";
 import type { TimeEntry } from "../common/domain/types";
 import { EntriesTable, ErrorBar, WorkItemLink } from "../common/ui/components";
+import { EmptyState, PageCard, Toolbar } from "../common/ui/page";
 import { errorMessage, useRunner, useTrackerEvents } from "../common/ui/hooks";
 import { coreClient } from "../common/sdk";
 import { downloadText } from "./download";
 
 const useStyles = makeStyles({
-  toolbar: { display: "flex", gap: "8px", alignItems: "flex-end", flexWrap: "wrap", marginBottom: "12px" },
+  root: { display: "flex", flexDirection: "column", gap: "16px" },
+  date: { width: "140px" },
+  picker: { minWidth: "160px" },
   num: { textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
   level0: { fontWeight: tokens.fontWeightSemibold, backgroundColor: tokens.colorNeutralBackground2 },
   total: { fontWeight: tokens.fontWeightSemibold, backgroundColor: tokens.colorNeutralBackground3 },
@@ -101,25 +110,48 @@ export function TimesheetView({ ctx, manager }: { ctx: Ctx; manager: boolean }) 
     setFrom(addDays(from, n));
     setTo(addDays(to, n));
   };
+  const singleUser = scope.kind === "me" || !manager;
   const scopeKey = scope.kind === "team" ? `team:${scope.teamId}` : scope.kind;
   const scopeLabel = scope.kind === "me" ? "Eu" : scope.kind === "all" ? "Todos" : (teams.find((t) => t.id === scope.teamId)?.name ?? "Time");
 
   return (
-    <div>
-      <div className={st.toolbar}>
-        <Button icon={<ChevronLeftRegular />} onClick={() => shift(-7)} aria-label="Semana anterior" />
-        <Button onClick={() => (setFrom(weekStart(today)), setTo(addDays(weekStart(today), 6)))}>Esta semana</Button>
-        <Button icon={<ChevronRightRegular />} onClick={() => shift(7)} aria-label="Próxima semana" />
-        <Field label="De">
-          <Input type="date" value={from} onChange={(_, d) => d.value && setFrom(d.value)} />
-        </Field>
-        <Field label="Até">
-          <Input type="date" value={to} onChange={(_, d) => d.value && d.value >= from && setTo(d.value)} />
-        </Field>
+    <div className={st.root}>
+      <Toolbar
+        end={
+          <>
+            <Switch label="Detalhado" checked={detailed} onChange={(_, d) => setDetailed(d.checked)} />
+            <Menu>
+              <MenuTrigger disableButtonEnhancement>
+                <MenuButton icon={<ArrowDownloadRegular />}>Exportar</MenuButton>
+              </MenuTrigger>
+              <MenuPopover>
+                <MenuList>
+                  <MenuItem onClick={() => run(() => downloadText(`timesheet_${from}_${to}.csv`, sheetToCsv(sheet.days, sheet.rows, sheet.dayTotals, sheet.total)))}>Resumo (CSV)</MenuItem>
+                  <MenuItem onClick={() => run(() => downloadText(`apontamentos_${from}_${to}.csv`, entriesToCsv(visible)))}>Apontamentos detalhados (CSV)</MenuItem>
+                </MenuList>
+              </MenuPopover>
+            </Menu>
+          </>
+        }
+      >
+        <Tooltip content="Semana anterior" relationship="label">
+          <Button appearance="subtle" icon={<ChevronLeftRegular />} onClick={() => shift(-7)} />
+        </Tooltip>
+        <Button appearance="subtle" onClick={() => (setFrom(weekStart(today)), setTo(addDays(weekStart(today), 6)))}>
+          Esta semana
+        </Button>
+        <Tooltip content="Próxima semana" relationship="label">
+          <Button appearance="subtle" icon={<ChevronRightRegular />} onClick={() => shift(7)} />
+        </Tooltip>
+        <Input className={st.date} type="date" aria-label="De" value={from} onChange={(_, d) => d.value && setFrom(d.value)} />
+        <span className={st.muted}>até</span>
+        <Input className={st.date} type="date" aria-label="Até" value={to} onChange={(_, d) => d.value && d.value >= from && setTo(d.value)} />
+        <ToolbarDivider />
         {manager && (
-        <Field label="Quem">
           <Dropdown
-            value={scopeLabel}
+            className={st.picker}
+            aria-label="Quem"
+            value={`Quem: ${scopeLabel}`}
             selectedOptions={[scopeKey]}
             onOptionSelect={(_, d) => {
               const v = d.optionValue ?? "me";
@@ -134,43 +166,33 @@ export function TimesheetView({ ctx, manager }: { ctx: Ctx; manager: boolean }) 
               </Option>
             ))}
           </Dropdown>
-        </Field>
         )}
-        <Field label="Agrupar por">
-          <Dropdown value={MODES.find((m) => m.value === mode)!.label} selectedOptions={[mode]} onOptionSelect={(_, d) => setMode(d.optionValue as GroupMode)}>
-            {MODES.map((m) => (
-              <Option key={m.value} value={m.value}>
-                {m.label}
-              </Option>
-            ))}
-          </Dropdown>
-        </Field>
-        <Switch label="Detalhado" checked={detailed} onChange={(_, d) => setDetailed(d.checked)} />
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <Button icon={<ArrowDownloadRegular />} onClick={() => run(() => downloadText(`timesheet_${from}_${to}.csv`, sheetToCsv(sheet.days, sheet.rows, sheet.dayTotals, sheet.total)))}>
-            Resumo CSV
-          </Button>
-          <Button icon={<ArrowDownloadRegular />} onClick={() => run(() => downloadText(`apontamentos_${from}_${to}.csv`, entriesToCsv(visible)))}>
-            Detalhado CSV
-          </Button>
-        </div>
-      </div>
+        <Dropdown className={st.picker} aria-label="Agrupar por" value={MODES.find((m) => m.value === mode)!.label} selectedOptions={[mode]} onOptionSelect={(_, d) => setMode(d.optionValue as GroupMode)}>
+          {MODES.map((m) => (
+            <Option key={m.value} value={m.value}>
+              {m.label}
+            </Option>
+          ))}
+        </Dropdown>
+      </Toolbar>
 
       <ErrorBar error={loadError ?? error} />
       {entries === null && !loadError ? (
         <Spinner label="Carregando apontamentos…" />
       ) : (
+        <PageCard title={`${formatDateBr(from)} a ${formatDateBr(to)} · ${formatMinutes(sheet.total)}`} description={singleUser ? "Seus apontamentos no período." : `Apontamentos de ${scopeLabel.toLowerCase() === "todos" ? "todo o projeto" : scopeLabel} no período.`}>
         <div className={st.scroll}>
-          <Table size="small" aria-label="Timesheet">
+          {/* Fixed minimum width: on narrow screens the grid scrolls instead of squeezing the day columns. */}
+          <Table size="small" aria-label="Timesheet" style={{ minWidth: 300 + days.length * 84 + 90 }}>
             <TableHeader>
               <TableRow>
                 <TableHeaderCell style={{ minWidth: 280 }}>{MODES.find((m) => m.value === mode)!.label}</TableHeaderCell>
                 {days.map((d) => (
-                  <TableHeaderCell key={d} className={mergeClasses(st.num, isWeekend(d) && st.weekend)} style={{ width: 72 }}>
+                  <TableHeaderCell key={d} className={mergeClasses(st.num, isWeekend(d) && st.weekend)} style={{ width: 84 }}>
                     {formatDayShort(d)}
                   </TableHeaderCell>
                 ))}
-                <TableHeaderCell className={st.num} style={{ width: 80 }}>
+                <TableHeaderCell className={st.num} style={{ width: 90 }}>
                   Total
                 </TableHeaderCell>
               </TableRow>
@@ -179,7 +201,7 @@ export function TimesheetView({ ctx, manager }: { ctx: Ctx; manager: boolean }) 
               {sheet.rows.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={days.length + 2}>
-                    <Caption1 className={st.muted}>Nenhum apontamento no período.</Caption1>
+                    <EmptyState icon={<CalendarClockRegular />} title="Nenhum apontamento no período" />
                   </TableCell>
                 </TableRow>
               )}
@@ -208,12 +230,13 @@ export function TimesheetView({ ctx, manager }: { ctx: Ctx; manager: boolean }) 
             </TableBody>
           </Table>
         </div>
+        </PageCard>
       )}
 
       {detailed && entries && (
-        <div style={{ marginTop: 16 }}>
+        <PageCard title={`Apontamentos (${visible.length})`} description="Cada apontamento com horário, atividade e comentário.">
           <EntriesTable entries={visible} showTask canEdit={(e) => canEdit(ctx, e)} onEdit={(e) => run(() => editEntry(ctx, e))} onDelete={(e) => run(() => deleteEntry(ctx, e))} />
-        </div>
+        </PageCard>
       )}
       {busy && <Spinner size="tiny" />}
     </div>

@@ -1,5 +1,5 @@
-import { Badge, Button, Caption1, Spinner, Text, Tooltip, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
-import { AddRegular, DeleteRegular, EditRegular, PlayRegular } from "@fluentui/react-icons";
+import { Button, Caption1, Spinner, Text, Tooltip, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
+import { AddRegular, CalendarClockRegular, CheckmarkCircleRegular, DeleteRegular, EditRegular, PlayRegular } from "@fluentui/react-icons";
 import { useCallback, useEffect, useState } from "react";
 import { canEdit, deleteEntry, editEntry, logTime, pauseTimer, resumeTimer, startTimer, stopTimer, type Ctx } from "../common/actions";
 import { listByRange } from "../common/data/entriesRepo";
@@ -7,7 +7,8 @@ import { lastEntryByWorkItem, sum } from "../common/domain/aggregate";
 import { addDays, daysBetween, formatDateBr, formatMinutes, toLocalDate, toLocalTime, weekStart } from "../common/domain/time";
 import { buildTodayTree, groupByParent, idleTasks, type ParentRef, type TodayGroup } from "../common/domain/tree";
 import type { Settings, TaskInfo, TimeEntry } from "../common/domain/types";
-import { ErrorBar, Section, StateBadge, TimerControls, WorkItemLink } from "../common/ui/components";
+import { ErrorBar, StateBadge, TimerControls, TypeBadge, WorkItemLink } from "../common/ui/components";
+import { EmptyState, PageCard } from "../common/ui/page";
 import { useCtx, useRunner, useTimer, useTrackerEvents } from "../common/ui/hooks";
 import { getChildren, getWorkItems, myTasksInStates } from "../common/wit/witService";
 
@@ -17,12 +18,13 @@ const FORGOTTEN_DAYS = 3;
 const ellipsis = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 } as const;
 
 const useStyles = makeStyles({
-  root: { display: "flex", flexDirection: "column", gap: "8px", color: tokens.colorNeutralForeground1, maxWidth: "1100px" },
-  top: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" },
-  card: { padding: "12px 16px", borderRadius: tokens.borderRadiusLarge, border: `1px solid ${tokens.colorNeutralStroke2}`, display: "flex", flexDirection: "column", gap: "8px" },
+  root: { display: "flex", flexDirection: "column", gap: "8px", color: tokens.colorNeutralForeground1, maxWidth: "1440px" },
+  // min(…, 100%): on phones a single column never wider than the screen.
+  top: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(300px, 100%), 1fr))", gap: "16px" },
   totals: { display: "flex", gap: "24px", alignItems: "baseline", flexWrap: "wrap" },
   big: { fontSize: tokens.fontSizeHero700, fontWeight: tokens.fontWeightSemibold, lineHeight: tokens.lineHeightHero700 },
-  cols: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" },
+  // Stacks below ~800px so long task titles are not cut in half on tablets.
+  cols: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(400px, 100%), 1fr))", gap: "16px" },
   muted: { color: tokens.colorNeutralForeground3 },
   // Tree: parent row, then children indented behind a guide line.
   group: { padding: "4px 0 6px", borderBottom: `1px solid ${tokens.colorNeutralStroke3}` },
@@ -124,8 +126,7 @@ export function MyTimeView() {
       <ErrorBar error={runError} />
 
       <div className={st.top}>
-        <div className={st.card}>
-          <Caption1 className={st.muted}>Timer</Caption1>
+        <PageCard title="Timer" compact>
           {timer ? (
             <>
               <TimerControls
@@ -144,10 +145,17 @@ export function MyTimeView() {
           ) : (
             <Caption1 className={st.muted}>Nenhum timer rodando. Inicie por uma task abaixo, pela tela do work item ou pelo painel do backlog.</Caption1>
           )}
-        </div>
+        </PageCard>
 
-        <div className={st.card}>
-          <Caption1 className={st.muted}>Horas</Caption1>
+        <PageCard
+          title="Horas"
+          compact
+          action={
+            <Button size="small" icon={<AddRegular />} disabled={busy} onClick={() => run(() => logTime(ctx, null))}>
+              Apontar horas
+            </Button>
+          }
+        >
           <div className={st.totals}>
             <span>
               <span className={st.big}>{formatMinutes(todayMin)}</span>
@@ -160,16 +168,11 @@ export function MyTimeView() {
               <Caption1 className={st.muted}> na semana</Caption1>
             </span>
           </div>
-          <div>
-            <Button size="small" icon={<AddRegular />} disabled={busy} onClick={() => run(() => logTime(ctx, null))}>
-              Apontar horas
-            </Button>
-          </div>
-        </div>
+        </PageCard>
       </div>
 
       <div className={st.cols}>
-        <Section title={`Paradas (${data.paused.length})`}>
+        <PageCard title={`Paradas (${data.paused.length})`} description={`Suas tasks em ${ctx.settings.states.pauseStates.join(" ou ")}.`}>
           <TaskTree
             empty={`Nenhuma task sua em ${ctx.settings.states.pauseStates.join("/")}.`}
             items={data.paused.map((t) => ({ task: t, note: <StateBadge state={t.state} settings={ctx.settings} /> }))}
@@ -178,8 +181,8 @@ export function MyTimeView() {
             runningId={timer?.workItem.id}
             onStart={start}
           />
-        </Section>
-        <Section title={`Sem apontamento recente (${data.forgotten.length})`}>
+        </PageCard>
+        <PageCard title={`Sem apontamento recente (${data.forgotten.length})`} description={`Suas tasks ${ctx.settings.states.active} sem apontamento há ${FORGOTTEN_DAYS} dias ou mais.`}>
           <TaskTree
             empty={`Todas as suas tasks ${ctx.settings.states.active} tiveram apontamento nos últimos ${FORGOTTEN_DAYS} dias.`}
             items={data.forgotten.map((f) => ({
@@ -196,10 +199,10 @@ export function MyTimeView() {
             runningId={timer?.workItem.id}
             onStart={start}
           />
-        </Section>
+        </PageCard>
       </div>
 
-      <Section title={`Hoje · ${formatMinutes(todayMin)}`}>
+      <PageCard title={`Hoje · ${formatMinutes(todayMin)}`} description="Por item pai (Bug/US/TS) → task → apontamentos. Suas outras tasks abertas do mesmo item aparecem como não apontadas.">
         <TodayTree
           groups={tree}
           settings={ctx.settings}
@@ -210,19 +213,8 @@ export function MyTimeView() {
           onDelete={(e) => run(() => deleteEntry(ctx, e))}
           onStart={start}
         />
-      </Section>
+      </PageCard>
     </div>
-  );
-}
-
-function TypeBadge({ type }: { type: string }) {
-  if (!type) return null;
-  const t = type.toLowerCase();
-  const color = t.includes("bug") ? "danger" : t.includes("technical") ? "informative" : t.includes("story") || t.includes("backlog") ? "brand" : "subtle";
-  return (
-    <Badge appearance="tint" color={color} size="small" style={{ flexShrink: 0 }}>
-      {type}
-    </Badge>
   );
 }
 
@@ -264,7 +256,7 @@ function TaskTree({ empty, items, parents, busy, runningId, onStart }: {
   onStart: (t: TaskInfo) => void;
 }) {
   const st = useStyles();
-  if (!items.length) return <Caption1 className={st.muted}>{empty}</Caption1>;
+  if (!items.length) return <EmptyState icon={<CheckmarkCircleRegular />} title="Tudo em dia">{empty}</EmptyState>;
   return (
     <div>
       {groupByParent(items, (i) => i.task.parentId, parents).map((g) => (
@@ -301,7 +293,12 @@ function TodayTree({ groups, settings, busy, runningId, canEdit, onEdit, onDelet
   onStart: (t: TaskInfo) => void;
 }) {
   const st = useStyles();
-  if (!groups.length) return <Caption1 className={st.muted}>Nenhum apontamento hoje.</Caption1>;
+  if (!groups.length)
+    return (
+      <EmptyState icon={<CalendarClockRegular />} title="Nenhum apontamento hoje">
+        Inicie o timer numa task ou use "Apontar horas".
+      </EmptyState>
+    );
   return (
     <div>
       {groups.map((g) => (

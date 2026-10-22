@@ -6,10 +6,11 @@ import { applyCreate, applyEdit, needsEstimate } from "../common/domain/remainin
 import { guessActivity } from "../common/domain/settings";
 import { isClosedState } from "../common/domain/state";
 import { addMinutesToTime, formatHours, formatMinutes, hoursToMinutes, minutesBetweenTimes, minutesToHours, toLocalTime } from "../common/domain/time";
+import { groupByParent, type ParentRef } from "../common/domain/tree";
 import type { TaskInfo } from "../common/domain/types";
-import { StateBadge } from "../common/ui/components";
+import { StateBadge, TypeBadge } from "../common/ui/components";
 import { errorMessage } from "../common/ui/hooks";
-import { searchTasks } from "../common/wit/witService";
+import { getWorkItems, searchTasks } from "../common/wit/witService";
 import { DialogShell } from "./DialogShell";
 import { ActivityField, DurationInput } from "./fields";
 
@@ -18,7 +19,10 @@ const useStyles = makeStyles({
   grow: { flexGrow: 1 },
   quick: { display: "flex", gap: "4px", flexWrap: "wrap" },
   task: { padding: "8px 12px", borderRadius: tokens.borderRadiusMedium, backgroundColor: tokens.colorNeutralBackground3, display: "flex", flexDirection: "column", gap: "4px" },
-  results: { maxHeight: "220px", overflowY: "auto", border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium, padding: "4px" },
+  results: { maxHeight: "260px", overflowY: "auto", overflowX: "hidden", border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium, padding: "4px 8px" },
+  group: { display: "flex", flexDirection: "column", padding: "4px 0", borderBottom: `1px solid ${tokens.colorNeutralStroke3}` },
+  groupHeader: { display: "flex", alignItems: "center", gap: "6px", minWidth: 0, overflow: "hidden", padding: "2px 0" },
+  groupTitle: { minWidth: 0, overflow: "hidden" },
   muted: { color: tokens.colorNeutralForeground3 },
 });
 
@@ -27,7 +31,9 @@ const QUICK = [30, 60, 120, 240];
 export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r?: LogResult) => void }) {
   const st = useStyles();
   const { settings, draft: initial } = request;
-  const [task, setTask] = useState<TaskInfo | null>(request.task);
+  // `task: null` may arrive as undefined: the dialog configuration crosses the host/iframe bridge.
+  const pickTask = !request.task;
+  const [task, setTask] = useState<TaskInfo | null>(request.task ?? null);
   const [date, setDate] = useState(initial.date);
   const [startTime, setStartTime] = useState(initial.startTime);
   const [endTime, setEndTime] = useState(initial.endTime);
@@ -88,7 +94,7 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
 
   return (
     <DialogShell okText="Salvar" okIcon={<SaveRegular />} okDisabled={problems.length > 0} onOk={submit} onCancel={() => onDone()} error={problems.length && task ? problems[0] : null}>
-      {request.task === null ? (
+      {pickTask ? (
         <TaskPicker
           request={request}
           value={task}
@@ -191,10 +197,18 @@ function TaskCard({ task, request }: { task: TaskInfo; request: LogRequest }) {
   );
 }
 
+/** Parent items (Bug / US / TS) of the given tasks: tasks named "Revisão" or "Desenvolvimento" repeat, the parent tells them apart. */
+async function parentsOf(tasks: TaskInfo[]): Promise<Map<number, ParentRef>> {
+  const ids = [...new Set(tasks.map((t) => t.parentId).filter((id): id is number => !!id))];
+  if (!ids.length) return new Map();
+  const items = await getWorkItems(ids);
+  return new Map(items.map((p) => [p.id, { id: p.id, type: p.type, title: p.title }]));
+}
+
 function TaskPicker({ request, value, onChange }: { request: LogRequest; value: TaskInfo | null; onChange: (t: TaskInfo | null) => void }) {
   const st = useStyles();
   const [text, setText] = useState("");
-  const [results, setResults] = useState<TaskInfo[]>([]);
+  const [results, setResults] = useState<{ tasks: TaskInfo[]; parents: Map<number, ParentRef> }>({ tasks: [], parents: new Map() });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -203,22 +217,52 @@ function TaskPicker({ request, value, onChange }: { request: LogRequest; value: 
       setLoading(true);
       setError(null);
       searchTasks(request.projectName, request.settings.taskType, request.settings.states.closedStates, text)
-        .then(setResults)
+        .then(async (tasks) => setResults({ tasks, parents: await parentsOf(tasks).catch(() => new Map()) }))
         .catch((e) => setError(errorMessage(e)))
         .finally(() => setLoading(false));
     }, 300);
     return () => clearTimeout(handle);
   }, [text, request]);
 
+  const groups = groupByParent(results.tasks, (t) => t.parentId, results.parents);
+
   return (
-    <Field label="Task" required hint={text ? undefined : "Suas tasks abertas. Busque por título ou #id."} validationMessage={error ?? undefined} validationState={error ? "error" : "none"}>
+    <Field label="Task" required hint={text ? undefined : "Suas tasks abertas, agrupadas pelo item pai. Busque por título ou #id."} validationMessage={error ?? undefined} validationState={error ? "error" : "none"}>
       <Input contentBefore={<SearchRegular />} value={text} onChange={(_, d) => setText(d.value)} placeholder="Buscar task…" />
       <div className={st.results}>
         {loading && <Spinner size="tiny" />}
-        {!loading && !results.length && <Caption1 className={st.muted}>Nenhuma task encontrada.</Caption1>}
-        <RadioGroup value={value ? String(value.id) : ""} onChange={(_, d) => onChange(results.find((r) => String(r.id) === d.value) ?? null)}>
-          {results.map((t) => (
-            <Radio key={t.id} value={String(t.id)} label={`#${t.id} ${t.title} · ${t.state} · ${formatHours(t.completed ?? 0)}/${formatHours(t.original)}`} />
+        {!loading && !results.tasks.length && <Caption1 className={st.muted}>Nenhuma task encontrada.</Caption1>}
+        <RadioGroup value={value ? String(value.id) : ""} onChange={(_, d) => onChange(results.tasks.find((r) => String(r.id) === d.value) ?? null)}>
+          {groups.map((g) => (
+            <div key={g.parent?.id ?? "none"} className={st.group}>
+              <div className={st.groupHeader}>
+                {g.parent ? (
+                  <>
+                    <TypeBadge type={g.parent.type} />
+                    <Text className={st.groupTitle} size={200} weight="semibold" truncate wrap={false} title={g.parent.title}>
+                      #{g.parent.id} {g.parent.title}
+                    </Text>
+                  </>
+                ) : (
+                  <Caption1 className={st.muted}>(sem item pai)</Caption1>
+                )}
+              </div>
+              {g.items.map((t) => (
+                <Radio
+                  key={t.id}
+                  value={String(t.id)}
+                  label={
+                    <span>
+                      #{t.id} {t.title}
+                      <Caption1 className={st.muted}>
+                        {" "}
+                        · {t.state} · {formatHours(t.completed ?? 0)}/{formatHours(t.original)}
+                      </Caption1>
+                    </span>
+                  }
+                />
+              ))}
+            </div>
           ))}
         </RadioGroup>
       </div>

@@ -77,7 +77,7 @@ export function GroupView() {
       <div className={st.row}>
         {!parentMode && <StateBadge state={info.state} settings={ctx.settings} />}
         <Text size={200}>
-          {parentMode && children ? `${children.length} tasks · ` : ""}Est {formatHours(fields.original)} · Compl {formatHours(fields.completed ?? 0)} · Rest {formatHours(fields.remaining)}
+          {parentMode && children ? `${children.length} ${children.length === 1 ? "task" : "tasks"} · ` : ""}Est {formatHours(fields.original)} · Compl {formatHours(fields.completed ?? 0)} · Rest {formatHours(fields.remaining)}
           {pct !== null ? ` · ${pct}%` : ""}
         </Text>
         {busy && <Spinner size="extra-tiny" />}

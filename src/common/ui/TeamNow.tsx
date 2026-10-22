@@ -5,7 +5,9 @@ import { listPresence } from "../data/presenceRepo";
 import { formatClock, segmentsMs, toLocalTime } from "../domain/time";
 import type { Presence } from "../domain/types";
 import { subscribe } from "../events";
+import { EyeOffRegular, TimerOffRegular } from "@fluentui/react-icons";
 import { WorkItemLink } from "./components";
+import { EmptyState } from "./page";
 
 /** A running timer older than this is probably forgotten. */
 const STALE_MS = 10 * 3600_000;
@@ -48,7 +50,12 @@ export function TeamNow({ ctx, compact }: { ctx: Ctx; compact?: boolean }) {
   const st = useStyles();
   const { list, nowMs } = usePresence(ctx);
 
-  if (!ctx.settings.teamPresence) return <Caption1 className={st.muted}>A visão do time está desativada nas Configurações do TicTask.</Caption1>;
+  if (!ctx.settings.teamPresence)
+    return (
+      <EmptyState icon={<EyeOffRegular />} title="Visão do time desativada">
+        Ligue em Configurações › Geral › Time agora.
+      </EmptyState>
+    );
   if (!list) return <Spinner size="tiny" />;
 
   const sorted = [...list].sort((a, b) => (a.status === b.status ? a.userName.localeCompare(b.userName, "pt-BR") : a.status === "running" ? -1 : 1));
@@ -64,7 +71,11 @@ export function TeamNow({ ctx, compact }: { ctx: Ctx; compact?: boolean }) {
           {list.length - running} pausado{list.length - running === 1 ? "" : "s"}
         </Badge>
       </div>
-      {sorted.length === 0 && <Caption1 className={st.muted}>Ninguém com timer agora.</Caption1>}
+      {sorted.length === 0 && (
+        <EmptyState icon={<TimerOffRegular />} title="Ninguém com timer agora">
+          Quem iniciar um timer aparece aqui com a task e o tempo correndo.
+        </EmptyState>
+      )}
       <div className={st.list}>
         {sorted.map((p) => {
           const ms = segmentsMs(p.segments, new Date(nowMs));
