@@ -11,14 +11,13 @@ e calendário. Sem backend: os dados ficam no *Extension Data Service* do própr
 | Tela principal do WI (aba Details) | `time-group` | ▶ Iniciar / ⏸ Pausar / ⏹ Parar / + Apontar, cronômetro e Est/Compl/Rest |
 | Aba **Apontamentos** do WI | `time-tab` | Task: lista de apontamentos (início/fim/pausas), por pessoa/atividade. US/Bug: tasks filhas com horas, alertas de inconsistência, linha do tempo |
 | Backlog e Sprint › painel lateral **TicTask** | `time-backlog-panel` | Timer em andamento, item selecionado no backlog com Iniciar/Apontar e minhas tasks abertas (o ADO não permite extensões na barra superior global) |
-| Boards › **Meu tempo** | `my-time-hub` | Timer com pausar/parar, horas de hoje/semana, tasks paradas (Stopped/Waiting), tasks Active sem apontamento há 3+ dias e os apontamentos de hoje — tudo em árvore sob o item pai (Bug/US/TS), com as minhas outras tasks abertas do pai que não foram apontadas hoje |
-| Boards › **TicTask** | `time-hub` | Timesheet semanal e Calendário (cada um vê só o seu). Gestores: timesheet/calendário de todos, **Time agora** (quem está com timer rodando, em qual task, há quanto tempo) e Configurações |
+| Boards › **TicTask** (primeiro item do menu) | `time-hub` | **Meu tempo** para todos: timer com pausar/parar, horas de hoje/semana, tasks paradas (Stopped/Waiting), tasks Active sem apontamento há 3+ dias e os apontamentos de hoje, em árvore sob o item pai (Bug/US/TS). **Timesheet** e **Calendário** para todos, cada um só com os próprios apontamentos. Gestores: timesheet/calendário de todos, **Time agora** e Configurações |
+| Diálogos no host | `time-dialog` | Apontar, "O que você vai fazer?", tasks padrão, pausar |
 
 **Gestores** = administradores de qualquer time do projeto, mais os e-mails listados em
 *Configurações › Gestores*. A checagem usa o escopo `vso.project` que a extensão já tem; o grupo
 Project Administrators exigiria `vso.security_manage`, permissão ampla demais. Essa restrição é da
 interface: tecnicamente, qualquer membro do projeto consegue ler os dados do Extension Data pela API REST.
-| Diálogos no host | `time-dialog` | Apontar, "O que você vai fazer?", tasks padrão, pausar |
 
 ### Fluxo numa US/Bug
 - **▶ Iniciar** na US abre "O que você vai fazer?": escolha uma das suas tasks abertas na US ou

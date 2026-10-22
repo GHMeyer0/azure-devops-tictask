@@ -12,19 +12,18 @@ interface DialogConfig {
   dialog?: { close: (result?: unknown) => void };
 }
 
-/** Fixed dialog widths (px); the content is fluid and must fit them without horizontal scroll. */
-const DIALOG_WIDTH = 560;
-const DIALOG_WIDTH_WIDE = 640;
-
-function dialogWidth(request: DialogRequest): number {
-  // The log dialog without a task shows the task picker, whose rows are long.
-  return request.kind === "log" && request.task === null ? DIALOG_WIDTH_WIDE : DIALOG_WIDTH;
-}
+// The host dialog has a fixed width (480px, 440px for content after padding, measured in ADO on
+// 22/10/2026) and does not grow: asking for more only adds a horizontal scrollbar outside the
+// iframe. So keep the width the host gave the iframe when it opened, measured before any resize.
+// The content is fluid and fits any width.
+const HOST_WIDTH = document.documentElement.clientWidth;
+const FALLBACK_WIDTH = 440;
+const DIALOG_WIDTH = HOST_WIDTH >= 320 ? HOST_WIDTH : FALLBACK_WIDTH;
 
 function DialogPage() {
   const config = SDK.getConfiguration() as DialogConfig;
   const request = config.request;
-  useAutoResize(dialogWidth(request));
+  useAutoResize(DIALOG_WIDTH);
   const close = (result?: unknown) => config.dialog?.close(result);
   switch (request.kind) {
     case "log":

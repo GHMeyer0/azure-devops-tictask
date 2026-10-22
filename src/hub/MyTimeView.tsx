@@ -1,4 +1,4 @@
-import { Badge, Button, Caption1, Spinner, Text, Title3, Tooltip, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
+import { Badge, Button, Caption1, Spinner, Text, Tooltip, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
 import { AddRegular, DeleteRegular, EditRegular, PlayRegular } from "@fluentui/react-icons";
 import { useCallback, useEffect, useState } from "react";
 import { canEdit, deleteEntry, editEntry, logTime, pauseTimer, resumeTimer, startTimer, stopTimer, type Ctx } from "../common/actions";
@@ -17,7 +17,7 @@ const FORGOTTEN_DAYS = 3;
 const ellipsis = { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 } as const;
 
 const useStyles = makeStyles({
-  root: { padding: "16px 24px 32px", display: "flex", flexDirection: "column", gap: "8px", color: tokens.colorNeutralForeground1, maxWidth: "1100px" },
+  root: { display: "flex", flexDirection: "column", gap: "8px", color: tokens.colorNeutralForeground1, maxWidth: "1100px" },
   top: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "16px" },
   card: { padding: "12px 16px", borderRadius: tokens.borderRadiusLarge, border: `1px solid ${tokens.colorNeutralStroke2}`, display: "flex", flexDirection: "column", gap: "8px" },
   totals: { display: "flex", gap: "24px", alignItems: "baseline", flexWrap: "wrap" },
@@ -89,7 +89,7 @@ async function loadData(ctx: Ctx): Promise<Data> {
   return { entries, paused, forgotten, parents, taskParent, idle };
 }
 
-/** Boards › "Meu tempo": the user's timer, today/week totals, paused and forgotten tasks, today's entries. */
+/** TicTask › "Meu tempo" tab: the user's timer, today/week totals, paused and forgotten tasks, today's entries. */
 export function MyTimeView() {
   const st = useStyles();
   const { ctx, error } = useCtx();
@@ -116,7 +116,6 @@ export function MyTimeView() {
 
   return (
     <div className={st.root}>
-      <Title3>Meu tempo</Title3>
       <Caption1 className={st.muted}>
         {ctx.settings.chat.remindersEnabled && ctx.settings.chat.recipients.some((e) => e.toLowerCase() === ctx.user.email.toLowerCase())
           ? `Você recebe lembretes no Google Chat quando fica 1h sem apontamento (${ctx.settings.chat.workStart}–${ctx.settings.chat.workEnd}, almoço ${ctx.settings.chat.lunchStart}–${ctx.settings.chat.lunchEnd}).`

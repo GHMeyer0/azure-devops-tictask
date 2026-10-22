@@ -1,5 +1,5 @@
 import { Spinner, Tab, TabList, Title3, makeStyles, tokens } from "@fluentui/react-components";
-import { CalendarLtrRegular, PeopleRegular, SettingsRegular, TableRegular } from "@fluentui/react-icons";
+import { CalendarLtrRegular, PeopleRegular, PersonClockRegular, SettingsRegular, TableRegular } from "@fluentui/react-icons";
 import { useEffect, useState } from "react";
 import { pauseTimer, resumeTimer, stopTimer, type Ctx } from "../common/actions";
 import { ErrorBar, TimerControls } from "../common/ui/components";
@@ -7,6 +7,7 @@ import { useCtx, useRunner, useTimer } from "../common/ui/hooks";
 import { TeamNow } from "../common/ui/TeamNow";
 import { useIsManager } from "../common/data/roles";
 import { CalendarView } from "./CalendarView";
+import { MyTimeView } from "./MyTimeView";
 import { SettingsView } from "./SettingsView";
 import { TimesheetView } from "./TimesheetView";
 
@@ -16,16 +17,20 @@ const useStyles = makeStyles({
   timer: { marginLeft: "auto", padding: "6px 12px", borderRadius: tokens.borderRadiusMedium, border: `1px solid ${tokens.colorNeutralStroke2}` },
 });
 
-type TabKey = "timesheet" | "calendar" | "team" | "settings";
+type TabKey = "mytime" | "timesheet" | "calendar" | "team" | "settings";
 
 function readTab(): TabKey {
   try {
-    return (localStorage.getItem("tt-hub-tab") as TabKey) || "timesheet";
+    return (localStorage.getItem("tt-hub-tab") as TabKey) || "mytime";
   } catch {
-    return "timesheet";
+    return "mytime";
   }
 }
 
+/**
+ * Boards › TicTask. Everyone gets "Meu tempo", Timesheet and Calendário with their own hours only;
+ * managers (team admins / Settings › Gestores) also see everyone's hours, "Time agora" and settings.
+ */
 export function HubView() {
   const st = useStyles();
   const { ctx: loaded, error } = useCtx();
@@ -46,14 +51,16 @@ export function HubView() {
 
   if (error) return <ErrorBar error={error} />;
   if (!ctx || manager === null) return <Spinner label="Carregando…" style={{ marginTop: 48 }} />;
-  // Team-wide tabs are for managers (team admins / Settings › Gestores) only.
-  const current: TabKey = !manager && (tab === "team" || tab === "settings") ? "timesheet" : tab;
+  const current: TabKey = !manager && (tab === "team" || tab === "settings") ? "mytime" : tab;
 
   return (
     <div className={st.root}>
       <div className={st.header}>
         <Title3>TicTask</Title3>
         <TabList selectedValue={current} onTabSelect={(_, d) => setTab(d.value as TabKey)}>
+          <Tab value="mytime" icon={<PersonClockRegular />}>
+            Meu tempo
+          </Tab>
           <Tab value="timesheet" icon={<TableRegular />}>
             Timesheet
           </Tab>
@@ -71,7 +78,8 @@ export function HubView() {
             </Tab>
           )}
         </TabList>
-        {timer && (
+        {/* "Meu tempo" has its own timer card. */}
+        {timer && current !== "mytime" && (
           <div className={st.timer}>
             <TimerControls
               timer={timer}
@@ -86,6 +94,7 @@ export function HubView() {
         )}
       </div>
       <ErrorBar error={runner.error} />
+      {current === "mytime" && <MyTimeView />}
       {current === "timesheet" && <TimesheetView ctx={ctx} manager={manager} />}
       {current === "calendar" && <CalendarView ctx={ctx} manager={manager} />}
       {current === "team" && (
