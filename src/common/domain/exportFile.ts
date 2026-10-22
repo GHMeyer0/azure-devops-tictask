@@ -3,7 +3,7 @@ import type { Settings, TimeEntry, UserInfo } from "./types";
 // File used to move data between extensions (e.g. from an internal publisher to a personal one):
 // Extension Data is scoped per extension, so a new publisher.extension starts empty.
 
-export const EXPORT_FORMAT = "time-tracker-export";
+export const EXPORT_FORMAT = "tictask-export";
 export const EXPORT_VERSION = 1;
 
 export interface ExportFile {
@@ -73,7 +73,7 @@ export function parseExport(text: string): { ok: true; file: ExportFile } | { ok
   } catch {
     return { ok: false, error: "O arquivo não é um JSON válido." };
   }
-  if (data?.format !== EXPORT_FORMAT) return { ok: false, error: "Este arquivo não é uma exportação do TimeTracker." };
+  if (data?.format !== EXPORT_FORMAT) return { ok: false, error: "Este arquivo não é uma exportação do TicTask." };
   if (typeof data.version !== "number" || data.version > EXPORT_VERSION) return { ok: false, error: `Versão de exportação ${data.version} não suportada; atualize a extensão.` };
   if (!Array.isArray(data.entries)) return { ok: false, error: "Exportação sem a lista de apontamentos." };
   for (let i = 0; i < data.entries.length; i++) {

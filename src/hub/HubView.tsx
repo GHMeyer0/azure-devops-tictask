@@ -46,7 +46,7 @@ export function HubView() {
   return (
     <div className={st.root}>
       <div className={st.header}>
-        <Title3>Apontamentos</Title3>
+        <Title3>TicTask</Title3>
         <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as TabKey)}>
           <Tab value="timesheet" icon={<TableRegular />}>
             Timesheet

@@ -43,7 +43,7 @@ export function MigrationSection({ ctx, onSettingsImported }: { ctx: Ctx; onSett
       setExported(null);
       const data = await exportProject(ctx, (done, total) => setProgress(`Lendo meses ${done}/${total}…`));
       setProgress(null);
-      const how = await downloadText(`time-tracker_${ctx.projectName}_${toLocalDate(new Date())}.json`, JSON.stringify(data, null, 2), "application/json");
+      const how = await downloadText(`tictask_${ctx.projectName}_${toLocalDate(new Date())}.json`, JSON.stringify(data, null, 2), "application/json");
       setExported(`${describe(summarize(data.entries))}. ${how === "downloaded" ? "Arquivo baixado." : "O download foi bloqueado: o JSON foi copiado para a área de transferência."}`);
     });
 

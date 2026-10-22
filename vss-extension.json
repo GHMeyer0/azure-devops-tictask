@@ -1,9 +1,9 @@
 {
   "manifestVersion": 1,
-  "id": "time-tracker",
+  "id": "tictask",
   "publisher": "ghmeyer0",
   "version": "0.2.0",
-  "name": "TimeTracker - Apontamento de horas",
+  "name": "TicTask - Apontamento de Horas",
   "description": "Apontamento de horas em Tasks e User Stories com timer (iniciar/pausar/parar), Remaining automático, timesheet semanal e calendário.",
   "public": false,
   "categories": ["Azure Boards"],
@@ -23,7 +23,7 @@
       "description": "Botões de iniciar/pausar/parar e apontar na tela principal do work item.",
       "targets": ["ms.vss-work-web.work-item-form"],
       "properties": {
-        "name": "Apontamento de horas",
+        "name": "TicTask",
         "uri": "dist/group.html",
         "height": 120
       }
@@ -44,7 +44,7 @@
       "description": "Timesheet, calendário e configurações de apontamento.",
       "targets": ["ms.vss-work-web.work-hub-group"],
       "properties": {
-        "name": "Apontamentos",
+        "name": "TicTask",
         "uri": "dist/hub.html",
         "iconName": "Clock",
         "order": 100

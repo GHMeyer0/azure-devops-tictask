@@ -52,7 +52,7 @@ export function coreClient(): CoreRestClient {
   return getClient(CoreRestClient);
 }
 
-/** "publisher.extension" of the running extension (e.g. tiino.time-tracker). */
+/** "publisher.extension" of the running extension (e.g. ghmeyer0.tictask). */
 export function extensionFullId(): string {
   const ext = SDK.getExtensionContext();
   return `${ext.publisherId}.${ext.extensionId}`;

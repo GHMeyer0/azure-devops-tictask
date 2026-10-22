@@ -1,4 +1,4 @@
-# TimeTracker – extensão Azure DevOps para apontamento de horas
+# TicTask – extensão Azure DevOps para apontamento de horas
 
 Apontamento de horas direto nas Tasks e User Stories/Bugs, com timer (iniciar/pausar/parar),
 **Remaining calculado automaticamente**, estado da task acompanhando o trabalho, timesheet semanal
@@ -10,7 +10,7 @@ e calendário. Sem backend: os dados ficam no *Extension Data Service* do própr
 |---|---|---|
 | Tela principal do WI (aba Details) | `time-group` | ▶ Iniciar / ⏸ Pausar / ⏹ Parar / + Apontar, cronômetro e Est/Compl/Rest |
 | Aba **Apontamentos** do WI | `time-tab` | Task: lista de apontamentos (início/fim/pausas), por pessoa/atividade. US/Bug: tasks filhas com horas, alertas de inconsistência, linha do tempo |
-| Boards › **Apontamentos** | `time-hub` | Timesheet semanal (eu/time/todos, CSV), Calendário, Configurações |
+| Boards › **TicTask** | `time-hub` | Timesheet semanal (eu/time/todos, CSV), Calendário, Configurações |
 | Diálogos no host | `time-dialog` | Apontar, "O que você vai fazer?", tasks padrão, pausar |
 
 ### Fluxo numa US/Bug
@@ -22,7 +22,7 @@ e calendário. Sem backend: os dados ficam no *Extension Data Service* do própr
 - **⏹ Parar** abre o apontamento já preenchido com início, fim e pausas; o Remaining vem calculado
   (editável) e há a opção "Concluir task".
 
-### Regras de horas e estado (configuráveis em Boards › Apontamentos › Configurações)
+### Regras de horas e estado (configuráveis em Boards › TicTask › Configurações)
 - Apontar: `Completed += horas`, `Remaining = max(0, Remaining − horas)`; task sem estimativa pede a
   estimativa no 1º apontamento. Editar aplica a diferença; excluir devolve as horas ao Remaining.
 - Iniciar trabalho: task New/Stopped/Waiting → Active; US em New/Ready for Development → Active.
@@ -37,8 +37,8 @@ npm install
 npm test            # vitest: regras de horas, datas, estado, timesheet, CSV e render dos diálogos
 npm run typecheck   # tsc (TypeScript 7)
 npm run build       # esbuild → dist/<página>.html + .js
-npm run package     # gera out/<publisher>.time-tracker-<versão>.vsix
-npm run package:dev # mesma extensão com id time-tracker-dev (para testar sem afetar a oficial)
+npm run package     # gera out/ghmeyer0.tictask-<versão>.vsix
+npm run package:dev # mesma extensão com id tictask-dev (para testar sem afetar a oficial)
 ```
 
 Stack: React 19, Fluent UI v9, `azure-devops-extension-sdk` 4.2 (a API 5.279 ainda não aceita o
@@ -70,7 +70,7 @@ src/pages           entradas de cada contribuição
 A identidade da extensão é `publisher.id`: outro publisher é outra extensão, e o Extension Data
 Service separa os dados por extensão — a nova começa vazia. Para levar os apontamentos:
 
-1. Na extensão atual: termine o timer em andamento e use *Boards › Apontamentos › Configurações ›
+1. Na extensão atual: termine o timer em andamento e use *Boards › TicTask › Configurações ›
    Exportar dados do projeto* (um JSON por projeto, com apontamentos excluídos e configurações).
 2. Troque `"publisher"` no manifesto, empacote (`npm run package`), publique e instale a nova extensão.
 3. Na nova: *Configurações › Escolher arquivo de exportação › Importar*. Os ids são mantidos
@@ -83,7 +83,7 @@ A exportação lê os meses de jan/2024 até 12 meses à frente (`EXPORT_FIRST_M
 
 Para esconder o grupo/aba em tipos de WI onde não fazem sentido (ex.: Epic/Feature):
 *Organization settings › Process › (processo) › tipo de WI › Layout* → ocultar o grupo
-"Apontamento de horas" e a página "Apontamentos".
+"TicTask" e a página "Apontamentos".
 
 ## Dados e auditoria
 

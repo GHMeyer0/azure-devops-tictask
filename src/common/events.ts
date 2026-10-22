@@ -3,7 +3,7 @@
 
 export type TrackerEvent = { type: "timer" } | { type: "entries"; workItemIds: number[] } | { type: "workitems"; workItemIds: number[] };
 
-const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("time-tracker") : undefined;
+const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("tictask") : undefined;
 const local = new Set<(e: TrackerEvent) => void>();
 
 export function emit(event: TrackerEvent): void {

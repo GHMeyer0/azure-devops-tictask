@@ -7,10 +7,10 @@ const dev = args.has("--dev");
 const watch = args.has("--watch");
 
 const pages = {
-  group: "Apontamento",
-  tab: "Apontamentos",
-  hub: "Apontamentos",
-  dialog: "Apontamento",
+  group: "TicTask",
+  tab: "TicTask - Apontamentos",
+  hub: "TicTask",
+  dialog: "TicTask",
 };
 
 const html = (page, title) => `<!DOCTYPE html>
