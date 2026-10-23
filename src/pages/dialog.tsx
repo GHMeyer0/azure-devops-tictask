@@ -1,3 +1,4 @@
+import { demoActive, demoScan } from "../common/demo";
 import type { DialogRequest } from "../common/dialogs";
 import { SDK } from "../common/sdk";
 import { renderPage } from "../common/ui/root";
@@ -23,6 +24,8 @@ const DIALOG_WIDTH = HOST_WIDTH >= 320 ? HOST_WIDTH : FALLBACK_WIDTH;
 function DialogPage() {
   const config = SDK.getConfiguration() as DialogConfig;
   const request = config.request;
+  // The request comes from the opener, not from an API call the demo mode already sees.
+  if (demoActive()) demoScan(request);
   useAutoResize(DIALOG_WIDTH);
   const close = (result?: unknown) => config.dialog?.close(result);
   switch (request.kind) {

@@ -1,5 +1,6 @@
 import { WorkItemExpand, WorkItemTypeFieldsExpandLevel, type WorkItem } from "azure-devops-extension-api/WorkItemTracking";
 import type { JsonPatchOperation } from "azure-devops-extension-api/WebApi";
+import { demoActive, demoScan } from "../demo";
 import { witClient } from "../sdk";
 import type { TaskInfo } from "../domain/types";
 
@@ -46,6 +47,8 @@ export function parseIdentity(v: unknown): TaskInfo["assignedTo"] {
 }
 
 export function toTaskInfo(fields: Record<string, unknown>, id: number): TaskInfo {
+  // The form service (open work item) is not a REST client, so the demo mode sees it here.
+  if (demoActive()) demoScan(fields);
   return {
     id,
     title: String(fields[F.title] ?? ""),

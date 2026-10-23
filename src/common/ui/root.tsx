@@ -1,7 +1,18 @@
 import { FluentProvider, webDarkTheme, webLightTheme, type Theme } from "@fluentui/react-components";
 import { useEffect, useState, type ComponentType } from "react";
 import { createRoot } from "react-dom/client";
-import { initSdk, SDK } from "../sdk";
+import { demoKeep, startDemo } from "../demo";
+import { DEFAULT_ACTIVITIES } from "../domain/settings";
+import { hostNavigation, initSdk, SDK } from "../sdk";
+
+/** Documentation screenshots: `tictask-demo=1` in the page URL swaps real data for fictitious data on screen. */
+async function checkDemo(): Promise<void> {
+  const timeout = new Promise<Record<string, string>>((resolve) => setTimeout(() => resolve({}), 1500));
+  const params = await Promise.race([hostNavigation().then((n) => n.getQueryParams()), timeout]);
+  if (params["tictask-demo"] !== "1") return;
+  demoKeep(DEFAULT_ACTIVITIES.flatMap((a) => [a.name, a.defaultTitle]));
+  startDemo();
+}
 
 /** Parses "rgba(1, 2, 3, 1)", "rgb(...)", "#rrggbb" or a bare "1, 2, 3" triplet. */
 function parseColor(value: string): [number, number, number] | null {
@@ -46,6 +57,7 @@ function ThemeRoot({ children }: { children: React.ReactNode }) {
 export async function renderPage(App: ComponentType, beforeRender?: () => void): Promise<void> {
   try {
     await initSdk();
+    await checkDemo().catch(() => undefined);
     beforeRender?.();
     createRoot(document.getElementById("root")!).render(
       <ThemeRoot>

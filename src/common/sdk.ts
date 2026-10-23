@@ -2,6 +2,7 @@ import * as SDK from "azure-devops-extension-sdk";
 import { getClient, type IExtensionDataManager, type IExtensionDataService, type IHostNavigationService, type IHostPageLayoutService, type IProjectPageService } from "azure-devops-extension-api";
 import { CoreRestClient } from "azure-devops-extension-api/Core";
 import { WorkItemTrackingRestClient } from "azure-devops-extension-api/WorkItemTracking";
+import { demoActive, demoProject, demoScan } from "./demo";
 import type { UserInfo } from "./domain/types";
 
 // CommonServiceIds is an ambient const enum (not usable with isolatedModules), so its values are copied here.
@@ -23,7 +24,24 @@ export async function initSdk(): Promise<void> {
 
 export function getUser(): UserInfo {
   const u = SDK.getUser();
-  return { id: u.id, displayName: u.displayName, email: u.name };
+  const user = { id: u.id, displayName: u.displayName, email: u.name };
+  demoScan(user);
+  return user;
+}
+
+/** Every async method result also feeds the demo mode (names and titles to hide on screen). */
+function scanned<T extends object>(target: T): T {
+  if (!demoActive()) return target;
+  return new Proxy(target, {
+    get(t, prop) {
+      const v = Reflect.get(t, prop, t);
+      if (typeof v !== "function") return v;
+      return (...args: unknown[]) => {
+        const r = v.apply(t, args);
+        return r instanceof Promise ? r.then((x) => (demoScan(x), x)) : r;
+      };
+    },
+  });
 }
 
 export function getProject(): Promise<{ id: string; name: string }> {
@@ -31,6 +49,7 @@ export function getProject(): Promise<{ id: string; name: string }> {
     .then((s) => s.getProject())
     .then((p) => {
       if (!p) throw new Error("Projeto não encontrado no contexto da página.");
+      demoProject(p.name);
       return { id: p.id, name: p.name };
     });
   return project;
@@ -39,17 +58,17 @@ export function getProject(): Promise<{ id: string; name: string }> {
 export function getDataManager(): Promise<IExtensionDataManager> {
   dataManager ??= (async () => {
     const [service, token] = await Promise.all([SDK.getService<IExtensionDataService>(CommonServiceIds.ExtensionDataService), SDK.getAccessToken()]);
-    return service.getExtensionDataManager(SDK.getExtensionContext().id, token);
+    return scanned(await service.getExtensionDataManager(SDK.getExtensionContext().id, token));
   })();
   return dataManager;
 }
 
 export function witClient(): WorkItemTrackingRestClient {
-  return getClient(WorkItemTrackingRestClient);
+  return scanned(getClient(WorkItemTrackingRestClient));
 }
 
 export function coreClient(): CoreRestClient {
-  return getClient(CoreRestClient);
+  return scanned(getClient(CoreRestClient));
 }
 
 /** "publisher.extension" of the running extension (e.g. ghmeyer0.tictask). */

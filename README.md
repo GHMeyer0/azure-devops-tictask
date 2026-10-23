@@ -36,6 +36,8 @@ interface: tecnicamente, qualquer membro do projeto consegue ler os dados do Ext
 - Task fechada: pede confirmação e reabre (ou bloqueia, conforme configuração).
 - Tudo vai num único patch → uma revisão no histórico do work item (quem/quando).
 
+Guia de uso com prints: [docs/como-usar.md](docs/como-usar.md).
+
 ## Desenvolvimento
 
 ```bash
@@ -90,6 +92,14 @@ A exportação lê os meses de jan/2024 até 12 meses à frente (`EXPORT_FIRST_M
 Para esconder o grupo/aba em tipos de WI onde não fazem sentido (ex.: Epic/Feature):
 *Organization settings › Process › (processo) › tipo de WI › Layout* → ocultar o grupo
 "TicTask" e a página "Apontamentos".
+
+## Prints para a documentação (modo demonstração)
+
+Com `?tictask-demo=1` na URL da página do ADO (hub, work item ou backlog), a extensão troca na tela
+títulos, nomes, e-mails, comentários e o nome do projeto por dados fictícios (`src/common/demo.ts`).
+Só o que aparece muda: leitura e gravação continuam com os dados reais. Títulos de task com uma ou
+duas palavras e os nomes das atividades não são trocados. A parte da página que é do próprio ADO
+(organização, avatar, campos do work item) fica fora do iframe e precisa ser trocada à parte antes do print.
 
 ## Dados e auditoria
 
