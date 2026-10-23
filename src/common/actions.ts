@@ -1,16 +1,17 @@
 import { emit } from "./events";
 import { getSettings } from "./data/settingsRepo";
-import { listByWorkItem, newEntryId, saveEntry } from "./data/entriesRepo";
+import { listByRange, listByWorkItem, newEntryId, saveEntry } from "./data/entriesRepo";
 import { listPresence } from "./data/presenceRepo";
 import { clearTimer, getTimer, saveTimer } from "./data/timerRepo";
 import { openDialog, type LogDraft, type LogResult, type NewTaskInput } from "./dialogs";
+import { lastPause, pauseToLog, type Pause } from "./domain/pause";
 import { applyCreate, applyDelete, applyEdit } from "./domain/remaining";
 import { buildTaskTitle, findActivity, guessActivity } from "./domain/settings";
 import { decideParentStart, decideStart, isClosedState } from "./domain/state";
-import { combineLocal, daysBetween, formatMinutes, minutesToHours, segmentsMinutes, toLocalDate, toLocalTime } from "./domain/time";
+import { addMinutesToTime, combineLocal, daysBetween, formatMinutes, minutesBetweenTimes, minutesToHours, segmentsMinutes, toLocalDate, toLocalTime } from "./domain/time";
 import type { ActiveTimer, Settings, TaskInfo, TimeEntry, UserInfo, WorkItemSnapshot } from "./domain/types";
 import { confirmDialog, getProject, getUser, messageDialog } from "./sdk";
-import { createTask, getChildren, getWorkItem, titlesOf, type FieldChanges } from "./wit/witService";
+import { createTask, getChildren, getWorkItem, titlesOf, workItemTypeStates, type FieldChanges } from "./wit/witService";
 import { restWriter, type WorkItemWriter } from "./wit/writer";
 
 /** Everything a view needs to act on behalf of the current user. */
@@ -92,13 +93,14 @@ export async function ensureCanStart(ctx: Ctx, targetId?: number): Promise<boole
     const state = existing.status === "running" ? "rodando" : "pausado";
     const ok = await confirmDialog(
       `Você já tem um timer ${state} em #${existing.workItem.id} ${existing.workItem.title} (${elapsed}, ${existing.activity}). ` +
-        "Só pode haver um timer por vez: para iniciar outro, o atual será parado e você aponta esse tempo antes.",
+        "Só pode haver um timer por vez: para iniciar outro, o atual será parado e você aponta esse tempo antes " +
+        "(dá para deixar a task parada, para retomar depois pela lista Paradas).",
       "Já existe um timer",
       "Parar e apontar o atual",
       "Manter o atual",
     );
     if (!ok) return false;
-    if (!(await stopTimer(ctx, existing))) return false;
+    if (!(await stopTimer(ctx, existing, { switching: true }))) return false;
   }
   if (targetId && ctx.settings.teamPresence) {
     const others = (await listPresence(ctx.projectId).catch(() => [])).filter((p) => p.id !== ctx.user.id && p.workItem.id === targetId && p.status === "running");
@@ -144,9 +146,37 @@ export async function startTimer(ctx: Ctx, task: TaskInfo, activity?: string): P
   return timer;
 }
 
-export async function pauseTimer(ctx: Ctx, timer: ActiveTimer): Promise<ActiveTimer | null> {
+/**
+ * The timer as stored now, when it is still the one this screen shows. The timer is saved without
+ * a version check, so a screen left open (another tab, another computer) must not overwrite a
+ * timer that was paused, resumed or stopped elsewhere: it refreshes and tells the user instead.
+ */
+async function currentTimer(timer: ActiveTimer): Promise<ActiveTimer | null> {
+  const current = await getTimer();
+  const same =
+    !!current &&
+    current.workItem.id === timer.workItem.id &&
+    current.status === timer.status &&
+    current.segments.length === timer.segments.length &&
+    current.segments[0]?.start === timer.segments[0]?.start;
+  if (same) return current;
+  emit({ type: "timer", timer: current });
+  await messageDialog("O timer foi alterado em outra tela (pausado, retomado ou parado). Esta tela foi atualizada: confira e tente de novo.", "Timer atualizado");
+  return null;
+}
+
+/** Configured pause states that the task type really has (a process may not have "Waiting"). */
+async function pauseStatesFor(ctx: Ctx, type: string): Promise<string[]> {
+  const existing = await workItemTypeStates(ctx.projectName, type).catch((): string[] => []);
+  return existing.length ? ctx.settings.states.pauseStates.filter((s) => existing.includes(s)) : ctx.settings.states.pauseStates;
+}
+
+export async function pauseTimer(ctx: Ctx, shown: ActiveTimer): Promise<ActiveTimer | null> {
+  const timer = await currentTimer(shown);
+  if (!timer) return null;
   const task = await getWorkItem(timer.workItem.id);
-  const choice = await openDialog("Pausar timer", { kind: "pause", task: { id: task.id, title: task.title, state: task.state }, settings: ctx.settings });
+  const states = await pauseStatesFor(ctx, task.type);
+  const choice = await openDialog("Pausar timer", { kind: "pause", task: { id: task.id, title: task.title, state: task.state }, settings: ctx.settings, states });
   if (!choice) return null;
   const at = now();
   const segments = timer.segments.map((s) => (s.end ? s : { ...s, end: at }));
@@ -157,17 +187,49 @@ export async function pauseTimer(ctx: Ctx, timer: ActiveTimer): Promise<ActiveTi
   return saveTimer({ ...timer, status: "paused", segments, pauses: [...(timer.pauses ?? []), { at, state: choice.state, reason: choice.reason }] });
 }
 
-export async function resumeTimer(ctx: Ctx, timer: ActiveTimer): Promise<ActiveTimer> {
+export async function resumeTimer(ctx: Ctx, shown: ActiveTimer): Promise<ActiveTimer | null> {
+  const timer = await currentTimer(shown);
+  if (!timer) return null;
+  const pause = await pendingPause(ctx, timer);
   const paused = timer.pauses?.at(-1)?.state;
   if (paused) {
     await ctx.writer.apply(timer.workItem.id, (current) => (current.state === paused ? { state: ctx.settings.states.active } : null));
     emit({ type: "workitems", workItemIds: [timer.workItem.id] });
   }
-  return saveTimer({ ...timer, status: "running", segments: [...timer.segments, { start: now() }] });
+  const resumed = await saveTimer({ ...timer, status: "running", segments: [...timer.segments, { start: now() }] });
+  if (pause) {
+    const log = await confirmDialog(
+      `Você ficou ${formatMinutes(pause.minutes)} pausado (${toLocalTime(pause.start)}–${toLocalTime(pause.end)}). Quer apontar esse tempo em outra task, como uma ajuda a um colega ou uma reunião? ` +
+        'Para criar uma task na US de outra pessoa, use "Apontar" na US: o horário da pausa já vem preenchido.',
+      "Apontar a pausa?",
+      "Escolher a task",
+      "Agora não",
+    );
+    if (log) await logTime(ctx, null, pauseDraft(pause), "manual", pauseNote(pause));
+  }
+  return resumed;
 }
 
-/** Stops the timer and opens the log dialog pre-filled with its segments. Returns the entry or null. */
-export async function stopTimer(ctx: Ctx, timer: ActiveTimer): Promise<TimeEntry | null> {
+/** The timer's last pause, when it is worth logging on another item (see domain/pause). */
+async function pendingPause(ctx: Ctx, timer: ActiveTimer | null): Promise<Pause | null> {
+  const pause = lastPause(timer, now());
+  if (!pause) return null;
+  const date = toLocalDate(pause.start);
+  const entries = await listByRange(ctx.projectId, date, date, ctx.user.id).catch(() => []);
+  return pauseToLog(pause, entries, { start: ctx.settings.chat.lunchStart, end: ctx.settings.chat.lunchEnd });
+}
+
+const pauseDraft = (p: Pause): Partial<LogDraft> => ({ date: toLocalDate(p.start), startTime: toLocalTime(p.start), endTime: toLocalTime(p.end), minutes: p.minutes });
+const pauseNote = (p: Pause) => `Horário preenchido com a pausa do seu timer (${toLocalTime(p.start)}–${toLocalTime(p.end)}).`;
+
+/**
+ * Stops the timer and opens the log dialog pre-filled with its segments. Returns the entry or null.
+ * `switching`: stopped to start another timer, so the dialog offers to leave the task paused
+ * (e.g. Stopped) instead of active: it then shows under "Paradas" to be picked up later.
+ */
+export async function stopTimer(ctx: Ctx, shown: ActiveTimer, options?: { switching?: boolean }): Promise<TimeEntry | null> {
+  const timer = await currentTimer(shown);
+  if (!timer) return null;
   const at = now();
   const segments = timer.segments.map((s) => ({ start: s.start, end: s.end ?? at }));
   const minutes = Math.max(1, Math.round(segments.reduce((sum, s) => sum + (Date.parse(s.end) - Date.parse(s.start)), 0) / 60_000));
@@ -181,7 +243,8 @@ export async function stopTimer(ctx: Ctx, timer: ActiveTimer): Promise<TimeEntry
     activity: timer.activity,
     comment: timer.comment,
   };
-  const result = await openDialog(`Apontar #${task.id}`, { kind: "log", mode: "create", task, draft, settings: ctx.settings, projectName: ctx.projectName, fromTimer: true });
+  const offerState = options?.switching ? (await pauseStatesFor(ctx, task.type))[0] : undefined;
+  const result = await openDialog(`Apontar #${task.id}`, { kind: "log", mode: "create", task, draft, settings: ctx.settings, projectName: ctx.projectName, fromTimer: true, offerState });
   if (!result) {
     const discard = await confirmDialog(`Descartar o tempo do timer (${formatMinutes(minutes)})? Ele não será apontado.`, "Descartar timer", "Descartar", "Manter timer");
     if (discard) await clearTimer(timer.projectId);
@@ -194,9 +257,21 @@ export async function stopTimer(ctx: Ctx, timer: ActiveTimer): Promise<TimeEntry
 
 // ---------------------------------------------------------------- entries
 
-/** Opens the log dialog for a task (manual entry). */
-export async function logTime(ctx: Ctx, task: TaskInfo | null, preset?: Partial<LogDraft>, source: TimeEntry["source"] = "manual"): Promise<TimeEntry | null> {
+/**
+ * Opens the log dialog for a task (manual entry). Without preset times, a pause of the user's
+ * timer that was not logged yet fills them: logging help given to a teammate during the pause.
+ */
+export async function logTime(ctx: Ctx, task: TaskInfo | null, preset?: Partial<LogDraft>, source: TimeEntry["source"] = "manual", note?: string): Promise<TimeEntry | null> {
   if (task && !(await confirmStart(ctx, task))) return null;
+  if (!preset?.startTime) {
+    const timer = await getTimer().catch(() => null);
+    // On the timer's own task the pause is not work to log there.
+    const pause = task && task.id === timer?.workItem.id ? null : await pendingPause(ctx, timer);
+    if (pause) {
+      preset = { ...preset, ...pauseDraft(pause) };
+      note = pauseNote(pause);
+    }
+  }
   const end = new Date();
   const start = new Date(end.getTime() - 60 * 60_000);
   const draft: LogDraft = {
@@ -209,7 +284,7 @@ export async function logTime(ctx: Ctx, task: TaskInfo | null, preset?: Partial<
     comment: "",
     ...preset,
   };
-  const result = await openDialog(task ? `Apontar #${task.id}` : "Apontar horas", { kind: "log", mode: "create", task, draft, settings: ctx.settings, projectName: ctx.projectName });
+  const result = await openDialog(task ? `Apontar #${task.id}` : "Apontar horas", { kind: "log", mode: "create", task, draft, settings: ctx.settings, projectName: ctx.projectName, note });
   if (!result) return null;
   if (!task && !(await confirmStart(ctx, result.task))) return null;
   return createEntry(ctx, result, source);
@@ -222,7 +297,7 @@ export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["sou
     const upd = applyCreate(current, hours, r.estimate);
     const changes: FieldChanges = { completed: upd.completed, remaining: r.remaining ?? upd.remaining };
     if (upd.original !== undefined) changes.original = upd.original;
-    const to = r.closeTask ? ctx.settings.states.closed : startStateChange(ctx, current);
+    const to = r.closeTask ? ctx.settings.states.closed : (r.leaveState ?? startStateChange(ctx, current));
     if (to && to !== current.state) changes.state = to;
     if (ctx.settings.postComment) changes.history = `⏱ ${formatMinutes(r.draft.minutes)} · ${r.draft.activity} · ${r.draft.date} ${r.draft.startTime}–${r.draft.endTime}${r.draft.comment ? ` · ${r.draft.comment}` : ""}`;
     return changes;
@@ -266,10 +341,15 @@ export function canEdit(ctx: Ctx, entry: TimeEntry, today = toLocalDate(new Date
 }
 
 export function draftOf(entry: TimeEntry): LogDraft {
+  const startTime = toLocalTime(entry.start);
+  let endTime = toLocalTime(entry.end);
+  // A timer stopped within the same minute keeps start and end on the same HH:mm (the duration is
+  // rounded up to 1 minute): show the end from the duration, or the dialog reports "fim antes do início".
+  if (minutesBetweenTimes(startTime, endTime) <= 0 && entry.minutes > 0) endTime = addMinutesToTime(startTime, entry.minutes);
   return {
     date: entry.date,
-    startTime: toLocalTime(entry.start),
-    endTime: toLocalTime(entry.end),
+    startTime,
+    endTime,
     minutes: entry.minutes,
     // A single segment is just start/end; keep segments only when the timer was paused.
     segments: entry.segments.length > 1 ? entry.segments : [],

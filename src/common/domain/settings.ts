@@ -33,7 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
     closed: "Closed",
     autoActivateFrom: ["New", "Stopped", "Waiting", "To Do"],
     closedStates: ["Closed", "Done", "Removed"],
-    pauseStates: ["Stopped", "Waiting"],
+    pauseStates: ["Stopped"],
     closedPolicy: "confirm",
     parentAutoActivateFrom: ["New", "Ready for Development", "Approved", "Committed"],
     parentActive: "Active",

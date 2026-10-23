@@ -6,12 +6,12 @@ import { DialogShell } from "./DialogShell";
 
 const KEEP = "__keep";
 
-/** Pausing the timer can also move the task to Stopped/Waiting (optional). */
+/** Pausing the timer can also move the task to a pause state such as Stopped (optional). */
 export function PauseDialog({ request, onDone }: { request: PauseRequest; onDone: (r?: PauseResult) => void }) {
   const { task, settings } = request;
   const [state, setState] = useState(KEEP);
   const [reason, setReason] = useState("");
-  const options = settings.states.pauseStates.filter((s) => s !== task.state);
+  const options = (request.states ?? settings.states.pauseStates).filter((s) => s !== task.state);
 
   return (
     <DialogShell okText="Pausar" okIcon={<PauseRegular />} onOk={() => onDone({ state: state === KEEP ? undefined : state, reason: reason.trim() || undefined })} onCancel={() => onDone()}>

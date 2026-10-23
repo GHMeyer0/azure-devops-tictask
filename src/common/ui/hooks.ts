@@ -29,7 +29,11 @@ export function useTimer(): { timer: ActiveTimer | null; elapsedMs: number; relo
 
   useEffect(() => {
     reload();
-    const off = subscribe((e) => e.type === "timer" && reload());
+    const off = subscribe((e) => {
+      if (e.type !== "timer") return;
+      if (e.timer !== undefined) setTimer(e.timer);
+      else reload();
+    });
     const poll = setInterval(reload, 30_000);
     window.addEventListener("focus", reload);
     return () => {

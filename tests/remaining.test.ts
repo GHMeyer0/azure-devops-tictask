@@ -32,6 +32,13 @@ describe("applyEdit", () => {
     expect(applyEdit(f(5, 3, 2), 2, 3)).toEqual({ completed: 3, remaining: 2 });
     expect(applyEdit(f(5, 3, 2), 2, 1)).toEqual({ completed: 1, remaining: 4 });
   });
+
+  it("treats fields lost on the host bridge (undefined) as empty", () => {
+    // Closed task with Estimate 1h, Completed 1h02 and no Remaining, sent to the edit dialog.
+    const task = { original: 1, remaining: undefined, completed: 1.03 } as unknown as ReturnType<typeof f>;
+    expect(applyEdit(task, 0.02, 0.02)).toEqual({ completed: 1.03, remaining: 0 });
+    expect(needsEstimate({ original: undefined, remaining: undefined, completed: undefined } as unknown as ReturnType<typeof f>)).toBe(true);
+  });
 });
 
 describe("applyDelete", () => {

@@ -267,7 +267,7 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
 
         {section === "estados" && (
           <>
-            <SettingsCard title={`Task (${s.taskType})`} description="Ajuste conforme o processo (no Tiino: Active, Stopped, Waiting e Closed).">
+            <SettingsCard title={`Task (${s.taskType})`} description="Ajuste conforme o processo (no Tiino: New, Active, Stopped e Closed). Na pausa, só são oferecidos os estados que o tipo de task tem.">
               <SettingRow first label="Ao iniciar trabalho" description="Estado para onde a task vai ao iniciar o timer ou apontar.">
                 <Picker ariaLabel="Estado ao iniciar trabalho" options={taskStates} value={s.states.active} onChange={(v) => setStates({ active: v })} />
               </SettingRow>

@@ -11,7 +11,7 @@ e calendário. Sem backend: os dados ficam no *Extension Data Service* do própr
 | Tela principal do WI (aba Details) | `time-group` | ▶ Iniciar / ⏸ Pausar / ⏹ Parar / + Apontar, cronômetro e Est/Compl/Rest |
 | Aba **Apontamentos** do WI | `time-tab` | Task: lista de apontamentos (início/fim/pausas), por pessoa/atividade. US/Bug: tasks filhas com horas, alertas de inconsistência, linha do tempo |
 | Backlog e Sprint › painel lateral **TicTask** | `time-backlog-panel` | Timer em andamento, item selecionado no backlog com Iniciar/Apontar e minhas tasks abertas (o ADO não permite extensões na barra superior global) |
-| Boards › **TicTask** (primeiro item do menu) | `time-hub` | **Meu tempo** para todos: timer com pausar/parar, horas de hoje/semana, tasks paradas (Stopped/Waiting), tasks Active sem apontamento há 3+ dias e os apontamentos de hoje, em árvore sob o item pai (Bug/US/TS). **Timesheet** e **Calendário** para todos, cada um só com os próprios apontamentos. Gestores: timesheet/calendário de todos, **Time agora** e Configurações |
+| Boards › **TicTask** (primeiro item do menu) | `time-hub` | **Meu tempo** para todos: timer com pausar/parar, horas de hoje/semana, tasks paradas (Stopped), tasks Active sem apontamento há 3+ dias e os apontamentos de hoje, em árvore sob o item pai (Bug/US/TS). **Timesheet** e **Calendário** para todos, cada um só com os próprios apontamentos. Gestores: timesheet/calendário de todos, **Time agora** e Configurações |
 | Diálogos no host | `time-dialog` | Apontar, "O que você vai fazer?", tasks padrão, pausar |
 
 **Gestores** = administradores de qualquer time do projeto, mais os e-mails listados em
@@ -31,8 +31,12 @@ interface: tecnicamente, qualquer membro do projeto consegue ler os dados do Ext
 ### Regras de horas e estado (configuráveis em Boards › TicTask › Configurações)
 - Apontar: `Completed += horas`, `Remaining = max(0, Remaining − horas)`; task sem estimativa pede a
   estimativa no 1º apontamento. Editar aplica a diferença; excluir devolve as horas ao Remaining.
-- Iniciar trabalho: task New/Stopped/Waiting → Active; US em New/Ready for Development → Active.
-- Pausar: opcionalmente muda a task para Stopped/Waiting com motivo na discussão.
+- Iniciar trabalho: task New/Stopped → Active; US em New/Ready for Development → Active.
+- Pausar: opcionalmente muda a task para Stopped com motivo na discussão. Ao parar o timer para
+  iniciar outro, também dá para deixar a task em Stopped (ela aparece em Paradas).
+- O processo precisa ter o estado **Stopped** na Task (categoria In Progress). A extensão não cria
+  estados: exigiria permissão de administrador do processo. Estados de pausa configurados que o
+  tipo de task não tem são ignorados.
 - Task fechada: pede confirmação e reabre (ou bloqueia, conforme configuração).
 - Tudo vai num único patch → uma revisão no histórico do work item (quem/quando).
 

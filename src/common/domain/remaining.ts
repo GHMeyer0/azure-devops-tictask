@@ -1,6 +1,8 @@
 import { round2 } from "./time";
 import type { WorkItemSnapshot } from "./types";
 
+// Empty fields are null, but a task sent to a dialog crosses the host bridge, which turns null into
+// undefined: the checks below use `== null` to cover both.
 export type HoursFields = Pick<WorkItemSnapshot, "original" | "remaining" | "completed">;
 
 export interface HoursUpdate {
@@ -12,13 +14,13 @@ export interface HoursUpdate {
 
 /** A task with no estimate at all must get one before the first entry. */
 export function needsEstimate(fields: HoursFields): boolean {
-  return fields.original === null && fields.remaining === null;
+  return fields.original == null && fields.remaining == null;
 }
 
 /** Remaining before the entry: the field itself, or estimate − completed when Remaining was never filled. */
 export function currentRemaining(fields: HoursFields): number {
-  if (fields.remaining !== null) return fields.remaining;
-  if (fields.original !== null) return Math.max(0, round2(fields.original - (fields.completed ?? 0)));
+  if (fields.remaining != null) return fields.remaining;
+  if (fields.original != null) return Math.max(0, round2(fields.original - (fields.completed ?? 0)));
   return 0;
 }
 
@@ -54,7 +56,7 @@ export function applyDelete(fields: HoursFields, hours: number, restoreRemaining
 
 /** Percentage of the estimate already consumed (null when there is no estimate). */
 export function consumption(fields: HoursFields): number | null {
-  const estimate = fields.original ?? (fields.remaining !== null ? (fields.completed ?? 0) + fields.remaining : null);
+  const estimate = fields.original ?? (fields.remaining != null ? (fields.completed ?? 0) + fields.remaining : null);
   if (!estimate) return null;
   return Math.round(((fields.completed ?? 0) / estimate) * 100);
 }

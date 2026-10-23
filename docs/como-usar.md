@@ -18,10 +18,12 @@ estado da task. Tudo fica no histórico do work item: quem apontou, quanto e qua
   - [Apontar horas manualmente](#apontar-horas-manualmente)
   - [Remaining automático](#remaining-automático)
   - [Estado da task](#estado-da-task)
+  - [Voltar para uma task depois](#voltar-para-uma-task-depois)
 - [Trabalhando numa User Story ou Bug](#trabalhando-numa-user-story-ou-bug)
   - ["O que você vai fazer?"](#o-que-você-vai-fazer)
   - [Tasks padrão](#tasks-padrão)
   - [Revisor na US de outra pessoa](#revisor-na-us-de-outra-pessoa)
+  - [Ajudar alguém no meio do seu trabalho](#ajudar-alguém-no-meio-do-seu-trabalho)
 - [Aba Apontamentos](#aba-apontamentos)
 - [Painel no backlog](#painel-no-backlog)
 - [Hub TicTask](#hub-tictask)
@@ -62,8 +64,8 @@ Na aba **Details** da Task, o grupo **TicTask** mostra os botões do timer e um 
   - Se você já tiver um timer em outra task, o TicTask avisa: para iniciar o novo, o atual é parado e
     você aponta esse tempo antes.
   - Se outra pessoa estiver com timer na mesma task, ele também avisa (e deixa iniciar mesmo assim).
-- **⏸ Pausar** pausa o timer. Na pausa você pode, se quiser, mudar a task para **Stopped** ou
-  **Waiting** e escrever o motivo, que vai para a discussão da task.
+- **⏸ Pausar** pausa o timer. Na pausa você pode, se quiser, mudar a task para **Stopped** e
+  escrever o motivo, que vai para a discussão da task.
 - **▶ Retomar** continua de onde parou. Cada retomada vira um novo trecho no apontamento.
 - **⏹ Parar** abre o diálogo de apontamento já preenchido com o início, o fim e as pausas.
 
@@ -110,11 +112,34 @@ O apontamento acompanha o estado da task (as regras ficam em [Configurações �
 
 | Quando | O que acontece |
 |---|---|
-| Iniciar timer ou apontar numa task **New / Stopped / Waiting** | A task vai para **Active** |
+| Iniciar timer ou apontar numa task **New / Stopped** | A task vai para **Active** |
 | Iniciar trabalho numa task filha de uma US em **New / Ready for Development** | A US vai para **Active** |
-| Pausar | Opcional: **Stopped** ou **Waiting**, com motivo na discussão |
+| Pausar | Opcional: **Stopped**, com motivo na discussão |
+| Parar o timer para iniciar outro | Opcional: **Stopped**, para a task aparecer em **Paradas** |
 | Marcar **Concluir task** | A task vai para **Closed** |
 | Apontar numa task **Closed** | Pede confirmação e reabre para **Active** (ou bloqueia, conforme a configuração) |
+
+> **O processo precisa ter o estado "Stopped" na Task.** É ele que o TicTask usa para "parar e
+> retomar depois". A extensão não cria estados no processo: isso exige ser administrador do processo
+> e daria a todos os usuários da extensão permissão para alterar o processo da organização. Se
+> o estado não existir, um administrador cria em *Organization settings › Process › (seu processo) ›
+> Task › States › New state*: nome **Stopped**, categoria **In Progress**. Outro nome também serve:
+> configure em *Configurações › Estados › Ao pausar, oferecer*. Estados configurados que o tipo de
+> task não tem (ex.: um "Waiting" removido do processo) simplesmente não aparecem na pausa.
+
+### Voltar para uma task depois
+
+Só existe um timer por pessoa. Para começar outra coisa sem perder a task atual de vista:
+
+1. Clique em **▶ Iniciar** na outra task. O TicTask avisa que vai parar o timer atual.
+2. No apontamento do timer que está sendo parado, marque **Deixar a task em Stopped para retomar
+   depois**.
+3. A task vai para **Paradas**, no Meu tempo. Quando voltar a ela, o **▶** dali inicia um timer novo
+   e a task volta para **Active**.
+
+Cada volta vira um apontamento separado, e o total da task é a soma deles. Exemplo: você revisou o
+PR de um colega e agora espera ele resolver os comentários. Deixe a sua task de revisão em Stopped e
+volte para a sua própria task; quando o colega terminar, retome a revisão pelas Paradas.
 
 ---
 
@@ -154,6 +179,28 @@ ainda faltam na US.
 Quem vai revisar entra na US do colega, clica em **▶ Iniciar**, escolhe **Nova task** com a atividade
 **Revisão** e descrição **Revisão de PR**. A task é criada atribuída ao revisor, e as horas dele não se
 misturam com as do dev.
+
+### Ajudar alguém no meio do seu trabalho
+
+Você está com o timer na sua task e precisa ajudar um colega na US dele. Não pare o seu timer:
+
+1. **⏸ Pausar** o seu timer ("Só pausar o timer").
+2. Ajude o colega.
+3. Na US dele, clique em **+ Apontar** e escolha **Nova task** (ex.: atividade *Revisão* ou *Outros*,
+   descrição "Apoio ao fulano"). O horário **já vem preenchido com a sua pausa**. Confira e salve.
+4. Volte para a sua task e clique em **▶ Retomar**.
+
+![Apontar horas preenchido com a pausa do timer](img/dialogo-apontar-pausa.png)
+
+Se você retomar antes de apontar, o TicTask pergunta se quer apontar o tempo da pausa em outra task
+(a partir de 10 minutos de pausa, fora do horário de almoço). "Escolher a task" abre o apontamento
+com o horário da pausa. "Agora não" deixa para depois: o próximo **+ Apontar** em outro item ainda
+vem com o horário da pausa, até que ela seja apontada.
+
+![Pergunta ao retomar o timer](img/retomar-apontar-pausa.png)
+
+Não use **▶ Iniciar** na US do colega nesse caso: com um timer seu aberto, o TicTask pede para parar
+e apontar o atual antes, porque só existe um timer por pessoa.
 
 ---
 
@@ -198,7 +245,7 @@ O painel do seu dia.
 - **Timer**: o que está rodando agora, com pausar e parar.
 - **Horas**: total de hoje e da semana, e o botão **Apontar horas** (escolha a task na lista, agrupada
   pelo item pai).
-- **Paradas**: suas tasks em Stopped ou Waiting, para retomar com um clique.
+- **Paradas**: suas tasks em Stopped, para retomar com um clique.
 - **Sem apontamento recente**: suas tasks Active sem apontamento há 3 dias ou mais.
 - **Hoje**: os apontamentos do dia em árvore (item pai › task › apontamentos), com editar e excluir.
   Suas outras tasks abertas do mesmo item pai aparecem como "não apontada hoje", com ▶ para iniciar.

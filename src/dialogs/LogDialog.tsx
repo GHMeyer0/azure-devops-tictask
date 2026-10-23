@@ -9,6 +9,7 @@ import { addMinutesToTime, formatHours, formatMinutes, hoursToMinutes, minutesBe
 import { groupByParent, type ParentRef } from "../common/domain/tree";
 import type { TaskInfo } from "../common/domain/types";
 import { StateBadge, TypeBadge } from "../common/ui/components";
+import { DateInput, TimeInput } from "../common/ui/dateTime";
 import { errorMessage } from "../common/ui/hooks";
 import { getWorkItems, searchTasks } from "../common/wit/witService";
 import { DialogShell } from "./DialogShell";
@@ -17,6 +18,7 @@ import { ActivityField, DurationInput } from "./fields";
 const useStyles = makeStyles({
   row: { display: "flex", gap: "12px", alignItems: "flex-end", flexWrap: "wrap" },
   grow: { flexGrow: 1 },
+  date: { width: "150px", minWidth: 0 },
   quick: { display: "flex", gap: "4px", flexWrap: "wrap" },
   task: { padding: "8px 12px", borderRadius: tokens.borderRadiusMedium, backgroundColor: tokens.colorNeutralBackground3, display: "flex", flexDirection: "column", gap: "4px" },
   results: { maxHeight: "260px", overflowY: "auto", overflowX: "hidden", border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium, padding: "4px 8px" },
@@ -44,6 +46,7 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
   const [estimate, setEstimate] = useState<number | null>(null);
   const [remainingEdited, setRemainingEdited] = useState<number | null | undefined>(undefined);
   const [closeTask, setCloseTask] = useState(false);
+  const [leave, setLeave] = useState(false);
 
   const bySegments = segments.length > 0;
   const hours = minutesToHours(minutes ?? 0);
@@ -89,6 +92,7 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
       remaining: remainingEdited !== undefined && remainingEdited !== null ? minutesToHours(remainingEdited) : undefined,
       estimate: askEstimate && estimate ? minutesToHours(estimate) : undefined,
       closeTask,
+      leaveState: leave && !closeTask ? request.offerState : undefined,
     });
   };
 
@@ -115,15 +119,21 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
         </MessageBar>
       )}
 
+      {request.note && (
+        <MessageBar intent="info">
+          <MessageBarBody>{request.note}</MessageBarBody>
+        </MessageBar>
+      )}
+
       <div className={st.row}>
         <Field label="Data" required>
-          <Input type="date" value={date} onChange={(_, d) => setDate(d.value)} />
+          <DateInput className={st.date} value={date} onChange={setDate} />
         </Field>
         <Field label="De">
-          <Input type="time" value={startTime} disabled={bySegments} onChange={(_, d) => changeStart(d.value)} />
+          <TimeInput date={date} value={startTime} disabled={bySegments} onChange={changeStart} />
         </Field>
         <Field label="Até" validationState={timeError ? "error" : "none"}>
-          <Input type="time" value={endTime} disabled={bySegments} onChange={(_, d) => changeEnd(d.value)} />
+          <TimeInput date={date} value={endTime} disabled={bySegments} onChange={changeEnd} />
         </Field>
         <div style={{ width: 110 }}>
           <DurationInput label="Duração" required minutes={minutes} onChange={changeMinutes} disabled={bySegments} />
@@ -171,12 +181,25 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
           {request.mode === "create" && (
             <Checkbox
               checked={closeTask}
-              onChange={(_, d) => setCloseTask(!!d.checked)}
+              onChange={(_, d) => {
+                setCloseTask(!!d.checked);
+                if (d.checked) setLeave(false);
+              }}
               label={`Concluir task (${settings.states.closed})`}
               style={remainingMinutes === 0 && !closeTask ? { fontWeight: 600 } : undefined}
             />
           )}
         </div>
+      )}
+      {task && request.mode === "create" && request.offerState && (
+        <Checkbox
+          checked={leave}
+          onChange={(_, d) => {
+            setLeave(!!d.checked);
+            if (d.checked) setCloseTask(false);
+          }}
+          label={`Deixar a task em ${request.offerState} para retomar depois (aparece em Paradas)`}
+        />
       )}
       {task && request.mode === "create" && remainingMinutes === 0 && !closeTask && <Caption1 className={st.muted}>Remaining zerado: marque "Concluir task" se o trabalho terminou.</Caption1>}
     </DialogShell>

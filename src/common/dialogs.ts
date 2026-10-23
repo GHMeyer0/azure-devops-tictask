@@ -27,6 +27,10 @@ export interface LogRequest {
   projectName: string;
   /** Duration comes from the timer (segments) and is not editable as a duration. */
   fromTimer?: boolean;
+  /** Shown above the times (e.g. "filled with your timer's pause"). */
+  note?: string;
+  /** Stopping the timer to start another one: offers to leave the task in this state (e.g. Stopped). */
+  offerState?: string;
 }
 
 export interface LogResult {
@@ -36,6 +40,8 @@ export interface LogResult {
   remaining?: number;
   estimate?: number;
   closeTask: boolean;
+  /** The task goes to this state (the `offerState` accepted) instead of staying active. */
+  leaveState?: string;
 }
 
 export interface NewTaskInput {
@@ -72,6 +78,8 @@ export interface PauseRequest {
   kind: "pause";
   task: { id: number; title: string; state: string };
   settings: Settings;
+  /** Pause states the task type really has (the process may not have all the configured ones). */
+  states?: string[];
 }
 
 export interface PauseResult {

@@ -26,7 +26,8 @@ export async function publishPresence(timer: ActiveTimer): Promise<void> {
     updatedAt: new Date().toISOString(),
   };
   const dm = await getDataManager();
-  await dm.setDocument(collection(timer.projectId), doc);
+  // One document per user, written only by that user: overwrite without a version check.
+  await dm.setDocument(collection(timer.projectId), { ...doc, __etag: -1 });
 }
 
 export async function removePresence(projectId: string): Promise<void> {

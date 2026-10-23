@@ -1,7 +1,10 @@
 // Cross-iframe notifications: the form group, the form tab, the hub and dialogs are separate
 // iframes served from the same extension origin, so a BroadcastChannel reaches all of them.
 
-export type TrackerEvent = { type: "timer" } | { type: "entries"; workItemIds: number[] } | { type: "workitems"; workItemIds: number[] };
+import type { ActiveTimer } from "./domain/types";
+
+/** `timer` carries the timer as just saved (null when cleared): reading it back can return the previous version. */
+export type TrackerEvent = { type: "timer"; timer?: ActiveTimer | null } | { type: "entries"; workItemIds: number[] } | { type: "workitems"; workItemIds: number[] };
 
 const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("tictask") : undefined;
 const local = new Set<(e: TrackerEvent) => void>();

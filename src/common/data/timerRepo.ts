@@ -19,11 +19,14 @@ export async function getTimer(): Promise<ActiveTimer | null> {
 
 export async function saveTimer(timer: ActiveTimer): Promise<ActiveTimer> {
   const dm = await getDataManager();
-  const { __etag: _ignored, ...doc } = timer;
-  const saved = (await dm.setDocument(COLLECTION, doc, USER_SCOPE)) as ActiveTimer;
+  // The timer is private and has a single writer (its owner), so it is always overwritten: __etag
+  // -1 skips the version check. Without it, resuming a paused timer failed with "The document
+  // version does not match" (seen in ADO on 23/10/2026).
+  const doc = { ...timer, __etag: -1 };
+  const saved = ((await dm.setDocument(COLLECTION, doc, USER_SCOPE)) as ActiveTimer | undefined) ?? doc;
   // The team view is a convenience: failing to publish it must not break the timer.
   await publishPresence(saved).catch((e) => console.warn("presence", e));
-  emit({ type: "timer" });
+  emit({ type: "timer", timer: saved });
   return saved;
 }
 
@@ -31,5 +34,5 @@ export async function clearTimer(projectId: string): Promise<void> {
   const dm = await getDataManager();
   await dm.deleteDocument(COLLECTION, "active", USER_SCOPE).catch(() => undefined);
   await removePresence(projectId).catch(() => undefined);
-  emit({ type: "timer" });
+  emit({ type: "timer", timer: null });
 }

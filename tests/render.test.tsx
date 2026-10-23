@@ -47,6 +47,11 @@ describe("dialogs render", () => {
     expect(html(<LogDialog request={{ ...req, task: undefined as never }} onDone={() => undefined} />)).toContain("Buscar task");
   });
 
+  it("log dialog explains times filled from the timer's pause", () => {
+    const note = "Horário preenchido com a pausa do seu timer (15:00–15:45).";
+    expect(html(<LogDialog request={{ kind: "log", mode: "create", task: null, draft, settings, projectName: "Tiino", note }} onDone={() => undefined} />)).toContain(note);
+  });
+
   it("log dialog asks for an estimate when the task has none", () => {
     const out = html(<LogDialog request={{ kind: "log", mode: "create", task: { ...task, original: null, remaining: null }, draft, settings, projectName: "Tiino" }} onDone={() => undefined} />);
     expect(out).toContain("Estimativa da task");
@@ -73,6 +78,18 @@ describe("dialogs render", () => {
   it("standard and pause dialogs", () => {
     expect(html(<StandardDialog request={{ kind: "standard", parent, children: [task], settings }} onDone={() => undefined} />)).toContain("Investigação");
     expect(html(<PauseDialog request={{ kind: "pause", task, settings }} onDone={() => undefined} />)).toContain("Stopped");
+  });
+
+  it("pause dialog only offers states the task type has", () => {
+    const configured = { ...settings, states: { ...settings.states, pauseStates: ["Stopped", "Waiting"] } };
+    const out = html(<PauseDialog request={{ kind: "pause", task, settings: configured, states: ["Stopped"] }} onDone={() => undefined} />);
+    expect(out).toContain("mudar a task para Stopped");
+    expect(out).not.toContain("Waiting");
+  });
+
+  it("log dialog offers to leave the task paused when switching timers", () => {
+    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino", fromTimer: true, offerState: "Stopped" }} onDone={() => undefined} />);
+    expect(out).toContain("Deixar a task em Stopped");
   });
 });
 

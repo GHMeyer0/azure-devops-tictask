@@ -1,7 +1,6 @@
 import {
   Button,
   Dropdown,
-  Input,
   Menu,
   MenuButton,
   MenuItem,
@@ -34,6 +33,7 @@ import { entriesToCsv, sheetToCsv } from "../common/domain/csv";
 import { addDays, dayRange, formatDateBr, formatDayShort, formatMinutes, isWeekend, toLocalDate, weekStart } from "../common/domain/time";
 import type { TimeEntry } from "../common/domain/types";
 import { EntriesTable, ErrorBar, WorkItemLink } from "../common/ui/components";
+import { DateInput } from "../common/ui/dateTime";
 import { EmptyState, PageCard, Toolbar } from "../common/ui/page";
 import { errorMessage, useRunner, useTrackerEvents } from "../common/ui/hooks";
 import { coreClient } from "../common/sdk";
@@ -41,7 +41,7 @@ import { downloadText } from "./download";
 
 const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: "16px" },
-  date: { width: "140px" },
+  date: { width: "150px", minWidth: 0 },
   picker: { minWidth: "160px" },
   num: { textAlign: "right", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
   level0: { fontWeight: tokens.fontWeightSemibold, backgroundColor: tokens.colorNeutralBackground2 },
@@ -143,9 +143,9 @@ export function TimesheetView({ ctx, manager }: { ctx: Ctx; manager: boolean }) 
         <Tooltip content="Próxima semana" relationship="label">
           <Button appearance="subtle" icon={<ChevronRightRegular />} onClick={() => shift(7)} />
         </Tooltip>
-        <Input className={st.date} type="date" aria-label="De" value={from} onChange={(_, d) => d.value && setFrom(d.value)} />
+        <DateInput className={st.date} ariaLabel="De" value={from} onChange={setFrom} />
         <span className={st.muted}>até</span>
-        <Input className={st.date} type="date" aria-label="Até" value={to} onChange={(_, d) => d.value && d.value >= from && setTo(d.value)} />
+        <DateInput className={st.date} ariaLabel="Até" value={to} minDate={from} onChange={(v) => v >= from && setTo(v)} />
         <ToolbarDivider />
         {manager && (
           <Dropdown
