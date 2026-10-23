@@ -5,7 +5,7 @@ import type { LogRequest, LogResult } from "../common/dialogs";
 import { applyCreate, applyEdit, needsEstimate } from "../common/domain/remaining";
 import { guessActivity } from "../common/domain/settings";
 import { isClosedState } from "../common/domain/state";
-import { addMinutesToTime, formatHours, formatMinutes, hoursToMinutes, minutesBetweenTimes, minutesToHours, toLocalTime } from "../common/domain/time";
+import { addMinutesToTime, firstOpenDate, formatDateBr, formatHours, formatMinutes, hoursToMinutes, minutesBetweenTimes, minutesToHours, toLocalDate, toLocalTime } from "../common/domain/time";
 import { groupByParent, type ParentRef } from "../common/domain/tree";
 import type { TaskInfo } from "../common/domain/types";
 import { StateBadge, TypeBadge } from "../common/ui/components";
@@ -62,7 +62,10 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
   const remainingMinutes = remainingEdited !== undefined ? remainingEdited : computedRemaining === null ? null : hoursToMinutes(computedRemaining);
 
   const timeError = !bySegments && minutesBetweenTimes(startTime, endTime) <= 0 ? "O fim deve ser depois do início" : null;
+  // The time of a running timer is always logged, even when it was forgotten for days.
+  const minDate = request.fromTimer ? undefined : firstOpenDate(settings.lockDays, toLocalDate(new Date()));
   const problems = [
+    minDate && date < minDate && `A data não pode ser antes de ${formatDateBr(minDate)}: apontamentos com mais de ${settings.lockDays} dias não podem ser criados nem alterados (Configurações › Geral)`,
     !task && "Selecione a task",
     (!minutes || minutes <= 0) && "Informe a duração",
     minutes !== null && minutes > 24 * 60 && "Duração maior que 24h",
@@ -133,7 +136,7 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
 
       <div className={st.row}>
         <Field label="Data" required>
-          <DateInput className={st.date} value={date} onChange={setDate} />
+          <DateInput className={st.date} value={date} onChange={setDate} minDate={minDate} />
         </Field>
         <Field label="De">
           <TimeInput date={date} value={startTime} disabled={bySegments} onChange={changeStart} />

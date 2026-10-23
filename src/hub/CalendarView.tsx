@@ -10,7 +10,7 @@ import { canEdit, deleteEntry, draftOf, editEntry, logTime, updateEntry, type Ct
 import { listByRange } from "../common/data/entriesRepo";
 import { sum } from "../common/domain/aggregate";
 import { findActivity } from "../common/domain/settings";
-import { addDays, formatMinutes, toLocalDate, toLocalTime } from "../common/domain/time";
+import { addDays, firstOpenDate, formatMinutes, toLocalDate, toLocalTime } from "../common/domain/time";
 import type { TimeEntry } from "../common/domain/types";
 import { ErrorBar, openWorkItem } from "../common/ui/components";
 import { PageCard, Toolbar } from "../common/ui/page";
@@ -297,6 +297,9 @@ export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
           events={events}
           datesSet={(arg) => setRange({ from: toLocalDate(arg.start), to: addDays(toLocalDate(arg.end), -1) })}
           select={onSelect}
+          // Days before the edit limit (Configurações › Geral) take no new or moved entries.
+          selectAllow={(s) => toLocalDate(s.start) >= firstOpenDate(ctx.settings.lockDays, toLocalDate(new Date()))}
+          eventAllow={(s) => toLocalDate(s.start) >= firstOpenDate(ctx.settings.lockDays, toLocalDate(new Date()))}
           eventDrop={onChange}
           eventResize={onChange}
           eventClick={onClick}

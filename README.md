@@ -44,6 +44,8 @@ interface: tecnicamente, qualquer membro do projeto consegue ler os dados do Ext
   estados: exigiria permissão de administrador do processo. Estados de pausa configurados que o
   tipo de task não tem são ignorados.
 - Task fechada: pede confirmação e reabre (ou bloqueia, conforme configuração).
+- Limite de dias (Configurações › Geral, padrão 7): depois dele o autor não edita nem exclui o
+  apontamento, e também não cria nem move apontamentos para antes dele (exceto o tempo de um timer).
 - Regras do processo: no Tiino, Original Estimate e Remaining são obrigatórios para sair de New e o
   Original Estimate fica somente leitura em Active. Por isso a estimativa é gravada antes do estado
   (duas revisões), e iniciar o timer numa task sem estimativa pede a estimativa antes.

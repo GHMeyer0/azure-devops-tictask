@@ -189,3 +189,11 @@ export function businessDaysBetween(from: string, to: string): number {
   for (let d = addDays(from, 1); d <= to; d = addDays(d, 1)) if (!isWeekend(d)) count++;
   return count;
 }
+
+/**
+ * First day still open for entries: older ones can no longer be edited or deleted (Settings.lockDays),
+ * so they cannot be created or moved there either.
+ */
+export function firstOpenDate(lockDays: number, today: string): string {
+  return addDays(today, -lockDays);
+}

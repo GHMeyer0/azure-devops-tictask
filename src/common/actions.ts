@@ -7,7 +7,7 @@ import { openDialog, type LogDraft, type LogResult, type NewTaskInput } from "./
 import { applyCreate, applyDelete, applyEdit, currentRemaining, needsEstimate } from "./domain/remaining";
 import { buildTaskTitle, CORRECTION, findActivity, guessActivity, reasonsOf } from "./domain/settings";
 import { decideParentStart, decideStart, isClosedState } from "./domain/state";
-import { addMinutesToTime, combineLocal, daysBetween, formatDateBr, formatMinutes, minutesBetweenTimes, minutesToHours, segmentsMs, toLocalDate, toLocalTime } from "./domain/time";
+import { addMinutesToTime, combineLocal, daysBetween, firstOpenDate, formatDateBr, formatMinutes, minutesBetweenTimes, minutesToHours, segmentsMs, toLocalDate, toLocalTime } from "./domain/time";
 import { closedSegments, isForgotten, MIN_LOG_MS } from "./domain/timer";
 import { isAssignedTo } from "./domain/tree";
 import type { ActiveTimer, Settings, TaskInfo, TimeEntry, TimeSegment, UserInfo, WorkItemSnapshot } from "./domain/types";
@@ -339,6 +339,7 @@ const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;")
 
 /** Writes Completed/Remaining/State on the task and stores the entry. */
 export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["source"], opts: EntryOptions = {}): Promise<TimeEntry> {
+  if (source !== "timer") assertOpenDate(ctx, r.draft.date);
   const hours = minutesToHours(r.draft.minutes);
   const reasonLine = reasonText(r.reason, r.reasonDetail);
   let laterState: string | undefined;
@@ -407,6 +408,12 @@ function draftTimes(d: LogDraft): Pick<TimeEntry, "date" | "start" | "end" | "mi
   return { date: d.date, start: segments[0].start, end: segments.at(-1)!.end, minutes: d.minutes, segments };
 }
 
+/** Entries older than the edit limit could never be corrected or deleted: refuse them (the dialog already blocks it). */
+function assertOpenDate(ctx: Ctx, date: string): void {
+  const first = firstOpenDate(ctx.settings.lockDays, toLocalDate(new Date()));
+  if (date < first) throw new Error(`Apontamentos antes de ${formatDateBr(first)} não podem ser criados nem alterados (limite de ${ctx.settings.lockDays} dias em Configurações › Geral).`);
+}
+
 export function canEdit(ctx: Ctx, entry: TimeEntry, today = toLocalDate(new Date())): boolean {
   return entry.userId === ctx.user.id && !entry.deleted && daysBetween(entry.date, today) <= ctx.settings.lockDays;
 }
@@ -438,6 +445,7 @@ export async function editEntry(ctx: Ctx, entry: TimeEntry): Promise<TimeEntry |
 
 /** Applies new times/activity/comment to an entry and the hours delta to the task. */
 export async function updateEntry(ctx: Ctx, entry: TimeEntry, draft: LogDraft, remaining?: number): Promise<TimeEntry> {
+  if (draft.date !== entry.date) assertOpenDate(ctx, draft.date);
   const { after } = await ctx.writer.apply(entry.workItemId, (current) => {
     if (draft.minutes === entry.minutes && remaining === undefined) return null;
     const upd = applyEdit(current, minutesToHours(entry.minutes), minutesToHours(draft.minutes));

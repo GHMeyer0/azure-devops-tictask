@@ -197,7 +197,7 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
               </SettingRow>
             </SettingsCard>
             <SettingsCard title="Apontamento">
-              <SettingRow first label="Bloquear edição após" description="Dias depois da data do apontamento em que o autor ainda pode editar ou excluir.">
+              <SettingRow first label="Bloquear edição após" description="Dias depois da data do apontamento em que o autor ainda pode editar ou excluir. Também é o mais longe no passado que se pode criar um apontamento.">
                 <SpinButton aria-label="Dias para bloquear edição" min={0} max={90} value={s.lockDays} onChange={(_, d) => set({ lockDays: Math.max(0, d.value ?? (Number(d.displayValue) || 0)) })} style={{ width: 90 }} />
                 <Text className={st.muted}>dias</Text>
               </SettingRow>

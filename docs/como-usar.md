@@ -151,7 +151,7 @@ Use **+ Apontar** para registrar algo que você já fez sem o timer.
 
 | Campo | Como funciona |
 |---|---|
-| **Data, De, Até** | Quando foi o trabalho. Ao mudar o início ou a duração, o fim é recalculado. |
+| **Data, De, Até** | Quando foi o trabalho. Ao mudar o início ou a duração, o fim é recalculado. A data vai até o limite de dias de *Configurações › Geral* (padrão 7): um apontamento mais antigo não poderia mais ser corrigido nem excluído. |
 | **Duração** | Aceita `1h30`, `1,5`, `90m`. Os atalhos 30m / 1h / 2h / 4h preenchem na hora. |
 | **Atividade** | Investigação, Desenvolvimento, Revisão, Testes, Correção, Reunião, Outros. Vem sugerida pelo título da task. |
 | **Comentário** | O que foi feito (opcional). |
@@ -385,7 +385,7 @@ rodapé, que também tem **Descartar** e **Restaurar padrão**.
 
 | Seção | O que configura |
 |---|---|
-| **Geral** | Tipos pai (User Story, Technical Story, Bug) e tipo de task; gestores adicionais; registrar o apontamento na discussão da task; dias até bloquear a edição; visão do time ligada/desligada |
+| **Geral** | Tipos pai (User Story, Technical Story, Bug) e tipo de task; gestores adicionais; registrar o apontamento na discussão da task; dias até bloquear a edição (e o mais longe no passado que se pode apontar); visão do time ligada/desligada |
 | **Atividades** | Nome, cor, título sugerido, campo *Activity* do ADO, estimativa padrão e quais são tasks padrão |
 | **Estados e motivos** | Estado ativo, de pausa e fechados; regra para task fechada; motivos de pausa e próximos passos (e quais comentam na US); limites do timer esquecido e da task parada; ativação do item pai |
 | **Google Chat** | Lembrete de apontamento (expediente, almoço, máximo por dia), quem recebe e o resumo da manhã |
@@ -452,6 +452,11 @@ certa. A exclusão devolve as horas ao Remaining da task errada.
 
 **Não consigo editar um apontamento antigo.**
 A edição fica bloqueada depois de alguns dias (definido em *Configurações › Geral*). Fale com um gestor.
+
+**Não consigo apontar numa data antiga.**
+O mesmo limite vale para criar: não dá para apontar (nem arrastar no Calendário) para antes dele, porque
+o apontamento já nasceria sem poder ser corrigido. O tempo de um timer esquecido é sempre apontado, mesmo
+que tenha começado antes do limite. Precisa registrar algo mais antigo? Fale com um gestor.
 
 **Por que o Remaining não ficou como eu esperava?**
 Ele é calculado como Remaining − horas apontadas, mas você pode digitar outro valor no campo

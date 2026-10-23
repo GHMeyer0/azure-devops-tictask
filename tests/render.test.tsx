@@ -80,6 +80,14 @@ describe("dialogs render", () => {
     expect(html(<StandardDialog request={{ kind: "standard", parent, children: [task], settings }} onDone={() => undefined} />)).toContain("Investigação");
   });
 
+  it("log dialog refuses a date older than the edit limit", () => {
+    const old = new Date(Date.now() - 30 * 86_400_000).toLocaleDateString("en-CA");
+    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft: { ...draft, date: old }, settings, projectName: "Tiino" }} onDone={() => undefined} />);
+    expect(out).toContain("não podem ser criados nem alterados");
+    const fromTimer = html(<LogDialog request={{ kind: "log", mode: "create", task, draft: { ...draft, date: old }, settings, projectName: "Tiino", fromTimer: true }} onDone={() => undefined} />);
+    expect(fromTimer).not.toContain("não podem ser criados nem alterados"); // a forgotten timer is still logged
+  });
+
   it("Concluir offers the next step and suggests Remaining 0", () => {
     const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino", fromTimer: true, conclude: true }} onDone={() => undefined} />);
     expect(out).toContain("Próximo passo");

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SETTINGS } from "../src/common/domain/settings";
-import { businessDaysBetween, combineLocal } from "../src/common/domain/time";
+import { businessDaysBetween, combineLocal, firstOpenDate } from "../src/common/domain/time";
 import { closedSegments, isForgotten } from "../src/common/domain/timer";
 import type { ActiveTimer } from "../src/common/domain/types";
 
@@ -47,5 +47,12 @@ describe("businessDaysBetween", () => {
     expect(businessDaysBetween("2026-10-23", "2026-10-23")).toBe(0); // same day
     expect(businessDaysBetween("2026-10-23", "2026-10-26")).toBe(1); // Friday → Monday
     expect(businessDaysBetween("2026-10-19", "2026-10-26")).toBe(5); // a week
+  });
+});
+
+describe("firstOpenDate", () => {
+  it("is the oldest day an entry can still be created or edited", () => {
+    expect(firstOpenDate(7, "2026-10-23")).toBe("2026-10-16");
+    expect(firstOpenDate(0, "2026-10-23")).toBe("2026-10-23");
   });
 });
