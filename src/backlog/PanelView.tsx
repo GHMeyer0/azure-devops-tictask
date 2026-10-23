@@ -1,12 +1,12 @@
 import { Button, Caption1, Spinner, Text, Tooltip, makeStyles, tokens } from "@fluentui/react-components";
 import { AddRegular, ArrowClockwiseRegular, PlayRegular } from "@fluentui/react-icons";
 import { useCallback, useEffect, useState } from "react";
-import { isTask, logTime, pauseTimer, resumeTimer, startOnParent, startTimer, stopTimer } from "../common/actions";
+import { isTask, logTime, startOnParent, startTimer } from "../common/actions";
 import { formatHours } from "../common/domain/time";
 import type { TaskInfo } from "../common/domain/types";
 import { SDK } from "../common/sdk";
 import { ErrorBar, Section, StateBadge, TimerControls, WorkItemLink } from "../common/ui/components";
-import { useCtx, useRunner, useTimer, useTrackerEvents } from "../common/ui/hooks";
+import { useCtx, useRunner, useTimer, useTimerHandlers, useTrackerEvents } from "../common/ui/hooks";
 import { getWorkItems, searchTasks } from "../common/wit/witService";
 
 // The backlog calls workItemSelectionChanged on the object registered under the manifest's
@@ -58,6 +58,7 @@ export function PanelView() {
   const { ctx, error } = useCtx();
   const { timer, elapsedMs } = useTimer();
   const { busy, error: runError, run } = useRunner();
+  const handlers = useTimerHandlers(ctx, timer, run);
   const selection = useSelection();
   const [selected, setSelected] = useState<TaskInfo[]>([]);
   const [mine, setMine] = useState<TaskInfo[] | null>(null);
@@ -96,9 +97,7 @@ export function PanelView() {
               timer={timer}
               elapsedMs={elapsedMs}
               busy={busy}
-              onPause={() => run(() => pauseTimer(ctx, timer))}
-              onResume={() => run(() => resumeTimer(ctx, timer))}
-              onStop={() => run(() => stopTimer(ctx, timer))}
+              {...handlers}
             />
             <Text size={200}>
               <WorkItemLink id={timer.workItem.id} title={timer.workItem.title} /> · {timer.activity}

@@ -10,9 +10,16 @@ import type { TimeEntry } from "../domain/types";
 const monthCollection = (projectId: string, date: string) => `te-${projectId}-${monthKey(date)}`;
 const workItemCollection = (projectId: string, workItemId: number) => `tw-${projectId}-${workItemId}`;
 
+/**
+ * The document as written: __etag -1 overwrites without a version check. An entry read from one
+ * collection carries that collection's version, and without a version an update could also fail
+ * with "The document version does not match" (seen deleting an entry in ADO on 23/10/2026, after
+ * the hours had already gone back to the task). Only the author changes an entry, so there is no
+ * concurrent writer to protect against.
+ */
 function strip(entry: TimeEntry): TimeEntry {
   const { __etag: _ignored, ...rest } = entry;
-  return rest;
+  return { ...rest, __etag: -1 };
 }
 
 async function readCollection(name: string): Promise<TimeEntry[]> {

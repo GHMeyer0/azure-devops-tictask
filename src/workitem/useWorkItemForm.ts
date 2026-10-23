@@ -1,9 +1,10 @@
 import type { IWorkItemFieldChangedArgs, IWorkItemFormService } from "azure-devops-extension-api/WorkItemTracking";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { pauseTimer, resumeTimer, stopTimer, type Ctx } from "../common/actions";
-import type { ActiveTimer, TaskInfo } from "../common/domain/types";
+import type { TaskInfo } from "../common/domain/types";
 import { SDK } from "../common/sdk";
 import { useTrackerEvents } from "../common/ui/hooks";
+
+export { useTimerHandlers } from "../common/ui/hooks";
 import { F } from "../common/wit/witService";
 import { formWriter, getFormService, readForm, type WorkItemWriter } from "../common/wit/writer";
 
@@ -62,13 +63,4 @@ export function useWorkItemForm(): { info: TaskInfo | null; isNew: boolean; writ
 
   const writer = useMemo(() => (form && info && !isNew ? formWriter(form, info.id) : null), [form, info?.id, isNew]);
   return { info, isNew, writer, reload };
-}
-
-/** Pause/resume/stop handlers bound to a context and a runner. */
-export function useTimerHandlers(ctx: Ctx | null, timer: ActiveTimer | null, run: (fn: () => Promise<unknown>) => Promise<void>) {
-  return {
-    onPause: () => ctx && timer && run(() => pauseTimer(ctx, timer)),
-    onResume: () => ctx && timer && run(() => resumeTimer(ctx, timer)),
-    onStop: () => ctx && timer && run(() => stopTimer(ctx, timer)),
-  };
 }

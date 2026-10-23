@@ -2,7 +2,7 @@ import { Caption1, Checkbox, Divider, Field, Input, Link, Radio, RadioGroup, Tex
 import { ArrowRightRegular, PlayRegular } from "@fluentui/react-icons";
 import { useMemo, useState } from "react";
 import type { NewTaskInput, StartRequest, StartResult } from "../common/dialogs";
-import { buildTaskTitle, findActivity, guessActivity } from "../common/domain/settings";
+import { buildTaskTitle, CORRECTION, findActivity, guessActivity } from "../common/domain/settings";
 import { isClosedState } from "../common/domain/state";
 import { formatHours, minutesToHours } from "../common/domain/time";
 import { isAssignedTo } from "../common/domain/tree";
@@ -30,13 +30,18 @@ export function StartDialog({ request, onDone }: { request: StartRequest; onDone
   const open = children.filter((c) => !isClosedState(c.state, settings.states));
   const mine = open.filter((c) => isMine(c, request));
   const others = children.filter((c) => !mine.includes(c));
+  // Once one of my tasks here is concluded (e.g. development sent to review), what comes next is
+  // usually the review rework: suggest my correction task, or a new one.
+  const reworkNext = !!findActivity(settings, CORRECTION) && children.some((c) => isMine(c, request) && isClosedState(c.state, settings.states));
+  const myCorrection = reworkNext ? mine.find((c) => guessActivity(settings, c.title, c.activity) === CORRECTION) : undefined;
+  const firstActivity = reworkNext ? CORRECTION : (settings.activities[0]?.name ?? "");
 
-  const [selected, setSelected] = useState<string>(mine.length ? String(mine[0].id) : NEW);
+  const [selected, setSelected] = useState<string>(myCorrection ? String(myCorrection.id) : mine.length ? String(mine[0].id) : NEW);
   const [showOthers, setShowOthers] = useState(false);
   const [taskActivity, setTaskActivity] = useState<Record<number, string>>({});
-  const [activity, setActivity] = useState(settings.activities[0]?.name ?? "");
+  const [activity, setActivity] = useState(firstActivity);
   const [description, setDescription] = useState("");
-  const [estimate, setEstimate] = useState<number | null>((findActivity(settings, settings.activities[0]?.name)?.defaultEstimate ?? 1) * 60);
+  const [estimate, setEstimate] = useState<number | null>((findActivity(settings, firstActivity)?.defaultEstimate ?? 1) * 60);
   const [createStandard, setCreateStandard] = useState(false);
 
   const activityOf = (t: TaskInfo) => taskActivity[t.id] ?? guessActivity(settings, t.title, t.activity) ?? settings.activities[0]?.name ?? "";

@@ -42,7 +42,7 @@ import { isManager } from "../common/data/roles";
 import { saveSettings } from "../common/data/settingsRepo";
 import { plainOptions, type PickOption } from "../common/domain/options";
 import { DEFAULT_SETTINGS } from "../common/domain/settings";
-import type { ActivityDef, Settings, StateSettings } from "../common/domain/types";
+import type { ActivityDef, ReasonDef, Settings, StateSettings } from "../common/domain/types";
 import { ErrorBar } from "../common/ui/components";
 import { useRunner } from "../common/ui/hooks";
 import { allowedActivities, statesOfTypes, workItemTypes, workItemTypeStates } from "../common/wit/witService";
@@ -78,10 +78,15 @@ const useStyles = makeStyles({
 
 type SectionKey = "geral" | "atividades" | "estados" | "chat" | "dados";
 
+const REASON_KINDS: PickOption[] = [
+  { value: "pause", label: "Pausa" },
+  { value: "conclude", label: "Próximo passo (Concluir)" },
+];
+
 const SECTIONS: { key: SectionKey; label: string; description: string; icon: React.ReactElement }[] = [
   { key: "geral", label: "Geral", description: "Quem administra, tipos de work item e regras de apontamento.", icon: <SettingsRegular /> },
   { key: "atividades", label: "Atividades", description: "Tipos de trabalho oferecidos ao apontar e as tasks padrão criadas nas US/Bugs.", icon: <TagMultipleRegular /> },
-  { key: "estados", label: "Estados", description: "Como o estado da task e do item pai acompanha o apontamento.", icon: <ArrowSyncRegular /> },
+  { key: "estados", label: "Estados e motivos", description: "Como o estado da task e do item pai acompanha o apontamento, motivos de pausa e avisos.", icon: <ArrowSyncRegular /> },
   { key: "chat", label: "Google Chat", description: "Lembretes de apontamento e o resumo da manhã, enviados pelo n8n.", icon: <ChatRegular /> },
   { key: "dados", label: "Dados", description: "Exportar e importar apontamentos e configurações do projeto.", icon: <DatabaseRegular /> },
 ];
@@ -125,6 +130,7 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
   const set = (patch: Partial<Settings>) => (setS({ ...s, ...patch }), setJustSaved(false));
   const setStates = (patch: Partial<StateSettings>) => set({ states: { ...s.states, ...patch } });
   const setActivity = (i: number, patch: Partial<ActivityDef>) => set({ activities: s.activities.map((a, j) => (j === i ? { ...a, ...patch } : a)) });
+  const setReason = (i: number, patch: Partial<ReasonDef>) => setStates({ reasons: s.states.reasons.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
 
   useEffect(() => {
     try {
@@ -147,7 +153,7 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
     run(async () => {
       // The tab is hidden from non-managers; checked again here because saving affects everyone.
       if (!(await isManager(ctx))) throw new Error("Somente gestores (administradores de time ou listados em Gestores) podem alterar as configurações.");
-      const clean = { ...s, activities: s.activities.filter((a) => a.name.trim()) };
+      const clean = { ...s, activities: s.activities.filter((a) => a.name.trim()), states: { ...s.states, reasons: s.states.reasons.filter((r) => r.name.trim()) } };
       await saveSettings(ctx.projectId, clean);
       setS(clean);
       setOriginal(clean);
@@ -267,17 +273,17 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
 
         {section === "estados" && (
           <>
-            <SettingsCard title={`Task (${s.taskType})`} description="Ajuste conforme o processo (no Tiino: New, Active, Stopped e Closed). Na pausa, só são oferecidos os estados que o tipo de task tem.">
-              <SettingRow first label="Ao iniciar trabalho" description="Estado para onde a task vai ao iniciar o timer ou apontar.">
+            <SettingsCard title={`Task (${s.taskType})`} description="Ajuste conforme o processo (no Tiino: New, Active, Stopped e Closed).">
+              <SettingRow first label="Ao iniciar trabalho" description="Estado da task enquanto alguém está com o timer nela.">
                 <Picker ariaLabel="Estado ao iniciar trabalho" options={taskStates} value={s.states.active} onChange={(v) => setStates({ active: v })} />
               </SettingRow>
               <SettingRow label="Ativar automaticamente quando estiver em" description="Nesses estados a task é ativada sem perguntar.">
                 <MultiPicker ariaLabel="Ativar automaticamente quando estiver em" options={taskStates} values={s.states.autoActivateFrom} onChange={(v) => setStates({ autoActivateFrom: v })} />
               </SettingRow>
-              <SettingRow label="Ao pausar, oferecer" description="Estados sugeridos no diálogo de pausa (opcional para quem pausa).">
-                <MultiPicker ariaLabel="Estados oferecidos ao pausar" options={taskStates} values={s.states.pauseStates} onChange={(v) => setStates({ pauseStates: v })} />
+              <SettingRow label="Ao pausar" description="Estado da task depois de pausar ou de um apontamento manual: o primeiro da lista que o tipo de task tiver. Tasks nele aparecem em Paradas.">
+                <MultiPicker ariaLabel="Estado ao pausar" options={taskStates} values={s.states.pauseStates} onChange={(v) => setStates({ pauseStates: v })} />
               </SettingRow>
-              <SettingRow label="Ao concluir" description='Estado aplicado quando "Concluir task" é marcado no apontamento.'>
+              <SettingRow label="Ao concluir" description='Estado aplicado pelo "Concluir".'>
                 <Picker ariaLabel="Estado ao concluir" options={taskStates} value={s.states.closed} onChange={(v) => setStates({ closed: v })} />
               </SettingRow>
               <SettingRow label="Estados fechados" description="Apontar numa task nesses estados segue a regra abaixo.">
@@ -288,6 +294,56 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
                   <Radio value="confirm" label="Pedir confirmação e reabrir" />
                   <Radio value="block" label="Bloquear" />
                 </RadioGroup>
+              </SettingRow>
+            </SettingsCard>
+            <SettingsCard
+              title="Motivos"
+              description='Oferecidos em "Pausar com motivo…" (pausa) e no campo "Próximo passo" do Concluir. "Outro…", com texto livre, sempre aparece. O motivo vai para a discussão da task; marque "Comenta na US" para também comentar no item pai.'
+              action={
+                <Button size="small" icon={<AddRegular />} onClick={() => setStates({ reasons: [...s.states.reasons, { name: "", kind: "pause", commentOnParent: false }] })}>
+                  Adicionar
+                </Button>
+              }
+            >
+              <Table size="small" aria-label="Motivos">
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell>Nome</TableHeaderCell>
+                    <TableHeaderCell style={{ width: 220 }}>Tipo</TableHeaderCell>
+                    <TableHeaderCell style={{ width: 120 }}>Comenta na US</TableHeaderCell>
+                    <TableHeaderCell style={{ width: 44 }} />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {s.states.reasons.map((r, i) => (
+                    <TableRow key={i}>
+                      <TableCell>
+                        <Input size="small" aria-label="Nome do motivo" value={r.name} onChange={(_, d) => setReason(i, { name: d.value })} style={{ width: "100%" }} />
+                      </TableCell>
+                      <TableCell>
+                        <Picker size="small" ariaLabel="Tipo do motivo" options={REASON_KINDS} value={r.kind} onChange={(v) => setReason(i, { kind: v as ReasonDef["kind"] })} />
+                      </TableCell>
+                      <TableCell>
+                        <Checkbox aria-label="Comenta na US" checked={r.commentOnParent} onChange={(_, d) => setReason(i, { commentOnParent: !!d.checked })} />
+                      </TableCell>
+                      <TableCell>
+                        <Tooltip content="Remover" relationship="label">
+                          <Button size="small" appearance="subtle" icon={<DeleteRegular />} onClick={() => setStates({ reasons: s.states.reasons.filter((_, j) => j !== i) })} />
+                        </Tooltip>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </SettingsCard>
+            <SettingsCard title="Avisos">
+              <SettingRow first label="Timer esquecido" description="Timer rodando há mais que isso, ou desde um dia anterior: as telas avisam e o Pausar pede o horário de fim.">
+                <SpinButton aria-label="Horas para timer esquecido" min={1} max={24} value={s.states.runningAlertHours} onChange={(_, d) => setStates({ runningAlertHours: d.value ?? (parseInt(String(d.displayValue), 10) || s.states.runningAlertHours) })} style={{ width: 90 }} />
+                <Text className={st.muted}>horas</Text>
+              </SettingRow>
+              <SettingRow label="Task parada há muito tempo" description="Em Paradas, a task fica em destaque a partir desse tempo.">
+                <SpinButton aria-label="Dias úteis para task parada" min={1} max={60} value={s.states.pausedAlertDays} onChange={(_, d) => setStates({ pausedAlertDays: d.value ?? (parseInt(String(d.displayValue), 10) || s.states.pausedAlertDays) })} style={{ width: 90 }} />
+                <Text className={st.muted}>dias úteis</Text>
               </SettingRow>
             </SettingsCard>
             <SettingsCard title="Item pai (US/Bug)" description="Estados dos tipos pai selecionados em Geral.">

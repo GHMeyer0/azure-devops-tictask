@@ -6,6 +6,7 @@ import {
   MessageBar,
   MessageBarBody,
   ProgressBar,
+  SplitButton,
   Table,
   TableBody,
   TableCell,
@@ -17,12 +18,13 @@ import {
   makeStyles,
   tokens,
 } from "@fluentui/react-components";
-import { DeleteRegular, EditRegular, PauseRegular, PlayRegular, RecordStopRegular } from "@fluentui/react-icons";
+import { CheckmarkRegular, DeleteRegular, EditRegular, PauseRegular, PlayRegular } from "@fluentui/react-icons";
 import { WorkItemTrackingServiceIds, type IWorkItemFormNavigationService } from "azure-devops-extension-api/WorkItemTracking";
 import { Fragment, useState } from "react";
 import type { Breakdown } from "../domain/aggregate";
 import { consumption } from "../domain/remaining";
-import { formatClock, formatDateBr, formatHours, formatMinutes, toLocalTime } from "../domain/time";
+import { formatClock, formatDateBr, formatHours, formatMinutes, toLocalDate, toLocalTime } from "../domain/time";
+import { isForgotten } from "../domain/timer";
 import type { ActiveTimer, Settings, TimeEntry, WorkItemSnapshot } from "../domain/types";
 import { SDK } from "../sdk";
 import { PageCard } from "./page";
@@ -41,6 +43,7 @@ const useStyles = makeStyles({
   timer: { display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" },
   clock: { fontFamily: tokens.fontFamilyMonospace, fontSize: tokens.fontSizeBase500, fontWeight: tokens.fontWeightSemibold },
   clockPaused: { color: tokens.colorNeutralForeground3 },
+  warning: { color: tokens.colorPaletteDarkOrangeForeground1 },
   bars: { display: "flex", flexDirection: "column", gap: "6px" },
   barRow: { display: "grid", gridTemplateColumns: "minmax(110px, 180px) 1fr 56px", alignItems: "center", gap: "8px" },
   bar: { height: "10px", borderRadius: "3px", backgroundColor: tokens.colorBrandBackground },
@@ -115,37 +118,60 @@ export function Stat({ label, value }: { label: string; value: React.ReactNode }
   );
 }
 
-/** Clock + pause/resume/stop for the user's timer. */
-export function TimerControls({ timer, elapsedMs, busy, onPause, onResume, onStop, showTarget }: {
+export interface TimerHandlers {
+  onPause: () => void;
+  onPauseWithReason: () => void;
+  onResume: () => void;
+  onConclude: () => void;
+}
+
+/**
+ * Clock + Pausar / Concluir for the user's timer. Pausar logs the time and leaves the task paused;
+ * its ▾ part asks for a reason. It opens a dialog instead of a menu: a menu would be cut off by the
+ * small form-group iframe. Retomar only shows for timers paused by versions before 0.7.0.
+ */
+export function TimerControls({ timer, elapsedMs, busy, onPause, onPauseWithReason, onResume, onConclude, showTarget, settings }: TimerHandlers & {
   timer: ActiveTimer;
   elapsedMs: number;
   busy: boolean;
-  onPause: () => void;
-  onResume: () => void;
-  onStop: () => void;
   showTarget?: boolean;
+  /** Flags a forgotten timer. */
+  settings?: Settings;
 }) {
   const st = useStyles();
   const running = timer.status === "running";
+  const since = timer.segments.at(-1)?.start;
+  const forgotten = !!settings && !!since && isForgotten(timer, settings);
   return (
     <div className={st.timer}>
       <span className={`${st.clock} ${running ? "" : st.clockPaused}`}>{formatClock(elapsedMs)}</span>
-      {running ? (
-        <Button size="small" icon={<PauseRegular />} onClick={onPause} disabled={busy}>
-          Pausar
-        </Button>
-      ) : (
+      {!running && (
         <Button size="small" icon={<PlayRegular />} onClick={onResume} disabled={busy}>
           Retomar
         </Button>
       )}
-      <Button size="small" icon={<RecordStopRegular />} onClick={onStop} disabled={busy} title="Encerrar a sessão e apontar o tempo">
-        Encerrar
+      <SplitButton
+        size="small"
+        icon={<PauseRegular />}
+        disabled={busy}
+        primaryActionButton={{ onClick: onPause, title: "Larguei esta task por agora: aponta o tempo e a task fica parada" }}
+        menuButton={{ onClick: onPauseWithReason, title: "Pausar com motivo…", "aria-label": "Pausar com motivo" }}
+      >
+        Pausar
+      </SplitButton>
+      <Button size="small" icon={<CheckmarkRegular />} onClick={onConclude} disabled={busy} title="Terminei esta task: aponta o tempo e conclui">
+        Concluir
       </Button>
       {showTarget && (
         <Text size={200}>
-          {running ? "Em andamento" : "Pausado"}: <WorkItemLink id={timer.workItem.id} title={timer.workItem.title} /> · {timer.activity}
+          {running ? "Em andamento" : "Pausado na versão anterior"}: <WorkItemLink id={timer.workItem.id} title={timer.workItem.title} /> · {timer.activity}
         </Text>
+      )}
+      {forgotten && since && (
+        <Caption1 className={st.warning}>
+          Rodando desde {toLocalDate(since) === toLocalDate(new Date()) ? "" : `${formatDateBr(toLocalDate(since))} `}
+          {toLocalTime(since)}: ao pausar, confirme até que horas trabalhou.
+        </Caption1>
       )}
     </div>
   );
@@ -226,7 +252,7 @@ export function EntriesTable({ entries, showTask, canEdit, onEdit, onDelete }: {
                 <TableCell>{e.activity}</TableCell>
                 <TableCell>
                   <Text size={200} title={historyText(e)}>
-                    {e.comment}
+                    {entryNote(e)}
                   </Text>
                 </TableCell>
                 <TableCell>
@@ -255,6 +281,12 @@ export function EntriesTable({ entries, showTask, canEdit, onEdit, onDelete }: {
       </TableBody>
     </Table>
   );
+}
+
+/** Comment plus the pause reason or next step of the entry ("Aguardando revisão. PR !1234"). */
+export function entryNote(e: TimeEntry): string {
+  const reason = [e.reason, e.reasonDetail].filter(Boolean).join(". ");
+  return [e.comment, reason && `Motivo: ${reason}`].filter(Boolean).join(" · ");
 }
 
 function historyText(e: TimeEntry): string {

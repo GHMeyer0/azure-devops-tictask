@@ -70,7 +70,12 @@ function hash(s: string): number {
 }
 
 const plain = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-const initialsOf = (name: string) => name.split(/\s+/).filter(Boolean).map((w) => w[0]).filter((_, i, a) => i === 0 || i === a.length - 1).join("").toUpperCase();
+/** Initials as Fluent's Avatar computes them: 2 words → both, 3 → first and third, more → only the first. */
+function initialsOf(name: string): string {
+  const w = name.split(/\s+/).filter(Boolean);
+  const picked = w.length === 2 ? [w[0], w[1]] : w.length === 3 ? [w[0], w[2]] : w.slice(0, 1);
+  return picked.map((x) => x[0]).join("").toUpperCase();
+}
 
 /** Same real value → same fake one in every frame (hub, dialogs, work item form). */
 function pick(list: string[], key: string, kind: string): string {

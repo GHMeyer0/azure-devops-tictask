@@ -10,7 +10,6 @@ import { WorkItemLink } from "./components";
 import { EmptyState } from "./page";
 
 /** A running timer older than this is probably forgotten. */
-const STALE_MS = 10 * 3600_000;
 
 const useStyles = makeStyles({
   list: { display: "flex", flexDirection: "column" },
@@ -80,7 +79,8 @@ export function TeamNow({ ctx, compact }: { ctx: Ctx; compact?: boolean }) {
         {sorted.map((p) => {
           const ms = segmentsMs(p.segments, new Date(nowMs));
           const openSince = p.segments.at(-1)?.start;
-          const stale = p.status === "running" && openSince && nowMs - Date.parse(openSince) > STALE_MS;
+          const limitHours = ctx.settings.states.runningAlertHours;
+          const stale = p.status === "running" && openSince && nowMs - Date.parse(openSince) > limitHours * 3600_000;
           return (
             <div key={p.id} className={st.row}>
               <Avatar name={p.userName} size={compact ? 24 : 32} badge={{ status: p.status === "running" ? "available" : "away" }} />
@@ -92,13 +92,18 @@ export function TeamNow({ ctx, compact }: { ctx: Ctx; compact?: boolean }) {
                   <WorkItemLink id={p.workItem.id} title={p.workItem.title} />
                 </Text>
                 <Caption1 className={stale ? st.stale : st.muted}>
-                  {p.status === "running" ? `${p.activity} · desde ${toLocalTime(openSince ?? p.updatedAt)}` : `Pausado${p.pausedState ? ` (${p.pausedState})` : ""}${p.pausedReason ? `: ${p.pausedReason}` : ""}`}
-                  {stale ? " · timer aberto há mais de 10h" : ""}
+                  {p.status === "running"
+                    ? `${p.activity} · desde ${toLocalTime(openSince ?? p.updatedAt)}`
+                    : `Pausou às ${toLocalTime(p.updatedAt)}${p.pausedState ? ` (${p.pausedState})` : ""}${p.pausedReason ? `: ${p.pausedReason}` : ""}`}
+                  {stale ? ` · timer aberto há mais de ${limitHours}h` : ""}
                 </Caption1>
               </div>
-              <Text className={st.clock} size={compact ? 200 : 300}>
-                {formatClock(ms)}
-              </Text>
+              {/* A paused task has no timer any more: its time is already logged. */}
+              {p.status === "running" && (
+                <Text className={st.clock} size={compact ? 200 : 300}>
+                  {formatClock(ms)}
+                </Text>
+              )}
             </div>
           );
         })}

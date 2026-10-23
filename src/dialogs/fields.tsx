@@ -1,7 +1,13 @@
-import { Dropdown, Field, Input, Option } from "@fluentui/react-components";
+import { Dropdown, Field, Input, Option, Radio, RadioGroup, makeStyles } from "@fluentui/react-components";
 import { useEffect, useState } from "react";
+import { reasonsOf } from "../common/domain/settings";
 import { formatMinutes, parseDuration } from "../common/domain/time";
-import type { Settings } from "../common/domain/types";
+import type { ReasonDef, Settings } from "../common/domain/types";
+
+const useStyles = makeStyles({
+  // Two columns: the reasons are short and a single column made the 480px dialog too tall.
+  reasons: { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "8px" },
+});
 
 export function ActivityField({ settings, value, onChange, label = "Atividade" }: { settings: Settings; value: string; onChange: (v: string) => void; label?: string }) {
   return (
@@ -51,5 +57,60 @@ export function DurationInput({ label, minutes, onChange, required, hint, disabl
         }}
       />
     </Field>
+  );
+}
+
+/** "Outro…": no configured reason, only the typed text. */
+const OTHER = "__other__";
+
+/** Reason chosen in the dialog: a configured name, OTHER, or "" (none, when optional). */
+export interface ReasonValue {
+  choice: string;
+  detail: string;
+}
+
+export const NO_REASON: ReasonValue = { choice: "", detail: "" };
+
+export function reasonResult(v: ReasonValue): { reason?: string; reasonDetail?: string } {
+  const detail = v.detail.trim();
+  if (!v.choice) return {};
+  if (v.choice === OTHER) return detail ? { reasonDetail: detail } : {};
+  return detail ? { reason: v.choice, reasonDetail: detail } : { reason: v.choice };
+}
+
+export function reasonProblem(v: ReasonValue, required: boolean): string | null {
+  if (required && !v.choice) return "Escolha o motivo";
+  if (v.choice === OTHER && !v.detail.trim()) return "Descreva o motivo";
+  return null;
+}
+
+/** Pause reasons ("Aguardando revisão") or next steps when concluding ("Enviado para revisão"), plus a detail. */
+export function ReasonField({ settings, kind, label, value, onChange, optional }: {
+  settings: Settings;
+  kind: ReasonDef["kind"];
+  label: string;
+  value: ReasonValue;
+  onChange: (v: ReasonValue) => void;
+  optional?: boolean;
+}) {
+  const st = useStyles();
+  const chosen = settings.states.reasons.find((r) => r.kind === kind && r.name === value.choice);
+  return (
+    <>
+      <Field label={label} required={!optional} hint={chosen?.commentOnParent ? "Também vai para a discussão da US/Bug." : undefined}>
+        <RadioGroup className={st.reasons} value={value.choice} onChange={(_, d) => onChange({ ...value, choice: d.value })}>
+          {optional && <Radio value="" label="Nenhum" />}
+          {reasonsOf(settings, kind).map((r) => (
+            <Radio key={r.name} value={r.name} label={r.name} />
+          ))}
+          <Radio value={OTHER} label="Outro…" />
+        </RadioGroup>
+      </Field>
+      {value.choice && (
+        <Field label={value.choice === OTHER ? "Descreva" : "Detalhe"} required={value.choice === OTHER}>
+          <Input value={value.detail} onChange={(_, d) => onChange({ ...value, detail: d.value })} placeholder="Ex.: PR !1234 do João" />
+        </Field>
+      )}
+    </>
   );
 }

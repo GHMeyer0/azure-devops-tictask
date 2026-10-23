@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { loadCtx, type Ctx } from "../actions";
-import { getTimer } from "../data/timerRepo";
+import { concludeTimer, loadCtx, pauseTimer, resumeTimer, type Ctx } from "../actions";
+import { isOlder, readTimerDoc, timerOf, type TimerDoc } from "../data/timerRepo";
 import { segmentsMs } from "../domain/time";
 import type { ActiveTimer } from "../domain/types";
 import { subscribe, type TrackerEvent } from "../events";
@@ -23,16 +23,26 @@ export function useCtx(writer?: WorkItemWriter | null): { ctx: Ctx | null; error
 export function useTimer(): { timer: ActiveTimer | null; elapsedMs: number; reload: () => void } {
   const [timer, setTimer] = useState<ActiveTimer | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
+  // Save time of what is on screen (a timer or its clear): a poll right after a save may still read
+  // the previous version, which must not replace the newer one.
+  const shownAt = useRef<string | undefined>(undefined);
   const reload = useCallback(() => {
-    getTimer().then(setTimer).catch(() => setTimer(null));
+    readTimerDoc()
+      .then((doc: TimerDoc | null) => {
+        if (isOlder(doc, shownAt.current)) return;
+        shownAt.current = doc?.savedAt ?? shownAt.current;
+        setTimer(timerOf(doc));
+      })
+      .catch(() => setTimer(null));
   }, []);
 
   useEffect(() => {
     reload();
     const off = subscribe((e) => {
       if (e.type !== "timer") return;
-      if (e.timer !== undefined) setTimer(e.timer);
-      else reload();
+      if (e.timer === undefined) return reload();
+      shownAt.current = e.savedAt ?? e.timer?.savedAt ?? shownAt.current;
+      setTimer(e.timer);
     });
     const poll = setInterval(reload, 30_000);
     window.addEventListener("focus", reload);
@@ -50,6 +60,18 @@ export function useTimer(): { timer: ActiveTimer | null; elapsedMs: number; relo
   }, [timer?.status]);
 
   return { timer, elapsedMs: timer ? segmentsMs(timer.segments, new Date(nowMs)) : 0, reload };
+}
+
+/** Pausar / Pausar com motivo / Retomar / Concluir bound to a context and a runner (see TimerControls). */
+export function useTimerHandlers(ctx: Ctx | null, timer: ActiveTimer | null, run: (fn: () => Promise<unknown>) => Promise<void>) {
+  const act = (fn: (ctx: Ctx, timer: ActiveTimer) => Promise<unknown>) => () => void (ctx && timer && run(() => fn(ctx, timer)));
+  return {
+    onPause: act((c, t) => pauseTimer(c, t)),
+    onPauseWithReason: act((c, t) => pauseTimer(c, t, true)),
+    onResume: act(resumeTimer),
+    onConclude: act(concludeTimer),
+    settings: ctx?.settings,
+  };
 }
 
 /** Calls `fn` when another iframe reports changes touching any of `ids` (or always, when ids is null). */

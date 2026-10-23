@@ -19,9 +19,10 @@ export const F = {
   remaining: "Microsoft.VSTS.Scheduling.RemainingWork",
   completed: "Microsoft.VSTS.Scheduling.CompletedWork",
   activity: "Microsoft.VSTS.Common.Activity",
+  stateChangeDate: "Microsoft.VSTS.Common.StateChangeDate",
 } as const;
 
-export const INFO_FIELDS = [F.id, F.title, F.type, F.state, F.assignedTo, F.parent, F.area, F.iteration, F.rev, F.original, F.remaining, F.completed, F.activity];
+export const INFO_FIELDS = [F.id, F.title, F.type, F.state, F.assignedTo, F.parent, F.area, F.iteration, F.rev, F.original, F.remaining, F.completed, F.activity, F.stateChangeDate];
 
 /** Field changes the extension writes to a work item. */
 export interface FieldChanges {
@@ -63,6 +64,8 @@ export function toTaskInfo(fields: Record<string, unknown>, id: number): TaskInf
     original: num(fields[F.original]),
     remaining: num(fields[F.remaining]),
     completed: num(fields[F.completed]),
+    // REST returns an ISO string, the form service a Date.
+    stateChangedAt: fields[F.stateChangeDate] ? new Date(fields[F.stateChangeDate] as string).toISOString() : undefined,
   };
 }
 

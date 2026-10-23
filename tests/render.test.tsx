@@ -21,6 +21,8 @@ vi.mock("azure-devops-extension-api/WorkItemTracking", () => ({
 }));
 
 const { LogDialog } = await import("../src/dialogs/LogDialog");
+const { PauseDialog } = await import("../src/dialogs/PauseDialog");
+const { EstimateDialog } = await import("../src/dialogs/EstimateDialog");
 const { StartDialog } = await import("../src/dialogs/StartDialog");
 const { StandardDialog } = await import("../src/dialogs/StandardDialog");
 const { EntriesTable, HoursSummary, TimerControls } = await import("../src/common/ui/components");
@@ -37,7 +39,7 @@ describe("dialogs render", () => {
   it("log dialog for a task", () => {
     const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino" }} onDone={() => undefined} />);
     expect(out).toContain("Remaining após apontar");
-    expect(out).toContain("Concluída (Closed)");
+    expect(out).toContain("Concluir a task (Closed)");
   });
 
   it("log dialog shows the task picker when no task comes (null or lost on the host bridge)", () => {
@@ -46,8 +48,8 @@ describe("dialogs render", () => {
     expect(html(<LogDialog request={{ ...req, task: undefined as never }} onDone={() => undefined} />)).toContain("Buscar task");
   });
 
-  it("log dialog explains times filled from the timer's pause", () => {
-    const note = "Horário preenchido com a pausa do seu timer (15:00–15:45).";
+  it("log dialog shows a note above the times", () => {
+    const note = "O timer está rodando desde 22/10/2026 17:30.";
     expect(html(<LogDialog request={{ kind: "log", mode: "create", task: null, draft, settings, projectName: "Tiino", note }} onDone={() => undefined} />)).toContain(note);
   });
 
@@ -78,17 +80,44 @@ describe("dialogs render", () => {
     expect(html(<StandardDialog request={{ kind: "standard", parent, children: [task], settings }} onDone={() => undefined} />)).toContain("Investigação");
   });
 
-  it("log dialog asks how the task is left: in progress, paused or done", () => {
-    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino", fromTimer: true, pauseState: "Stopped" }} onDone={() => undefined} />);
-    expect(out).toContain("Depois de apontar, a task fica");
-    expect(out).toContain("Em andamento");
-    expect(out).toContain("Parada, aguardando algo (Stopped)");
-    expect(out).toContain("Concluída (Closed)");
+  it("Concluir offers the next step and suggests Remaining 0", () => {
+    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino", fromTimer: true, conclude: true }} onDone={() => undefined} />);
+    expect(out).toContain("Próximo passo");
+    expect(out).toContain("Enviado para revisão");
+    expect(out).toContain("Outro…");
+    expect(out).not.toContain("Aguardando correções"); // pause reasons are not next steps
+    expect(out).not.toContain("Concluir a task (Closed)");
+    expect(out).toContain(">Concluir<");
   });
 
-  it("log dialog without a pause state in the process offers only in progress and done", () => {
-    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino" }} onDone={() => undefined} />);
-    expect(out).not.toContain("Parada, aguardando algo");
+  const segments = [{ start: "2026-10-21T12:00:00.000Z", end: "2026-10-21T13:30:00.000Z" }];
+  const pauseDraft = { ...draft, minutes: 90, segments };
+
+  it("pause dialog asks for the reason", () => {
+    const out = html(<PauseDialog request={{ kind: "pause", task, draft: pauseDraft, settings, withReason: true, askEnd: false }} onDone={() => undefined} />);
+    expect(out).toContain("Motivo (vai para a discussão da task)");
+    expect(out).toContain("Aguardando revisão");
+    expect(out).not.toContain("Enviado para revisão");
+    expect(out).not.toContain("Quanto ainda falta");
+  });
+
+  it("pause dialog asks how much is left when the Remaining would be zeroed", () => {
+    const out = html(<PauseDialog request={{ kind: "pause", task: { ...task, remaining: 1 }, draft: pauseDraft, settings, withReason: false, askEnd: false }} onDone={() => undefined} />);
+    expect(out).toContain("Quanto ainda falta nesta task?");
+    expect(out).toContain("Na verdade terminei: Concluir");
+    expect(out).not.toContain("Motivo");
+  });
+
+  it("estimate dialog suggests the activity's default estimate", () => {
+    const out = html(<EstimateDialog request={{ kind: "estimate", task: { ...task, original: null, remaining: null }, settings, activity: "Desenvolvimento" }} onDone={() => undefined} />);
+    expect(out).toContain("Estimativa da task");
+    expect(out).toContain('value="4h"');
+  });
+
+  it("pause dialog asks until when a forgotten timer ran", () => {
+    const out = html(<PauseDialog request={{ kind: "pause", task, draft: pauseDraft, settings, withReason: false, askEnd: true }} onDone={() => undefined} />);
+    expect(out).toContain("O timer está rodando desde");
+    expect(out).toContain("Até (21/10/2026)");
   });
 });
 
@@ -140,7 +169,14 @@ describe("components render", () => {
   it("summary, timer and entries", () => {
     expect(html(<HoursSummary fields={{ original: 5, remaining: 2, completed: 3 }} />)).toContain("60%");
     const timer = { id: "active" as const, projectId: "p", workItem: { id: 1, title: "T", type: "Task" }, activity: "Testes", comment: "", status: "running" as const, segments: [{ start: "2026-10-21T12:00:00.000Z" }] };
-    expect(html(<TimerControls timer={timer} elapsedMs={3_723_000} busy={false} onPause={() => undefined} onResume={() => undefined} onStop={() => undefined} />)).toContain("01:02:03");
+    const handlers = { onPause: () => undefined, onPauseWithReason: () => undefined, onResume: () => undefined, onConclude: () => undefined };
+    const controls = html(<TimerControls timer={timer} elapsedMs={3_723_000} busy={false} {...handlers} />);
+    expect(controls).toContain("01:02:03");
+    expect(controls).toContain("Pausar");
+    expect(controls).toContain("Pausar com motivo");
+    expect(controls).toContain("Concluir");
+    expect(controls).not.toContain("Retomar");
+    expect(html(<TimerControls timer={{ ...timer, status: "paused" }} elapsedMs={0} busy={false} {...handlers} />)).toContain("Retomar");
     const entry = {
       id: "e1", projectId: "p", workItemId: 1, workItemTitle: "T", workItemType: "Task", userId: "u1", userName: "Ana", userEmail: "a@x", date: "2026-10-21",
       start: "2026-10-21T12:00:00.000Z", end: "2026-10-21T13:30:00.000Z", minutes: 90, segments: [], activity: "Testes", comment: "ok", source: "manual" as const,

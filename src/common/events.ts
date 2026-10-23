@@ -3,8 +3,11 @@
 
 import type { ActiveTimer } from "./domain/types";
 
-/** `timer` carries the timer as just saved (null when cleared): reading it back can return the previous version. */
-export type TrackerEvent = { type: "timer"; timer?: ActiveTimer | null } | { type: "entries"; workItemIds: number[] } | { type: "workitems"; workItemIds: number[] };
+/**
+ * `timer` carries the timer as just saved (null when cleared) and `savedAt` when that happened:
+ * reading it back can return the previous version.
+ */
+export type TrackerEvent = { type: "timer"; timer?: ActiveTimer | null; savedAt?: string } | { type: "entries"; workItemIds: number[] } | { type: "workitems"; workItemIds: number[] };
 
 const channel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("tictask") : undefined;
 const local = new Set<(e: TrackerEvent) => void>();

@@ -51,6 +51,9 @@ export interface TimeEntry {
   deleted?: boolean;
   deletedAt?: string;
   deletedBy?: string;
+  /** Why the task was paused or what comes after it was concluded (see Settings.states.reasons). */
+  reason?: string;
+  reasonDetail?: string;
   __etag?: number;
 }
 
@@ -67,6 +70,11 @@ export interface WorkItemRef {
   parentTitle?: string;
 }
 
+/**
+ * The user's running timer. Since 0.7.0 pausing logs the time and clears the timer, so a timer has
+ * one open segment. Timers saved by older versions may still be "paused" or have several segments:
+ * pausing or concluding them logs all their segments.
+ */
 export interface ActiveTimer {
   id: "active";
   projectId: string;
@@ -77,9 +85,19 @@ export interface ActiveTimer {
   segments: TimerSegment[];
   stateAtStart?: string;
   parentStateAtStart?: string;
-  /** State applied on pause (e.g. Stopped/Waiting) and the reason given. */
+  /** Older versions only. */
   pauses?: { at: string; state?: string; reason?: string }[];
+  /** When this version was saved (see data/timerRepo). */
+  savedAt?: string;
   __etag?: number;
+}
+
+/** Reason offered when pausing ("Aguardando revisão") or as the next step when concluding ("Enviado para revisão"). */
+export interface ReasonDef {
+  name: string;
+  kind: "pause" | "conclude";
+  /** Also comments on the parent US/Bug, not only on the task. */
+  commentOnParent: boolean;
 }
 
 export interface ActivityDef {
@@ -97,14 +115,19 @@ export interface ActivityDef {
 export interface StateSettings {
   /** State the task moves to when work starts. */
   active: string;
-  /** Completed state used by "Concluir task". */
+  /** Completed state used by "Concluir". */
   closed: string;
   /** Task states that move to `active` automatically when work starts. */
   autoActivateFrom: string[];
   /** Task states considered closed (logging requires confirmation/reopen). */
   closedStates: string[];
-  /** States offered when pausing the timer. */
+  /** State the task goes to when paused: the first one its type has (e.g. Stopped). */
   pauseStates: string[];
+  reasons: ReasonDef[];
+  /** A running timer past this many hours (or started on a previous day) is flagged as forgotten. */
+  runningAlertHours: number;
+  /** Paused tasks are highlighted after this many business days. */
+  pausedAlertDays: number;
   closedPolicy: "confirm" | "block";
   /** Parent (US/Bug) states that move to `parentActive` when work starts on a child. */
   parentAutoActivateFrom: string[];
@@ -145,7 +168,10 @@ export interface Settings {
   states: StateSettings;
 }
 
-/** Public copy of a user's timer, readable by the whole project (team view). */
+/**
+ * Public copy of a user's timer, readable by the whole project (team view). "paused" is the task
+ * the user paused last (the timer itself is gone), kept until the next timer starts.
+ */
 export interface Presence {
   id: string; // user id
   projectId: string;
@@ -177,4 +203,6 @@ export interface TaskInfo extends WorkItemSnapshot {
   areaPath?: string;
   iterationPath?: string;
   rev?: number;
+  /** Microsoft.VSTS.Common.StateChangeDate (ISO), when read. */
+  stateChangedAt?: string;
 }

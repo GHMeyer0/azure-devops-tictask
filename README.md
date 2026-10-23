@@ -1,6 +1,6 @@
 # TicTask – extensão Azure DevOps para apontamento de horas
 
-Apontamento de horas direto nas Tasks e User Stories/Bugs, com timer (iniciar/pausar/encerrar),
+Apontamento de horas direto nas Tasks e User Stories/Bugs, com timer (iniciar/pausar/concluir),
 **Remaining calculado automaticamente**, estado da task acompanhando o trabalho, timesheet semanal
 e calendário. Sem backend: os dados ficam no *Extension Data Service* do próprio Azure DevOps.
 
@@ -8,10 +8,10 @@ e calendário. Sem backend: os dados ficam no *Extension Data Service* do própr
 
 | Onde | Contribuição | O que faz |
 |---|---|---|
-| Tela principal do WI (aba Details) | `time-group` | ▶ Iniciar / ⏸ Pausar / ⏹ Encerrar / + Apontar, cronômetro e Est/Compl/Rest |
+| Tela principal do WI (aba Details) | `time-group` | ▶ Iniciar / ⏸ Pausar (▾ com motivo) / ✓ Concluir / + Apontar, cronômetro e Est/Compl/Rest |
 | Aba **Apontamentos** do WI | `time-tab` | Task: lista de apontamentos (início/fim/pausas), por pessoa/atividade. US/Bug: tasks filhas com horas, alertas de inconsistência, linha do tempo |
 | Backlog e Sprint › painel lateral **TicTask** | `time-backlog-panel` | Timer em andamento, item selecionado no backlog com Iniciar/Apontar e minhas tasks abertas (o ADO não permite extensões na barra superior global) |
-| Boards › **TicTask** (primeiro item do menu) | `time-hub` | **Meu tempo** para todos: timer com pausar/encerrar, horas de hoje/semana, tasks paradas (Stopped), tasks Active sem apontamento há 3+ dias e os apontamentos de hoje, em árvore sob o item pai (Bug/US/TS). **Timesheet** e **Calendário** para todos, cada um só com os próprios apontamentos. Gestores: timesheet/calendário de todos, **Time agora** e Configurações |
+| Boards › **TicTask** (primeiro item do menu) | `time-hub` | **Meu tempo** para todos: timer com pausar/concluir, horas de hoje/semana, tasks paradas (Stopped, com motivo e há quantos dias úteis), tasks Active sem apontamento há 3+ dias e os apontamentos de hoje, em árvore sob o item pai (Bug/US/TS). **Timesheet** e **Calendário** para todos, cada um só com os próprios apontamentos. Gestores: timesheet/calendário de todos, **Time agora** e Configurações |
 | Diálogos no host | `time-dialog` | Apontar, "O que você vai fazer?", tasks padrão |
 
 **Gestores** = administradores de qualquer time do projeto, mais os e-mails listados em
@@ -22,24 +22,32 @@ interface: tecnicamente, qualquer membro do projeto consegue ler os dados do Ext
 ### Fluxo numa US/Bug
 - **▶ Iniciar** na US abre "O que você vai fazer?": escolha uma das suas tasks abertas na US ou
   **Nova task** (atividade + descrição → título da task, atribuída a você, mesma área/iteração).
-  Sem tasks na US, dá para criar junto as tasks padrão (Investigação, Desenvolvimento/Correção,
-  Revisão, Testes).
+  Sem tasks na US, dá para criar junto as tasks padrão (as marcadas como "Padrão" nas atividades).
 - O revisor que entra na US de outro dev cria a própria "Revisão de PR" pelo mesmo diálogo.
-- **⏸ Pausar** é um clique ("volto já"); não muda o estado da task.
-- **⏹ Encerrar** fecha o timer e abre o apontamento já preenchido com início, fim e pausas; o
-  Remaining vem calculado (editável) e o diálogo pergunta como a task fica: em andamento (Active),
-  parada aguardando algo (Stopped, com motivo na discussão) ou concluída (Closed).
+- O timer guarda só o trecho que está rodando:
+  - **⏸ Pausar** ("larguei a task por agora") aponta o trecho, desconta o Remaining e deixa a task em
+    Stopped (aparece em Paradas). Um clique; o ▾ pede um motivo configurável, que vai para a discussão
+    da task e, se o motivo estiver marcado, da US. Iniciar outro timer pausa o atual sozinho.
+  - **✓ Concluir** ("terminei") abre o apontamento com Remaining sugerido 0 e um próximo passo
+    opcional ("Enviado para revisão"…); a task vai para Closed.
+  - O Pausar abre um diálogo quando o timer parece esquecido (dia anterior ou acima do limite) ou
+    quando o Remaining zeraria ("Quanto ainda falta?").
+- Fluxo de revisão: Desenvolvimento é concluída como "Enviado para revisão"; as correções vão numa
+  única task de **Correção** por história. Iniciar na Desenvolvimento concluída sugere a Correção.
 
 ### Regras de horas e estado (configuráveis em Boards › TicTask › Configurações)
 - Apontar: `Completed += horas`, `Remaining = max(0, Remaining − horas)`; task sem estimativa pede a
   estimativa no 1º apontamento. Editar aplica a diferença; excluir devolve as horas ao Remaining.
-- Iniciar trabalho: task New/Stopped → Active; US em New/Ready for Development → Active.
-- Encerrar ou apontar com "Parada": task → Stopped, com o motivo na discussão; aparece em Paradas.
+- Iniciar o timer: task New/Stopped → Active; US em New/Ready for Development → Active.
+- Pausar: task → Stopped. Concluir: task → Closed. Apontamento manual numa task New: → Stopped.
 - O processo precisa ter o estado **Stopped** na Task (categoria In Progress). A extensão não cria
   estados: exigiria permissão de administrador do processo. Estados de pausa configurados que o
   tipo de task não tem são ignorados.
 - Task fechada: pede confirmação e reabre (ou bloqueia, conforme configuração).
-- Tudo vai num único patch → uma revisão no histórico do work item (quem/quando).
+- Regras do processo: no Tiino, Original Estimate e Remaining são obrigatórios para sair de New e o
+  Original Estimate fica somente leitura em Active. Por isso a estimativa é gravada antes do estado
+  (duas revisões), e iniciar o timer numa task sem estimativa pede a estimativa antes.
+- Horas, Remaining e estado vão num único patch (uma revisão no histórico), exceto quando o apontamento também define a estimativa: aí são duas (estimativa, depois estado).
 
 Guia de uso com prints: [docs/como-usar.md](docs/como-usar.md).
 
@@ -116,10 +124,12 @@ duas palavras e os nomes das atividades não são trocados. A parte da página q
 - `presence-{projeto}` (compartilhado no projeto, um documento por usuário): cópia do status do timer
   para o "Time agora" dos gestores. Desligável em Configurações.
 
-Antes de iniciar qualquer timer, a extensão verifica se o usuário já tem um rodando ou pausado (só pode
-haver um; o atual é encerrado e apontado antes) e avisa se outra pessoa está com timer na mesma task.
+Antes de iniciar qualquer timer, a extensão pausa o timer que o usuário tiver em outra task (só pode
+haver um; o tempo dele é apontado) e avisa se outra pessoa está com timer na mesma task. Timers
+pausados por versões anteriores à 0.7.0 continuam com Retomar; pausar ou concluir aponta todos os
+trechos deles. Depois de uma pausa, o `presence` guarda a task pausada e o motivo até o próximo timer.
 
-Cada apontamento guarda início/fim/trechos, usuário, atividade, comentário, estado e horas da task
+Cada apontamento guarda início/fim/trechos, usuário, atividade, comentário, motivo (pausa ou próximo passo), estado e horas da task
 antes/depois e um histórico de alterações. Exclusão é lógica (`deleted: true`), e o Completed/Remaining
 da task tem revisão própria no histórico do work item.
 

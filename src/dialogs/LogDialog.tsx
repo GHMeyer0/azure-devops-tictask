@@ -1,7 +1,7 @@
-import { Button, Caption1, Combobox, Field, MessageBar, MessageBarBody, Option, OptionGroup, Radio, RadioGroup, Spinner, Text, Textarea, makeStyles, tokens } from "@fluentui/react-components";
-import { SaveRegular } from "@fluentui/react-icons";
+import { Button, Caption1, Checkbox, Combobox, Field, MessageBar, MessageBarBody, Option, OptionGroup, Spinner, Text, Textarea, makeStyles, tokens } from "@fluentui/react-components";
+import { CheckmarkRegular, SaveRegular } from "@fluentui/react-icons";
 import { useEffect, useMemo, useState } from "react";
-import type { LogRequest, LogResult, TaskAfter } from "../common/dialogs";
+import type { LogRequest, LogResult } from "../common/dialogs";
 import { applyCreate, applyEdit, needsEstimate } from "../common/domain/remaining";
 import { guessActivity } from "../common/domain/settings";
 import { isClosedState } from "../common/domain/state";
@@ -13,7 +13,7 @@ import { DateInput, EndTimeInput, TimeInput } from "../common/ui/dateTime";
 import { errorMessage } from "../common/ui/hooks";
 import { getWorkItems, searchTasks } from "../common/wit/witService";
 import { DialogShell } from "./DialogShell";
-import { ActivityField, DurationInput } from "./fields";
+import { ActivityField, DurationInput, NO_REASON, ReasonField, reasonProblem, reasonResult, type ReasonValue } from "./fields";
 
 const useStyles = makeStyles({
   row: { display: "flex", gap: "12px", alignItems: "flex-end", flexWrap: "wrap" },
@@ -44,9 +44,11 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
   const [activity, setActivity] = useState(initial.activity);
   const [comment, setComment] = useState(initial.comment);
   const [estimate, setEstimate] = useState<number | null>(null);
-  const [remainingEdited, setRemainingEdited] = useState<number | null | undefined>(undefined);
-  const [after, setAfter] = useState<TaskAfter>("active");
-  const [reason, setReason] = useState("");
+  // Concluir suggests the Remaining as 0; it stays editable (some work may be left for later).
+  const [remainingEdited, setRemainingEdited] = useState<number | null | undefined>(request.conclude ? 0 : undefined);
+  const [remainingTouched, setRemainingTouched] = useState(false);
+  const [close, setClose] = useState(!!request.conclude);
+  const [nextStep, setNextStep] = useState<ReasonValue>(NO_REASON);
 
   const bySegments = segments.length > 0;
   const hours = minutesToHours(minutes ?? 0);
@@ -68,6 +70,7 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
     askEstimate && !estimate && "Informe a estimativa da task",
     remainingMinutes === null && remainingEdited !== undefined && "Remaining inválido",
     !activity && "Selecione a atividade",
+    close && reasonProblem(nextStep, false),
   ].filter(Boolean) as string[];
 
   const changeStart = (v: string) => {
@@ -91,14 +94,19 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
       draft: { date, startTime, endTime, minutes, segments, activity, comment: comment.trim() },
       remaining: remainingEdited !== undefined && remainingEdited !== null ? minutesToHours(remainingEdited) : undefined,
       estimate: askEstimate && estimate ? minutesToHours(estimate) : undefined,
-      after,
-      pauseState: after === "paused" ? request.pauseState : undefined,
-      reason: after === "paused" ? reason.trim() || undefined : undefined,
+      close,
+      ...(close ? reasonResult(nextStep) : {}),
     });
   };
 
+  const changeClose = (checked: boolean) => {
+    setClose(checked);
+    setRemainingEdited(checked ? 0 : undefined);
+    setRemainingTouched(false);
+  };
+
   return (
-    <DialogShell okText="Salvar" okIcon={<SaveRegular />} okDisabled={problems.length > 0} onOk={submit} onCancel={() => onDone()} error={problems.length && task ? problems[0] : null}>
+    <DialogShell okText={request.conclude ? "Concluir" : "Salvar"} okIcon={request.conclude ? <CheckmarkRegular /> : <SaveRegular />} okDisabled={problems.length > 0} onOk={submit} onCancel={() => onDone()} error={problems.length && task ? problems[0] : null}>
       {pickTask && (
         <TaskPicker
           request={request}
@@ -111,11 +119,9 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
       )}
       {task && <TaskCard task={task} request={request} />}
 
-      {task && isClosedState(task.state, settings.states) && request.mode === "create" && (
+      {task && isClosedState(task.state, settings.states) && request.mode === "create" && !close && (
         <MessageBar intent="warning">
-          <MessageBarBody>
-            A task está {task.state}. Ao salvar ela volta para {settings.states.active}.
-          </MessageBarBody>
+          <MessageBarBody>A task está {task.state}. Ao salvar ela é reaberta.</MessageBarBody>
         </MessageBar>
       )}
 
@@ -142,7 +148,10 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
 
       {bySegments ? (
         <Caption1 className={st.muted}>
-          Trechos do timer: {segments.map((s) => `${toLocalTime(s.start)}–${toLocalTime(s.end)}`).join(" · ")} ({segments.length - 1} {segments.length - 1 === 1 ? "pausa" : "pausas"}) ·{" "}
+          {segments.length > 1
+            ? `Trechos do timer: ${segments.map((s) => `${toLocalTime(s.start)}–${toLocalTime(s.end)}`).join(" · ")} (${segments.length - 1} ${segments.length - 1 === 1 ? "pausa" : "pausas"})`
+            : `Horário do timer: ${toLocalTime(segments[0].start)}–${toLocalTime(segments[0].end)}`}{" "}
+          ·{" "}
           <Button size="small" appearance="transparent" onClick={() => setSegments([])}>
             editar horário manualmente
           </Button>
@@ -174,27 +183,17 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
             <DurationInput
               label="Remaining após apontar"
               minutes={remainingMinutes}
-              onChange={(m) => setRemainingEdited(m)}
-              hint={remainingEdited !== undefined ? "Ajustado manualmente" : "Calculado automaticamente"}
+              onChange={(m) => (setRemainingEdited(m), setRemainingTouched(true))}
+              hint={remainingEdited === undefined ? "Calculado automaticamente" : remainingTouched ? "Ajustado manualmente" : "Sugerido ao concluir"}
             />
           </div>
         </div>
       )}
-      {task && request.mode === "create" && (
-        <Field label="Depois de apontar, a task fica">
-          <RadioGroup value={after} onChange={(_, d) => setAfter(d.value as TaskAfter)}>
-            <Radio value="active" label={`Em andamento, para continuar depois (${settings.states.active})`} />
-            {request.pauseState && <Radio value="paused" label={`Parada, aguardando algo (${request.pauseState}): aparece em Paradas`} />}
-            <Radio value="closed" label={`Concluída (${settings.states.closed})`} />
-          </RadioGroup>
-        </Field>
+      {task && request.mode === "create" && !request.conclude && (
+        <Checkbox checked={close} onChange={(_, d) => changeClose(!!d.checked)} label={`Concluir a task (${settings.states.closed}): o trabalho terminou`} />
       )}
-      {after === "paused" && (
-        <Field label="Motivo (vai para a discussão da task)">
-          <Textarea value={reason} onChange={(_, d) => setReason(d.value)} placeholder="Ex.: aguardando ajustes no PR" />
-        </Field>
-      )}
-      {task && request.mode === "create" && remainingMinutes === 0 && after !== "closed" && <Caption1 className={st.muted}>Remaining zerado: escolha "Concluída" se o trabalho terminou.</Caption1>}
+      {task && request.mode === "create" && remainingMinutes === 0 && !close && <Caption1 className={st.muted}>Remaining zerado: marque "Concluir a task" se o trabalho terminou.</Caption1>}
+      {close && <ReasonField settings={settings} kind="conclude" label="Próximo passo" optional value={nextStep} onChange={setNextStep} />}
     </DialogShell>
   );
 }

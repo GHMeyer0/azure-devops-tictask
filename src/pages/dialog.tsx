@@ -3,7 +3,9 @@ import type { DialogRequest } from "../common/dialogs";
 import { SDK } from "../common/sdk";
 import { renderPage } from "../common/ui/root";
 import { useAutoResize } from "../common/ui/hooks";
+import { EstimateDialog } from "../dialogs/EstimateDialog";
 import { LogDialog } from "../dialogs/LogDialog";
+import { PauseDialog } from "../dialogs/PauseDialog";
 import { StandardDialog } from "../dialogs/StandardDialog";
 import { StartDialog } from "../dialogs/StartDialog";
 
@@ -30,6 +32,10 @@ function DialogPage() {
   switch (request.kind) {
     case "log":
       return <LogDialog request={request} onDone={close} />;
+    case "estimate":
+      return <EstimateDialog request={request} onDone={close} />;
+    case "pause":
+      return <PauseDialog request={request} onDone={close} />;
     case "start":
       return <StartDialog request={request} onDone={close} />;
     case "standard":

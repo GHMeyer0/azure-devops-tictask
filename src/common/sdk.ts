@@ -1,5 +1,5 @@
 import * as SDK from "azure-devops-extension-sdk";
-import { getClient, type IExtensionDataManager, type IExtensionDataService, type IHostNavigationService, type IHostPageLayoutService, type IProjectPageService } from "azure-devops-extension-api";
+import { getClient, type IExtensionDataManager, type IExtensionDataService, type IGlobalMessagesService, type IHostNavigationService, type IHostPageLayoutService, type IProjectPageService } from "azure-devops-extension-api";
 import { CoreRestClient } from "azure-devops-extension-api/Core";
 import { WorkItemTrackingRestClient } from "azure-devops-extension-api/WorkItemTracking";
 import { demoActive, demoProject, demoScan } from "./demo";
@@ -8,6 +8,7 @@ import type { UserInfo } from "./domain/types";
 // CommonServiceIds is an ambient const enum (not usable with isolatedModules), so its values are copied here.
 const CommonServiceIds = {
   ExtensionDataService: "ms.vss-features.extension-data-service",
+  GlobalMessagesService: "ms.vss-tfs-web.tfs-global-messages-service",
   HostNavigationService: "ms.vss-features.host-navigation-service",
   HostPageLayoutService: "ms.vss-features.host-page-layout-service",
   ProjectPageService: "ms.vss-tfs-web.tfs-page-data-service",
@@ -101,6 +102,16 @@ export async function confirmDialog(message: string, title: string, okText = "Co
 export async function messageDialog(message: string, title: string): Promise<void> {
   const layout = await hostLayout();
   return new Promise((resolve) => layout.openMessageDialog(message, { title, showCancel: false, onClose: () => resolve() }));
+}
+
+/** Short notice at the bottom of the host page; never fails the action that shows it. */
+export async function toast(message: string): Promise<void> {
+  try {
+    const messages = await SDK.getService<IGlobalMessagesService>(CommonServiceIds.GlobalMessagesService);
+    messages.addToast({ message, duration: 5000 });
+  } catch (e) {
+    console.warn("toast", e);
+  }
 }
 
 export async function workItemUrl(id: number): Promise<string> {

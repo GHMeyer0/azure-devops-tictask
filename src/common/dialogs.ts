@@ -27,13 +27,11 @@ export interface LogRequest {
   projectName: string;
   /** Duration comes from the timer (segments) and is not editable as a duration. */
   fromTimer?: boolean;
-  /** Shown above the times (e.g. "filled with your timer's pause"). */
+  /** Shown above the times. */
   note?: string;
-  /** Pause state the task type has (e.g. Stopped), offered as "Parada" after logging. */
-  pauseState?: string;
+  /** "Concluir" from the timer: the task is closed, Remaining is suggested as 0. */
+  conclude?: boolean;
 }
-
-export type TaskAfter = "active" | "paused" | "closed";
 
 export interface LogResult {
   task: TaskInfo;
@@ -41,13 +39,42 @@ export interface LogResult {
   /** Remaining typed by the user; undefined → computed from the current values when saving. */
   remaining?: number;
   estimate?: number;
-  /** State of the task after logging: active, paused (pauseState) or closed. */
-  after: TaskAfter;
-  /** The pause state applied when `after` is "paused" (the request's pauseState). */
-  pauseState?: string;
-  /** Why the task was left paused (goes to the work item discussion). */
+  /** Close the task (Concluir). */
+  close: boolean;
+  /** Next step given when concluding (a "conclude" reason, or free text) and its detail. */
   reason?: string;
+  reasonDetail?: string;
 }
+
+/** Pausing when something must be confirmed: a reason, the end of a forgotten timer, or the Remaining. */
+export interface PauseRequest {
+  kind: "pause";
+  task: TaskInfo;
+  draft: LogDraft;
+  settings: Settings;
+  /** Opened from "Pausar com motivo…". */
+  withReason: boolean;
+  /** The timer looks forgotten: ask until when the user really worked. */
+  askEnd: boolean;
+}
+
+/** Starting work on a task with no estimate (the process may require one to leave New). */
+export interface EstimateRequest {
+  kind: "estimate";
+  task: TaskInfo;
+  settings: Settings;
+  /** Activity of the timer, for the suggested estimate. */
+  activity: string;
+}
+
+export interface EstimateResult {
+  /** Hours. */
+  estimate: number;
+}
+
+export type PauseResult =
+  | { conclude: true }
+  | { conclude?: false; draft: LogDraft; remaining?: number; estimate?: number; reason?: string; reasonDetail?: string };
 
 export interface NewTaskInput {
   activity: string;
@@ -79,9 +106,19 @@ export interface StandardResult {
   items: NewTaskInput[];
 }
 
-export type DialogRequest = LogRequest | StartRequest | StandardRequest;
+export type DialogRequest = LogRequest | PauseRequest | EstimateRequest | StartRequest | StandardRequest;
 
-type ResultOf<R extends DialogRequest> = R extends LogRequest ? LogResult : R extends StartRequest ? StartResult : R extends StandardRequest ? StandardResult : never;
+type ResultOf<R extends DialogRequest> = R extends LogRequest
+  ? LogResult
+  : R extends PauseRequest
+    ? PauseResult
+    : R extends EstimateRequest
+    ? EstimateResult
+    : R extends StartRequest
+      ? StartResult
+      : R extends StandardRequest
+        ? StandardResult
+        : never;
 
 export async function openDialog<R extends DialogRequest>(title: string, request: R): Promise<ResultOf<R> | undefined> {
   const layout = await hostLayout();

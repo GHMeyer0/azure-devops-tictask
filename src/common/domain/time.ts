@@ -182,3 +182,10 @@ export function isWeekend(date: string): boolean {
   const day = parseLocalDate(date).getDay();
   return day === 0 || day === 6;
 }
+
+/** Business days (Mon–Fri) from `from` to `to`, not counting `from` itself: Friday → Monday is 1. */
+export function businessDaysBetween(from: string, to: string): number {
+  let count = 0;
+  for (let d = addDays(from, 1); d <= to; d = addDays(d, 1)) if (!isWeekend(d)) count++;
+  return count;
+}

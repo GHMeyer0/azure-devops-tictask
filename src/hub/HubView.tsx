@@ -1,9 +1,9 @@
 import { Spinner, Tab, TabList, Title3, makeStyles, tokens } from "@fluentui/react-components";
 import { CalendarLtrRegular, PeopleRegular, PersonClockRegular, SettingsRegular, TableRegular } from "@fluentui/react-icons";
 import { useEffect, useState } from "react";
-import { pauseTimer, resumeTimer, stopTimer, type Ctx } from "../common/actions";
+import type { Ctx } from "../common/actions";
 import { ErrorBar, TimerControls } from "../common/ui/components";
-import { useCtx, useRunner, useTimer } from "../common/ui/hooks";
+import { useCtx, useRunner, useTimer, useTimerHandlers } from "../common/ui/hooks";
 import { PageCard } from "../common/ui/page";
 import { TeamNow } from "../common/ui/TeamNow";
 import { useIsManager } from "../common/data/roles";
@@ -43,6 +43,7 @@ export function HubView() {
   const [tab, setTab] = useState<TabKey>(readTab);
   const { timer, elapsedMs } = useTimer();
   const runner = useRunner();
+  const handlers = useTimerHandlers(ctx, timer, runner.run);
   useEffect(() => setCtx(loaded), [loaded]);
   useEffect(() => {
     try {
@@ -71,9 +72,7 @@ export function HubView() {
                 elapsedMs={elapsedMs}
                 busy={runner.busy}
                 showTarget
-                onPause={() => runner.run(() => pauseTimer(ctx, timer))}
-                onResume={() => runner.run(() => resumeTimer(ctx, timer))}
-                onStop={() => runner.run(() => stopTimer(ctx, timer))}
+                {...handlers}
               />
             </div>
           )}
@@ -105,7 +104,7 @@ export function HubView() {
       {current === "timesheet" && <TimesheetView ctx={ctx} manager={manager} />}
       {current === "calendar" && <CalendarView ctx={ctx} manager={manager} />}
       {current === "team" && (
-        <PageCard title="Quem está com timer agora" description="Atualiza sozinho a cada 30 segundos. Timer aberto há mais de 10h aparece em vermelho." className={st.team}>
+        <PageCard title="Quem está com timer agora" description={`Atualiza sozinho a cada 30 segundos. Timer aberto há mais de ${ctx.settings.states.runningAlertHours}h aparece em vermelho.`} className={st.team}>
           <TeamNow ctx={ctx} />
         </PageCard>
       )}

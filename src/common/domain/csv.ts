@@ -11,7 +11,7 @@ function cell(value: string | number | undefined | null): string {
 }
 
 export function entriesToCsv(entries: TimeEntry[]): string {
-  const header = ["Data", "Início", "Fim", "Horas", "Pausas", "Usuário", "E-mail", "Task", "Título", "Item pai", "Título pai", "Atividade", "Comentário", "Origem", "Estado antes", "Estado depois", "Remaining depois", "Apontado em"];
+  const header = ["Data", "Início", "Fim", "Horas", "Pausas", "Usuário", "E-mail", "Task", "Título", "Item pai", "Título pai", "Atividade", "Comentário", "Motivo", "Origem", "Estado antes", "Estado depois", "Remaining depois", "Apontado em"];
   const lines = [...entries]
     .filter((e) => !e.deleted)
     .sort((a, b) => a.start.localeCompare(b.start))
@@ -30,6 +30,7 @@ export function entriesToCsv(entries: TimeEntry[]): string {
         e.parentTitle,
         e.activity,
         e.comment,
+        [e.reason, e.reasonDetail].filter(Boolean).join(". "),
         e.source,
         e.before?.state,
         e.after?.state,

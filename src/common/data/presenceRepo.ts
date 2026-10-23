@@ -30,6 +30,28 @@ export async function publishPresence(timer: ActiveTimer): Promise<void> {
   await dm.setDocument(collection(timer.projectId), { ...doc, __etag: -1 });
 }
 
+/**
+ * After a pause the timer is gone; the team still sees which task the user left and why, until
+ * the next timer starts.
+ */
+export async function publishPaused(projectId: string, paused: Pick<Presence, "workItem" | "activity" | "pausedState" | "pausedReason">): Promise<void> {
+  const settings = await getSettings(projectId);
+  if (!settings.teamPresence) return;
+  const user = getUser();
+  const doc: Presence = {
+    id: user.id,
+    projectId,
+    userName: user.displayName,
+    userEmail: user.email,
+    status: "paused",
+    segments: [],
+    ...paused,
+    updatedAt: new Date().toISOString(),
+  };
+  const dm = await getDataManager();
+  await dm.setDocument(collection(projectId), { ...doc, __etag: -1 });
+}
+
 export async function removePresence(projectId: string): Promise<void> {
   const dm = await getDataManager();
   await dm.deleteDocument(collection(projectId), getUser().id).catch(() => undefined);

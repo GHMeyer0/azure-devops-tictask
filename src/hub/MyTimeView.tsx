@@ -1,15 +1,15 @@
 import { Button, Caption1, Spinner, Text, Tooltip, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
 import { AddRegular, CalendarClockRegular, CheckmarkCircleRegular, DeleteRegular, EditRegular, PlayRegular } from "@fluentui/react-icons";
 import { useCallback, useEffect, useState } from "react";
-import { canEdit, deleteEntry, editEntry, logTime, pauseTimer, resumeTimer, startTimer, stopTimer, type Ctx } from "../common/actions";
+import { canEdit, deleteEntry, editEntry, logTime, startTimer, type Ctx } from "../common/actions";
 import { listByRange } from "../common/data/entriesRepo";
 import { lastEntryByWorkItem, sum } from "../common/domain/aggregate";
-import { addDays, daysBetween, formatDateBr, formatMinutes, toLocalDate, toLocalTime, weekStart } from "../common/domain/time";
+import { addDays, businessDaysBetween, daysBetween, formatDateBr, formatMinutes, toLocalDate, toLocalTime, weekStart } from "../common/domain/time";
 import { buildTodayTree, groupByParent, idleTasks, type ParentRef, type TodayGroup } from "../common/domain/tree";
 import type { Settings, TaskInfo, TimeEntry } from "../common/domain/types";
-import { ErrorBar, StateBadge, TimerControls, TypeBadge, WorkItemLink } from "../common/ui/components";
+import { entryNote, ErrorBar, StateBadge, TimerControls, TypeBadge, WorkItemLink } from "../common/ui/components";
 import { EmptyState, PageCard } from "../common/ui/page";
-import { useCtx, useRunner, useTimer, useTrackerEvents } from "../common/ui/hooks";
+import { useCtx, useRunner, useTimer, useTimerHandlers, useTrackerEvents } from "../common/ui/hooks";
 import { getChildren, getWorkItems, myTasksInStates } from "../common/wit/witService";
 
 /** Active tasks without an entry for this many days are listed as "sem apontamento recente". */
@@ -48,11 +48,14 @@ const useStyles = makeStyles({
   comment: { ...ellipsis, color: tokens.colorNeutralForeground2, "@media (max-width: 640px)": { display: "none" } },
   num: { fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
   idle: { color: tokens.colorNeutralForeground3, fontStyle: "italic" },
+  stale: { color: tokens.colorPaletteDarkOrangeForeground1, fontWeight: tokens.fontWeightSemibold },
 });
 
 interface Data {
   entries: TimeEntry[];
   paused: TaskInfo[];
+  /** Reason of the last pause (from my last entry on the task), when given. */
+  pauseReason: Map<number, string>;
   forgotten: { task: TaskInfo; last?: string }[];
   parents: Map<number, ParentRef>;
   /** Current parent of each task logged today (read from the work item). */
@@ -61,7 +64,7 @@ interface Data {
   idle: Map<number, TaskInfo[]>;
 }
 
-const EMPTY: Data = { entries: [], paused: [], forgotten: [], parents: new Map(), taskParent: new Map(), idle: new Map() };
+const EMPTY: Data = { entries: [], paused: [], pauseReason: new Map(), forgotten: [], parents: new Map(), taskParent: new Map(), idle: new Map() };
 const unique = (ids: (number | undefined)[]) => [...new Set(ids.filter((id): id is number => !!id))];
 
 async function loadData(ctx: Ctx): Promise<Data> {
@@ -73,6 +76,11 @@ async function loadData(ctx: Ctx): Promise<Data> {
   ]);
   const last = lastEntryByWorkItem(entries);
   const forgotten = active.map((task) => ({ task, last: last.get(task.id) })).filter((f) => !f.last || daysBetween(f.last, today) >= FORGOTTEN_DAYS);
+  const pauseReason = new Map<number, string>();
+  for (const e of [...entries].sort((a, b) => b.end.localeCompare(a.end))) {
+    if (pauseReason.has(e.workItemId) || e.deleted) continue;
+    pauseReason.set(e.workItemId, [e.reason, e.reasonDetail].filter(Boolean).join(". "));
+  }
 
   const todayEntries = entries.filter((e) => e.date === today);
   const loggedIds = unique(todayEntries.map((e) => e.workItemId));
@@ -88,7 +96,7 @@ async function loadData(ctx: Ctx): Promise<Data> {
   ]);
   const parents = new Map(parentItems.map((p) => [p.id, { id: p.id, type: p.type, title: p.title }]));
   const idle = new Map(children.map(([id, c]) => [id, idleTasks(c, ctx.user, ctx.settings.taskType, ctx.settings.states, logged)]));
-  return { entries, paused, forgotten, parents, taskParent, idle };
+  return { entries, paused, pauseReason, forgotten, parents, taskParent, idle };
 }
 
 /** TicTask › "Meu tempo" tab: the user's timer, today/week totals, paused and forgotten tasks, today's entries. */
@@ -97,6 +105,7 @@ export function MyTimeView() {
   const { ctx, error } = useCtx();
   const { timer, elapsedMs } = useTimer();
   const { busy, error: runError, run } = useRunner();
+  const handlers = useTimerHandlers(ctx, timer, run);
   const [data, setData] = useState<Data | null>(null);
 
   const reload = useCallback(() => {
@@ -133,9 +142,7 @@ export function MyTimeView() {
                 timer={timer}
                 elapsedMs={elapsedMs}
                 busy={busy}
-                onPause={() => run(() => pauseTimer(ctx, timer))}
-                onResume={() => run(() => resumeTimer(ctx, timer))}
-                onStop={() => run(() => stopTimer(ctx, timer))}
+                {...handlers}
               />
               <Text>
                 <WorkItemLink id={timer.workItem.id} title={timer.workItem.title} /> · {timer.activity}
@@ -172,14 +179,18 @@ export function MyTimeView() {
       </div>
 
       <div className={st.cols}>
-        <PageCard title={`Paradas (${data.paused.length})`} description={`Suas tasks em ${ctx.settings.states.pauseStates.join(" ou ")}.`}>
+        <PageCard
+          title={`Paradas (${data.paused.length})`}
+          description={`Suas tasks em ${ctx.settings.states.pauseStates.join(" ou ")}: começadas, ninguém trabalhando nelas agora. Em destaque as paradas há ${ctx.settings.states.pausedAlertDays} dias úteis ou mais.`}
+        >
           <TaskTree
             empty={`Nenhuma task sua em ${ctx.settings.states.pauseStates.join("/")}.`}
-            items={data.paused.map((t) => ({ task: t, note: <StateBadge state={t.state} settings={ctx.settings} /> }))}
+            items={data.paused.map((t) => ({ task: t, note: <PausedNote task={t} reason={data.pauseReason.get(t.id)} settings={ctx.settings} /> }))}
             parents={data.parents}
             busy={busy}
             runningId={timer?.workItem.id}
             onStart={start}
+            startLabel="Retomar"
           />
         </PageCard>
         <PageCard title={`Sem apontamento recente (${data.forgotten.length})`} description={`Suas tasks ${ctx.settings.states.active} sem apontamento há ${FORGOTTEN_DAYS} dias ou mais.`}>
@@ -238,22 +249,44 @@ function ParentLine({ parent, right }: { parent: ParentRef | null; right?: React
   );
 }
 
-function StartButton({ task, busy, runningId, onStart }: { task: TaskInfo; busy: boolean; runningId?: number; onStart: (t: TaskInfo) => void }) {
+/** Paradas: state, reason of the last pause and for how long (highlighted past the configured limit). */
+function PausedNote({ task, reason, settings }: { task: TaskInfo; reason?: string; settings: Settings }) {
+  const st = useStyles();
+  const days = task.stateChangedAt ? businessDaysBetween(toLocalDate(task.stateChangedAt), toLocalDate(new Date())) : null;
   return (
-    <Tooltip content={runningId === task.id ? "Em andamento" : "Iniciar timer"} relationship="label">
+    <>
+      <StateBadge state={task.state} settings={settings} />
+      {reason && (
+        <Caption1 className={st.ellipsis} title={reason}>
+          {reason}
+        </Caption1>
+      )}
+      {days !== null && (
+        <Caption1 className={days >= settings.states.pausedAlertDays ? st.stale : st.muted} style={{ whiteSpace: "nowrap" }}>
+          · {days === 0 ? "hoje" : days === 1 ? "há 1 dia útil" : `há ${days} dias úteis`}
+        </Caption1>
+      )}
+    </>
+  );
+}
+
+function StartButton({ task, busy, runningId, onStart, label = "Iniciar timer" }: { task: TaskInfo; busy: boolean; runningId?: number; onStart: (t: TaskInfo) => void; label?: string }) {
+  return (
+    <Tooltip content={runningId === task.id ? "Em andamento" : label} relationship="label">
       <Button size="small" appearance="subtle" icon={<PlayRegular />} disabled={busy || runningId === task.id} onClick={() => onStart(task)} />
     </Tooltip>
   );
 }
 
 /** Paradas / Sem apontamento recente: tasks under their parent. */
-function TaskTree({ empty, items, parents, busy, runningId, onStart }: {
+function TaskTree({ empty, items, parents, busy, runningId, onStart, startLabel }: {
   empty: string;
   items: { task: TaskInfo; note: React.ReactNode }[];
   parents: Map<number, ParentRef>;
   busy: boolean;
   runningId?: number;
   onStart: (t: TaskInfo) => void;
+  startLabel?: string;
 }) {
   const st = useStyles();
   if (!items.length) return <EmptyState icon={<CheckmarkCircleRegular />} title="Tudo em dia">{empty}</EmptyState>;
@@ -271,7 +304,7 @@ function TaskTree({ empty, items, parents, busy, runningId, onStart }: {
                   </span>
                   <span className={st.taskLine}>{note}</span>
                 </div>
-                <StartButton task={task} busy={busy} runningId={runningId} onStart={onStart} />
+                <StartButton task={task} busy={busy} runningId={runningId} onStart={onStart} label={startLabel} />
               </div>
             ))}
           </div>
@@ -357,8 +390,8 @@ function EntryLine({ entry: e, editable, onEdit, onDelete }: { entry: TimeEntry;
       <span className={st.ellipsis} title={e.activity}>
         {e.activity}
       </span>
-      <span className={st.comment} title={e.comment}>
-        {e.comment}
+      <span className={st.comment} title={entryNote(e)}>
+        {entryNote(e)}
       </span>
       <span>
         {editable && (

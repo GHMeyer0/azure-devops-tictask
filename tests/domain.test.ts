@@ -66,8 +66,29 @@ describe("settings helpers", () => {
     expect(guessActivity(DEFAULT_SETTINGS, "Revisão de PR")).toBe("Revisão");
     expect(guessActivity(DEFAULT_SETTINGS, "Testes e Ajustes se necessário")).toBe("Testes");
     expect(guessActivity(DEFAULT_SETTINGS, "investigação")).toBe("Investigação");
-    expect(guessActivity(DEFAULT_SETTINGS, "Desenvolvimento do projeto")).toBe("Desenvolvimento/Correção");
+    expect(guessActivity(DEFAULT_SETTINGS, "Desenvolvimento do projeto")).toBe("Desenvolvimento");
     expect(guessActivity(DEFAULT_SETTINGS, "Algo", "Testing")).toBe("Testes");
+  });
+
+  it("tells the review rework apart from the review and the development", () => {
+    expect(guessActivity(DEFAULT_SETTINGS, "Correções da revisão")).toBe("Correção");
+    expect(guessActivity(DEFAULT_SETTINGS, "Corrigir comentários do PR")).toBe("Correção");
+    expect(guessActivity(DEFAULT_SETTINGS, "Revisão de PR")).toBe("Revisão");
+    expect(guessActivity(DEFAULT_SETTINGS, "Testes e ajustes")).toBe("Testes");
+  });
+
+  it("keeps the single activity of projects saved before the split", () => {
+    const old = mergeSettings({ activities: [{ name: "Desenvolvimento/Correção", defaultTitle: "Desenvolvimento", standard: true, defaultEstimate: 4, color: "#000" }] });
+    expect(guessActivity(old, "Desenvolvimento")).toBe("Desenvolvimento/Correção");
+  });
+
+  it("fills pause reasons and alert limits in settings saved by older versions", () => {
+    const { reasons: _r, runningAlertHours: _h, pausedAlertDays: _d, ...old } = S;
+    const merged = mergeSettings({ states: old as typeof S });
+    expect(merged.states.reasons.map((r) => r.name)).toContain("Aguardando revisão");
+    expect(merged.states.reasons.find((r) => r.name === "Enviado para revisão")).toEqual({ name: "Enviado para revisão", kind: "conclude", commentOnParent: true });
+    expect(merged.states.runningAlertHours).toBe(10);
+    expect(merged.states.pausedAlertDays).toBe(5);
   });
 
   it("builds task titles", () => {
