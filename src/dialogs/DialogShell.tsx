@@ -12,7 +12,7 @@ const useStyles = makeStyles({
     width: "100%",
     minWidth: 0,
     overflowWrap: "anywhere",
-    "& .fui-Input, & .fui-Dropdown, & .fui-Textarea, & .fui-Field": { minWidth: 0, maxWidth: "100%" },
+    "& .fui-Input, & .fui-Dropdown, & .fui-Combobox, & .fui-Textarea, & .fui-Field": { minWidth: 0, maxWidth: "100%" },
     "& .fui-Radio, & .fui-Checkbox": { maxWidth: "100%" },
     "& .fui-Radio__label, & .fui-Checkbox__label": { minWidth: 0 },
   },
@@ -39,6 +39,10 @@ export function DialogShell({ children, okText, okIcon, okDisabled, busy, error,
   return (
     <form
       className={st.root}
+      // Validation is ours (okDisabled + the error bar). A Fluent Field marked required passes
+      // `required` to every input inside it, so the browser blocked saving over the empty task
+      // search box even with a task selected.
+      noValidate
       onSubmit={(e) => {
         e.preventDefault();
         if (!okDisabled && !busy) onOk();

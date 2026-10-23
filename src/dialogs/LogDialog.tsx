@@ -1,7 +1,7 @@
-import { Button, Caption1, Checkbox, Field, Input, MessageBar, MessageBarBody, Radio, RadioGroup, Spinner, Text, Textarea, makeStyles, tokens } from "@fluentui/react-components";
-import { SaveRegular, SearchRegular } from "@fluentui/react-icons";
+import { Button, Caption1, Combobox, Field, MessageBar, MessageBarBody, Option, OptionGroup, Radio, RadioGroup, Spinner, Text, Textarea, makeStyles, tokens } from "@fluentui/react-components";
+import { SaveRegular } from "@fluentui/react-icons";
 import { useEffect, useMemo, useState } from "react";
-import type { LogRequest, LogResult } from "../common/dialogs";
+import type { LogRequest, LogResult, TaskAfter } from "../common/dialogs";
 import { applyCreate, applyEdit, needsEstimate } from "../common/domain/remaining";
 import { guessActivity } from "../common/domain/settings";
 import { isClosedState } from "../common/domain/state";
@@ -9,7 +9,7 @@ import { addMinutesToTime, formatHours, formatMinutes, hoursToMinutes, minutesBe
 import { groupByParent, type ParentRef } from "../common/domain/tree";
 import type { TaskInfo } from "../common/domain/types";
 import { StateBadge, TypeBadge } from "../common/ui/components";
-import { DateInput, TimeInput } from "../common/ui/dateTime";
+import { DateInput, EndTimeInput, TimeInput } from "../common/ui/dateTime";
 import { errorMessage } from "../common/ui/hooks";
 import { getWorkItems, searchTasks } from "../common/wit/witService";
 import { DialogShell } from "./DialogShell";
@@ -21,8 +21,8 @@ const useStyles = makeStyles({
   date: { width: "150px", minWidth: 0 },
   quick: { display: "flex", gap: "4px", flexWrap: "wrap" },
   task: { padding: "8px 12px", borderRadius: tokens.borderRadiusMedium, backgroundColor: tokens.colorNeutralBackground3, display: "flex", flexDirection: "column", gap: "4px" },
-  results: { maxHeight: "260px", overflowY: "auto", overflowX: "hidden", border: `1px solid ${tokens.colorNeutralStroke2}`, borderRadius: tokens.borderRadiusMedium, padding: "4px 8px" },
-  group: { display: "flex", flexDirection: "column", padding: "4px 0", borderBottom: `1px solid ${tokens.colorNeutralStroke3}` },
+  picker: { width: "100%", minWidth: 0 },
+  listbox: { maxHeight: "300px" },
   groupHeader: { display: "flex", alignItems: "center", gap: "6px", minWidth: 0, overflow: "hidden", padding: "2px 0" },
   groupTitle: { minWidth: 0, overflow: "hidden" },
   muted: { color: tokens.colorNeutralForeground3 },
@@ -45,8 +45,8 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
   const [comment, setComment] = useState(initial.comment);
   const [estimate, setEstimate] = useState<number | null>(null);
   const [remainingEdited, setRemainingEdited] = useState<number | null | undefined>(undefined);
-  const [closeTask, setCloseTask] = useState(false);
-  const [leave, setLeave] = useState(false);
+  const [after, setAfter] = useState<TaskAfter>("active");
+  const [reason, setReason] = useState("");
 
   const bySegments = segments.length > 0;
   const hours = minutesToHours(minutes ?? 0);
@@ -91,14 +91,15 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
       draft: { date, startTime, endTime, minutes, segments, activity, comment: comment.trim() },
       remaining: remainingEdited !== undefined && remainingEdited !== null ? minutesToHours(remainingEdited) : undefined,
       estimate: askEstimate && estimate ? minutesToHours(estimate) : undefined,
-      closeTask,
-      leaveState: leave && !closeTask ? request.offerState : undefined,
+      after,
+      pauseState: after === "paused" ? request.pauseState : undefined,
+      reason: after === "paused" ? reason.trim() || undefined : undefined,
     });
   };
 
   return (
     <DialogShell okText="Salvar" okIcon={<SaveRegular />} okDisabled={problems.length > 0} onOk={submit} onCancel={() => onDone()} error={problems.length && task ? problems[0] : null}>
-      {pickTask ? (
+      {pickTask && (
         <TaskPicker
           request={request}
           value={task}
@@ -107,9 +108,8 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
             if (t) setActivity(guessActivity(settings, t.title, t.activity) ?? activity);
           }}
         />
-      ) : (
-        task && <TaskCard task={task} request={request} />
       )}
+      {task && <TaskCard task={task} request={request} />}
 
       {task && isClosedState(task.state, settings.states) && request.mode === "create" && (
         <MessageBar intent="warning">
@@ -133,7 +133,7 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
           <TimeInput date={date} value={startTime} disabled={bySegments} onChange={changeStart} />
         </Field>
         <Field label="Até" validationState={timeError ? "error" : "none"}>
-          <TimeInput date={date} value={endTime} disabled={bySegments} onChange={changeEnd} />
+          <EndTimeInput start={startTime} value={endTime} disabled={bySegments} onChange={changeEnd} />
         </Field>
         <div style={{ width: 110 }}>
           <DurationInput label="Duração" required minutes={minutes} onChange={changeMinutes} disabled={bySegments} />
@@ -178,30 +178,23 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
               hint={remainingEdited !== undefined ? "Ajustado manualmente" : "Calculado automaticamente"}
             />
           </div>
-          {request.mode === "create" && (
-            <Checkbox
-              checked={closeTask}
-              onChange={(_, d) => {
-                setCloseTask(!!d.checked);
-                if (d.checked) setLeave(false);
-              }}
-              label={`Concluir task (${settings.states.closed})`}
-              style={remainingMinutes === 0 && !closeTask ? { fontWeight: 600 } : undefined}
-            />
-          )}
         </div>
       )}
-      {task && request.mode === "create" && request.offerState && (
-        <Checkbox
-          checked={leave}
-          onChange={(_, d) => {
-            setLeave(!!d.checked);
-            if (d.checked) setCloseTask(false);
-          }}
-          label={`Deixar a task em ${request.offerState} para retomar depois (aparece em Paradas)`}
-        />
+      {task && request.mode === "create" && (
+        <Field label="Depois de apontar, a task fica">
+          <RadioGroup value={after} onChange={(_, d) => setAfter(d.value as TaskAfter)}>
+            <Radio value="active" label={`Em andamento, para continuar depois (${settings.states.active})`} />
+            {request.pauseState && <Radio value="paused" label={`Parada, aguardando algo (${request.pauseState}): aparece em Paradas`} />}
+            <Radio value="closed" label={`Concluída (${settings.states.closed})`} />
+          </RadioGroup>
+        </Field>
       )}
-      {task && request.mode === "create" && remainingMinutes === 0 && !closeTask && <Caption1 className={st.muted}>Remaining zerado: marque "Concluir task" se o trabalho terminou.</Caption1>}
+      {after === "paused" && (
+        <Field label="Motivo (vai para a discussão da task)">
+          <Textarea value={reason} onChange={(_, d) => setReason(d.value)} placeholder="Ex.: aguardando ajustes no PR" />
+        </Field>
+      )}
+      {task && request.mode === "create" && remainingMinutes === 0 && after !== "closed" && <Caption1 className={st.muted}>Remaining zerado: escolha "Concluída" se o trabalho terminou.</Caption1>}
     </DialogShell>
   );
 }
@@ -228,9 +221,17 @@ async function parentsOf(tasks: TaskInfo[]): Promise<Map<number, ParentRef>> {
   return new Map(items.map((p) => [p.id, { id: p.id, type: p.type, title: p.title }]));
 }
 
+const taskLabel = (t: TaskInfo) => `#${t.id} ${t.title}`;
+
+/**
+ * Task chooser: a Fluent Combobox (type an id or part of the title) with the results grouped by
+ * parent item. Empty, it lists my open tasks.
+ */
 function TaskPicker({ request, value, onChange }: { request: LogRequest; value: TaskInfo | null; onChange: (t: TaskInfo | null) => void }) {
   const st = useStyles();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(value ? taskLabel(value) : "");
+  // What is searched: only what the user types, not the label of the chosen task.
+  const [query, setQuery] = useState("");
   const [results, setResults] = useState<{ tasks: TaskInfo[]; parents: Map<number, ParentRef> }>({ tasks: [], parents: new Map() });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -239,56 +240,83 @@ function TaskPicker({ request, value, onChange }: { request: LogRequest; value: 
     const handle = setTimeout(() => {
       setLoading(true);
       setError(null);
-      searchTasks(request.projectName, request.settings.taskType, request.settings.states.closedStates, text)
+      searchTasks(request.projectName, request.settings.taskType, request.settings.states.closedStates, query)
         .then(async (tasks) => setResults({ tasks, parents: await parentsOf(tasks).catch(() => new Map()) }))
         .catch((e) => setError(errorMessage(e)))
         .finally(() => setLoading(false));
     }, 300);
     return () => clearTimeout(handle);
-  }, [text, request]);
+  }, [query, request]);
 
   const groups = groupByParent(results.tasks, (t) => t.parentId, results.parents);
 
   return (
-    <Field label="Task" required hint={text ? undefined : "Suas tasks abertas, agrupadas pelo item pai. Busque por título ou #id."} validationMessage={error ?? undefined} validationState={error ? "error" : "none"}>
-      <Input contentBefore={<SearchRegular />} value={text} onChange={(_, d) => setText(d.value)} placeholder="Buscar task…" />
-      <div className={st.results}>
-        {loading && <Spinner size="tiny" />}
-        {!loading && !results.tasks.length && <Caption1 className={st.muted}>Nenhuma task encontrada.</Caption1>}
-        <RadioGroup value={value ? String(value.id) : ""} onChange={(_, d) => onChange(results.tasks.find((r) => String(r.id) === d.value) ?? null)}>
-          {groups.map((g) => (
-            <div key={g.parent?.id ?? "none"} className={st.group}>
-              <div className={st.groupHeader}>
-                {g.parent ? (
-                  <>
-                    <TypeBadge type={g.parent.type} />
-                    <Text className={st.groupTitle} size={200} weight="semibold" truncate wrap={false} title={g.parent.title}>
-                      #{g.parent.id} {g.parent.title}
-                    </Text>
-                  </>
-                ) : (
-                  <Caption1 className={st.muted}>(sem item pai)</Caption1>
-                )}
-              </div>
-              {g.items.map((t) => (
-                <Radio
-                  key={t.id}
-                  value={String(t.id)}
-                  label={
-                    <span>
-                      #{t.id} {t.title}
-                      <Caption1 className={st.muted}>
-                        {" "}
-                        · {t.state} · {formatHours(t.completed ?? 0)}/{formatHours(t.original)}
-                      </Caption1>
-                    </span>
-                  }
-                />
-              ))}
-            </div>
-          ))}
-        </RadioGroup>
-      </div>
+    <Field
+      label="Task"
+      required
+      hint={value ? undefined : "Suas tasks abertas, agrupadas pelo item pai. Digite parte do título ou o #id."}
+      validationMessage={error ?? undefined}
+      validationState={error ? "error" : "none"}
+    >
+      <Combobox
+        className={st.picker}
+        placeholder="Buscar task por título ou #id"
+        value={text}
+        selectedOptions={value ? [String(value.id)] : []}
+        expandIcon={loading ? <Spinner size="extra-tiny" /> : undefined}
+        positioning="below-start"
+        listbox={{ className: st.listbox }}
+        onInput={(e) => {
+          const v = (e.target as HTMLInputElement).value;
+          setText(v);
+          setQuery(v);
+        }}
+        onOptionSelect={(_, d) => {
+          const t = results.tasks.find((r) => String(r.id) === d.optionValue) ?? null;
+          onChange(t);
+          setText(t ? taskLabel(t) : "");
+          setQuery("");
+        }}
+        onOpenChange={(_, d) => {
+          // Closed without choosing: show the chosen task again instead of the half-typed search.
+          if (!d.open && value) setText(taskLabel(value));
+        }}
+      >
+        {!loading && !results.tasks.length && (
+          <Option disabled value="" text="">
+            Nenhuma task encontrada.
+          </Option>
+        )}
+        {groups.map((g) => (
+          <OptionGroup
+            key={g.parent?.id ?? "none"}
+            label={
+              g.parent ? (
+                <span className={st.groupHeader}>
+                  <TypeBadge type={g.parent.type} />
+                  <Text className={st.groupTitle} size={200} weight="semibold" truncate wrap={false} title={g.parent.title}>
+                    #{g.parent.id} {g.parent.title}
+                  </Text>
+                </span>
+              ) : (
+                "(sem item pai)"
+              )
+            }
+          >
+            {g.items.map((t) => (
+              <Option key={t.id} value={String(t.id)} text={taskLabel(t)}>
+                <span>
+                  #{t.id} {t.title}
+                  <Caption1 className={st.muted}>
+                    {" "}
+                    · {t.state} · {formatHours(t.completed ?? 0)}/{formatHours(t.original)}
+                  </Caption1>
+                </span>
+              </Option>
+            ))}
+          </OptionGroup>
+        ))}
+      </Combobox>
     </Field>
   );
 }

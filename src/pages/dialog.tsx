@@ -4,7 +4,6 @@ import { SDK } from "../common/sdk";
 import { renderPage } from "../common/ui/root";
 import { useAutoResize } from "../common/ui/hooks";
 import { LogDialog } from "../dialogs/LogDialog";
-import { PauseDialog } from "../dialogs/PauseDialog";
 import { StandardDialog } from "../dialogs/StandardDialog";
 import { StartDialog } from "../dialogs/StartDialog";
 
@@ -35,8 +34,6 @@ function DialogPage() {
       return <StartDialog request={request} onDone={close} />;
     case "standard":
       return <StandardDialog request={request} onDone={close} />;
-    case "pause":
-      return <PauseDialog request={request} onDone={close} />;
   }
 }
 

@@ -1,7 +1,8 @@
+import { Combobox, Option } from "@fluentui/react-components";
 import { DatePicker, defaultDatePickerStrings, type DatePickerProps } from "@fluentui/react-datepicker-compat";
 import { TimePicker } from "@fluentui/react-timepicker-compat";
 import { useEffect, useState } from "react";
-import { formatDateBr, pad2, parseLocalDate, toLocalDate } from "../domain/time";
+import { addMinutesToTime, formatDateBr, formatMinutes, minutesBetweenTimes, pad2, parseLocalDate, toLocalDate } from "../domain/time";
 
 // Fluent date/time pickers instead of the browser's native inputs, with the values kept as the
 // strings the rest of the code uses ("yyyy-MM-dd" and "HH:mm").
@@ -36,6 +37,26 @@ export function parseDateBr(text: string, today = new Date()): Date | null {
 /** "HH:mm" of a Date. */
 export const timeOf = (d: Date) => `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
 
+/** Typed time "14:30", "9:05", "1430" or "14" → "HH:mm"; null when invalid. */
+export function parseTime(text: string): string | null {
+  const m = /^(\d{1,2})(?:[:h.]?(\d{2}))?$/.exec(text.trim());
+  if (!m) return null;
+  const h = Number(m[1]);
+  const min = m[2] ? Number(m[2]) : 0;
+  return h < 24 && min < 60 ? `${pad2(h)}:${pad2(min)}` : null;
+}
+
+/** End times offered after `start`: every 15 minutes until the end of the day, with the duration. */
+export function endTimeOptions(start: string, step = 15): { value: string; label: string }[] {
+  if (!parseTime(start)) return [];
+  const out: { value: string; label: string }[] = [];
+  for (let m = step; minutesBetweenTimes(start, addMinutesToTime(start, m)) === m; m += step) {
+    const value = addMinutesToTime(start, m);
+    out.push({ value, label: `${value} (${formatMinutes(m)})` });
+  }
+  return out;
+}
+
 export function DateInput({ value, onChange, ariaLabel, className, minDate }: {
   value: string; // yyyy-MM-dd
   onChange: (value: string) => void;
@@ -57,6 +78,55 @@ export function DateInput({ value, onChange, ariaLabel, className, minDate }: {
       minDate={minDate ? parseLocalDate(minDate) : undefined}
       placeholder="dd/mm/aaaa"
     />
+  );
+}
+
+/**
+ * End time "HH:mm": the list only has times after `start`, each with the resulting duration
+ * ("12:05 (1h)"), like Outlook. Any time can still be typed. The Fluent TimePicker can only start
+ * its list on a whole hour, hence a Combobox here.
+ */
+export function EndTimeInput({ start, value, onChange, disabled, ariaLabel }: {
+  start: string; // HH:mm
+  value: string; // HH:mm
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  ariaLabel?: string;
+}) {
+  const [text, setText] = useState(value);
+  useEffect(() => setText(value), [value]);
+  const options = endTimeOptions(start);
+  const commit = () => {
+    const t = parseTime(text);
+    if (t && t !== value) onChange(t);
+    else setText(value);
+  };
+  return (
+    <Combobox
+      freeform
+      value={text}
+      selectedOptions={[value]}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      positioning="below-start"
+      listbox={{ style: { maxHeight: "220px" } }}
+      input={{ style: { minWidth: 0, width: "100%" } }}
+      style={{ minWidth: 0, width: 120 }}
+      onInput={(e) => setText((e.target as HTMLInputElement).value)}
+      onBlur={commit}
+      onKeyDown={(e) => e.key === "Enter" && commit()}
+      onOptionSelect={(_, d) => {
+        if (!d.optionValue) return;
+        setText(d.optionValue);
+        onChange(d.optionValue);
+      }}
+    >
+      {options.map((o) => (
+        <Option key={o.value} value={o.value} text={o.value}>
+          {o.label}
+        </Option>
+      ))}
+    </Combobox>
   );
 }
 

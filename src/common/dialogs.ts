@@ -29,9 +29,11 @@ export interface LogRequest {
   fromTimer?: boolean;
   /** Shown above the times (e.g. "filled with your timer's pause"). */
   note?: string;
-  /** Stopping the timer to start another one: offers to leave the task in this state (e.g. Stopped). */
-  offerState?: string;
+  /** Pause state the task type has (e.g. Stopped), offered as "Parada" after logging. */
+  pauseState?: string;
 }
+
+export type TaskAfter = "active" | "paused" | "closed";
 
 export interface LogResult {
   task: TaskInfo;
@@ -39,9 +41,12 @@ export interface LogResult {
   /** Remaining typed by the user; undefined → computed from the current values when saving. */
   remaining?: number;
   estimate?: number;
-  closeTask: boolean;
-  /** The task goes to this state (the `offerState` accepted) instead of staying active. */
-  leaveState?: string;
+  /** State of the task after logging: active, paused (pauseState) or closed. */
+  after: TaskAfter;
+  /** The pause state applied when `after` is "paused" (the request's pauseState). */
+  pauseState?: string;
+  /** Why the task was left paused (goes to the work item discussion). */
+  reason?: string;
 }
 
 export interface NewTaskInput {
@@ -74,22 +79,9 @@ export interface StandardResult {
   items: NewTaskInput[];
 }
 
-export interface PauseRequest {
-  kind: "pause";
-  task: { id: number; title: string; state: string };
-  settings: Settings;
-  /** Pause states the task type really has (the process may not have all the configured ones). */
-  states?: string[];
-}
+export type DialogRequest = LogRequest | StartRequest | StandardRequest;
 
-export interface PauseResult {
-  state?: string;
-  reason?: string;
-}
-
-export type DialogRequest = LogRequest | StartRequest | StandardRequest | PauseRequest;
-
-type ResultOf<R extends DialogRequest> = R extends LogRequest ? LogResult : R extends StartRequest ? StartResult : R extends StandardRequest ? StandardResult : PauseResult;
+type ResultOf<R extends DialogRequest> = R extends LogRequest ? LogResult : R extends StartRequest ? StartResult : R extends StandardRequest ? StandardResult : never;
 
 export async function openDialog<R extends DialogRequest>(title: string, request: R): Promise<ResultOf<R> | undefined> {
   const layout = await hostLayout();

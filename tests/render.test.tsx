@@ -23,7 +23,6 @@ vi.mock("azure-devops-extension-api/WorkItemTracking", () => ({
 const { LogDialog } = await import("../src/dialogs/LogDialog");
 const { StartDialog } = await import("../src/dialogs/StartDialog");
 const { StandardDialog } = await import("../src/dialogs/StandardDialog");
-const { PauseDialog } = await import("../src/dialogs/PauseDialog");
 const { EntriesTable, HoursSummary, TimerControls } = await import("../src/common/ui/components");
 const { DEFAULT_SETTINGS } = await import("../src/common/domain/settings");
 const { MigrationSection } = await import("../src/hub/MigrationSection");
@@ -38,7 +37,7 @@ describe("dialogs render", () => {
   it("log dialog for a task", () => {
     const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino" }} onDone={() => undefined} />);
     expect(out).toContain("Remaining após apontar");
-    expect(out).toContain("Concluir task");
+    expect(out).toContain("Concluída (Closed)");
   });
 
   it("log dialog shows the task picker when no task comes (null or lost on the host bridge)", () => {
@@ -75,21 +74,21 @@ describe("dialogs render", () => {
     expect(empty).toContain("Criar também as tasks padrão");
   });
 
-  it("standard and pause dialogs", () => {
+  it("standard dialog", () => {
     expect(html(<StandardDialog request={{ kind: "standard", parent, children: [task], settings }} onDone={() => undefined} />)).toContain("Investigação");
-    expect(html(<PauseDialog request={{ kind: "pause", task, settings }} onDone={() => undefined} />)).toContain("Stopped");
   });
 
-  it("pause dialog only offers states the task type has", () => {
-    const configured = { ...settings, states: { ...settings.states, pauseStates: ["Stopped", "Waiting"] } };
-    const out = html(<PauseDialog request={{ kind: "pause", task, settings: configured, states: ["Stopped"] }} onDone={() => undefined} />);
-    expect(out).toContain("mudar a task para Stopped");
-    expect(out).not.toContain("Waiting");
+  it("log dialog asks how the task is left: in progress, paused or done", () => {
+    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino", fromTimer: true, pauseState: "Stopped" }} onDone={() => undefined} />);
+    expect(out).toContain("Depois de apontar, a task fica");
+    expect(out).toContain("Em andamento");
+    expect(out).toContain("Parada, aguardando algo (Stopped)");
+    expect(out).toContain("Concluída (Closed)");
   });
 
-  it("log dialog offers to leave the task paused when switching timers", () => {
-    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino", fromTimer: true, offerState: "Stopped" }} onDone={() => undefined} />);
-    expect(out).toContain("Deixar a task em Stopped");
+  it("log dialog without a pause state in the process offers only in progress and done", () => {
+    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino" }} onDone={() => undefined} />);
+    expect(out).not.toContain("Parada, aguardando algo");
   });
 });
 

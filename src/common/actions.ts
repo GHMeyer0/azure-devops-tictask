@@ -93,14 +93,14 @@ export async function ensureCanStart(ctx: Ctx, targetId?: number): Promise<boole
     const state = existing.status === "running" ? "rodando" : "pausado";
     const ok = await confirmDialog(
       `Você já tem um timer ${state} em #${existing.workItem.id} ${existing.workItem.title} (${elapsed}, ${existing.activity}). ` +
-        "Só pode haver um timer por vez: para iniciar outro, o atual será parado e você aponta esse tempo antes " +
-        "(dá para deixar a task parada, para retomar depois pela lista Paradas).",
+        "Só pode haver um timer por vez: para iniciar outro, o atual é encerrado e você aponta esse tempo antes " +
+        '(no apontamento, escolha "Parada" para retomar a task depois pela lista Paradas).',
       "Já existe um timer",
-      "Parar e apontar o atual",
+      "Encerrar e apontar o atual",
       "Manter o atual",
     );
     if (!ok) return false;
-    if (!(await stopTimer(ctx, existing, { switching: true }))) return false;
+    if (!(await stopTimer(ctx, existing))) return false;
   }
   if (targetId && ctx.settings.teamPresence) {
     const others = (await listPresence(ctx.projectId).catch(() => [])).filter((p) => p.id !== ctx.user.id && p.workItem.id === targetId && p.status === "running");
@@ -171,20 +171,13 @@ async function pauseStatesFor(ctx: Ctx, type: string): Promise<string[]> {
   return existing.length ? ctx.settings.states.pauseStates.filter((s) => existing.includes(s)) : ctx.settings.states.pauseStates;
 }
 
-export async function pauseTimer(ctx: Ctx, shown: ActiveTimer): Promise<ActiveTimer | null> {
+/** Pauses with one click: the task state does not change (that is decided when the timer is ended). */
+export async function pauseTimer(_ctx: Ctx, shown: ActiveTimer): Promise<ActiveTimer | null> {
   const timer = await currentTimer(shown);
   if (!timer) return null;
-  const task = await getWorkItem(timer.workItem.id);
-  const states = await pauseStatesFor(ctx, task.type);
-  const choice = await openDialog("Pausar timer", { kind: "pause", task: { id: task.id, title: task.title, state: task.state }, settings: ctx.settings, states });
-  if (!choice) return null;
   const at = now();
   const segments = timer.segments.map((s) => (s.end ? s : { ...s, end: at }));
-  if (choice.state && choice.state !== task.state) {
-    await ctx.writer.apply(task.id, () => ({ state: choice.state, history: choice.reason ? `⏸ ${choice.state}: ${choice.reason}` : undefined }));
-    emit({ type: "workitems", workItemIds: [task.id] });
-  }
-  return saveTimer({ ...timer, status: "paused", segments, pauses: [...(timer.pauses ?? []), { at, state: choice.state, reason: choice.reason }] });
+  return saveTimer({ ...timer, status: "paused", segments, pauses: [...(timer.pauses ?? []), { at }] });
 }
 
 export async function resumeTimer(ctx: Ctx, shown: ActiveTimer): Promise<ActiveTimer | null> {
@@ -223,11 +216,10 @@ const pauseDraft = (p: Pause): Partial<LogDraft> => ({ date: toLocalDate(p.start
 const pauseNote = (p: Pause) => `Horário preenchido com a pausa do seu timer (${toLocalTime(p.start)}–${toLocalTime(p.end)}).`;
 
 /**
- * Stops the timer and opens the log dialog pre-filled with its segments. Returns the entry or null.
- * `switching`: stopped to start another timer, so the dialog offers to leave the task paused
- * (e.g. Stopped) instead of active: it then shows under "Paradas" to be picked up later.
+ * "Encerrar": closes the timer and opens the log dialog pre-filled with its segments, which also
+ * asks how the task is left (in progress, paused/Stopped or done). Returns the entry or null.
  */
-export async function stopTimer(ctx: Ctx, shown: ActiveTimer, options?: { switching?: boolean }): Promise<TimeEntry | null> {
+export async function stopTimer(ctx: Ctx, shown: ActiveTimer): Promise<TimeEntry | null> {
   const timer = await currentTimer(shown);
   if (!timer) return null;
   const at = now();
@@ -243,8 +235,8 @@ export async function stopTimer(ctx: Ctx, shown: ActiveTimer, options?: { switch
     activity: timer.activity,
     comment: timer.comment,
   };
-  const offerState = options?.switching ? (await pauseStatesFor(ctx, task.type))[0] : undefined;
-  const result = await openDialog(`Apontar #${task.id}`, { kind: "log", mode: "create", task, draft, settings: ctx.settings, projectName: ctx.projectName, fromTimer: true, offerState });
+  const pauseState = (await pauseStatesFor(ctx, task.type))[0];
+  const result = await openDialog(`Encerrar e apontar #${task.id}`, { kind: "log", mode: "create", task, draft, settings: ctx.settings, projectName: ctx.projectName, fromTimer: true, pauseState });
   if (!result) {
     const discard = await confirmDialog(`Descartar o tempo do timer (${formatMinutes(minutes)})? Ele não será apontado.`, "Descartar timer", "Descartar", "Manter timer");
     if (discard) await clearTimer(timer.projectId);
@@ -284,7 +276,8 @@ export async function logTime(ctx: Ctx, task: TaskInfo | null, preset?: Partial<
     comment: "",
     ...preset,
   };
-  const result = await openDialog(task ? `Apontar #${task.id}` : "Apontar horas", { kind: "log", mode: "create", task, draft, settings: ctx.settings, projectName: ctx.projectName, note });
+  const pauseState = (await pauseStatesFor(ctx, task?.type ?? ctx.settings.taskType))[0];
+  const result = await openDialog(task ? `Apontar #${task.id}` : "Apontar horas", { kind: "log", mode: "create", task, draft, settings: ctx.settings, projectName: ctx.projectName, note, pauseState });
   if (!result) return null;
   if (!task && !(await confirmStart(ctx, result.task))) return null;
   return createEntry(ctx, result, source);
@@ -297,9 +290,13 @@ export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["sou
     const upd = applyCreate(current, hours, r.estimate);
     const changes: FieldChanges = { completed: upd.completed, remaining: r.remaining ?? upd.remaining };
     if (upd.original !== undefined) changes.original = upd.original;
-    const to = r.closeTask ? ctx.settings.states.closed : (r.leaveState ?? startStateChange(ctx, current));
+    const to = r.after === "closed" ? ctx.settings.states.closed : r.after === "paused" && r.pauseState ? r.pauseState : startStateChange(ctx, current);
     if (to && to !== current.state) changes.state = to;
-    if (ctx.settings.postComment) changes.history = `⏱ ${formatMinutes(r.draft.minutes)} · ${r.draft.activity} · ${r.draft.date} ${r.draft.startTime}–${r.draft.endTime}${r.draft.comment ? ` · ${r.draft.comment}` : ""}`;
+    const lines = [
+      ctx.settings.postComment && `⏱ ${formatMinutes(r.draft.minutes)} · ${r.draft.activity} · ${r.draft.date} ${r.draft.startTime}–${r.draft.endTime}${r.draft.comment ? ` · ${r.draft.comment}` : ""}`,
+      r.after === "paused" && r.reason && `⏸ ${to}: ${r.reason}`,
+    ].filter(Boolean);
+    if (lines.length) changes.history = lines.join("<br>");
     return changes;
   });
   const parentStateAtStart = timerInfo?.parentStateAtStart ?? (await activateParent(ctx, before.parentId));

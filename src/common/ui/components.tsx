@@ -139,8 +139,8 @@ export function TimerControls({ timer, elapsedMs, busy, onPause, onResume, onSto
           Retomar
         </Button>
       )}
-      <Button size="small" icon={<RecordStopRegular />} onClick={onStop} disabled={busy}>
-        Parar
+      <Button size="small" icon={<RecordStopRegular />} onClick={onStop} disabled={busy} title="Encerrar a sessão e apontar o tempo">
+        Encerrar
       </Button>
       {showTarget && (
         <Text size={200}>
