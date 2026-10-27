@@ -91,7 +91,7 @@ function pick(list: string[], key: string, kind: string): string {
   return list[hash(key) % list.length];
 }
 
-/** A person is keyed by first name, so "Lucas Eduardo" and "lucas.eduardo@…" become the same fake person. */
+/** A person is keyed by first name, so "Rafael Teles" and "rafael.teles@…" become the same fake person. */
 function fakePerson(firstName: string): string {
   return pick(PEOPLE, plain(firstName), "person");
 }

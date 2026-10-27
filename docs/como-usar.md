@@ -493,6 +493,8 @@ TicTask, para não lançar as mesmas horas duas vezes.
 ## Lembretes no Google Chat
 
 Configurados em **Configurações › Google Chat** e enviados por mensagem direta pelo app do Google Chat.
+O envio depende de uma automação externa que a sua organização precisa ter configurado; sem ela,
+esta aba não tem efeito.
 
 ![Configurações › Google Chat](img/config-chat.jpg)
 

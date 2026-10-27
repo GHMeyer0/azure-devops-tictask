@@ -64,8 +64,8 @@ menu ⏸ ▾) ou de **conclusão** (aparece no Concluir, no campo opcional **Pr�
 - Comentário **sempre na task**, no mesmo patch do apontamento (uma revisão só):
   `⏸ Pausada: Aguardando revisão. PR !1234 do João`.
 - Motivos com **"também comentar na US"** ligado escrevem também no WI pai, identificando task e
-  pessoa: `⏸ #11222 Correção (Gabriel): Aguardando revisão. PR !1234` ou
-  `✓ #11221 Desenvolvimento concluída (Gabriel): Enviado para revisão. PR !1234`. Ligado por padrão
+  pessoa: `⏸ #11222 Correção (Ana): Aguardando revisão. PR !1234` ou
+  `✓ #11221 Desenvolvimento concluída (Ana): Enviado para revisão. PR !1234`. Ligado por padrão
   só nos motivos que afetam o andamento da história, porque cada comentário na US notifica quem a
   segue. Concluir sem próximo passo não comenta na US.
 - O motivo fica gravado no apontamento do trecho (`reason`, `reasonDetail`). Os de pausa aparecem em
@@ -112,8 +112,8 @@ A atividade **Desenvolvimento/Correção** vira duas:
 - Correção é só o retrabalho de revisão. Em Bug, o trabalho principal continua sendo
   Desenvolvimento.
 - `guessActivity`: "corre", "ajust", "fix" → Correção; "desenv", "implement", "dev" → Desenvolvimento.
-- Vale para projetos novos e para "Restaurar padrão". Projetos com atividades salvas (como o Tiino,
-  que já separou as duas) não mudam.
+- Vale para projetos novos e para "Restaurar padrão". Projetos com atividades salvas (inclusive os
+  que já separaram as duas) não mudam.
 
 ## Quando o Pausar abre um diálogo
 

@@ -62,7 +62,7 @@ describe("state decisions", () => {
 });
 
 describe("settings helpers", () => {
-  it("guesses the activity from Tiino task titles", () => {
+  it("guesses the activity from usual task titles", () => {
     expect(guessActivity(DEFAULT_SETTINGS, "Revisão de PR")).toBe("Revisão");
     expect(guessActivity(DEFAULT_SETTINGS, "Testes e Ajustes se necessário")).toBe("Testes");
     expect(guessActivity(DEFAULT_SETTINGS, "investigação")).toBe("Investigação");

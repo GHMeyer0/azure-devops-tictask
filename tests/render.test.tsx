@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("azure-devops-extension-sdk", () => ({
   getConfiguration: () => ({}),
-  getExtensionContext: () => ({ publisherId: "tiino", extensionId: "time-tracker" }),
+  getExtensionContext: () => ({ publisherId: "contoso", extensionId: "time-tracker" }),
   resize: () => undefined,
   register: () => undefined,
   unregister: () => undefined,
@@ -37,24 +37,24 @@ const draft = { date: "2026-10-21", startTime: "09:00", endTime: "10:30", minute
 
 describe("dialogs render", () => {
   it("log dialog for a task", () => {
-    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino" }} onDone={() => undefined} />);
+    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Contoso" }} onDone={() => undefined} />);
     expect(out).toContain("Remaining após apontar");
     expect(out).toContain("Concluir a task (Closed)");
   });
 
   it("log dialog shows the task picker when no task comes (null or lost on the host bridge)", () => {
-    const req = { kind: "log" as const, mode: "create" as const, draft, settings, projectName: "Tiino" };
+    const req = { kind: "log" as const, mode: "create" as const, draft, settings, projectName: "Contoso" };
     expect(html(<LogDialog request={{ ...req, task: null }} onDone={() => undefined} />)).toContain("Buscar task");
     expect(html(<LogDialog request={{ ...req, task: undefined as never }} onDone={() => undefined} />)).toContain("Buscar task");
   });
 
   it("log dialog shows a note above the times", () => {
     const note = "O timer está rodando desde 22/10/2026 17:30.";
-    expect(html(<LogDialog request={{ kind: "log", mode: "create", task: null, draft, settings, projectName: "Tiino", note }} onDone={() => undefined} />)).toContain(note);
+    expect(html(<LogDialog request={{ kind: "log", mode: "create", task: null, draft, settings, projectName: "Contoso", note }} onDone={() => undefined} />)).toContain(note);
   });
 
   it("log dialog asks for an estimate when the task has none", () => {
-    const out = html(<LogDialog request={{ kind: "log", mode: "create", task: { ...task, original: null, remaining: null }, draft, settings, projectName: "Tiino" }} onDone={() => undefined} />);
+    const out = html(<LogDialog request={{ kind: "log", mode: "create", task: { ...task, original: null, remaining: null }, draft, settings, projectName: "Contoso" }} onDone={() => undefined} />);
     expect(out).toContain("Estimativa da task");
   });
 
@@ -63,7 +63,7 @@ describe("dialogs render", () => {
       { start: "2026-10-21T12:00:00.000Z", end: "2026-10-21T15:00:00.000Z" },
       { start: "2026-10-21T16:00:00.000Z", end: "2026-10-21T17:30:00.000Z" },
     ];
-    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft: { ...draft, minutes: 270, segments }, settings, projectName: "Tiino", fromTimer: true }} onDone={() => undefined} />);
+    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft: { ...draft, minutes: 270, segments }, settings, projectName: "Contoso", fromTimer: true }} onDone={() => undefined} />);
     expect(out).toContain("Trechos do timer");
   });
 
@@ -82,14 +82,14 @@ describe("dialogs render", () => {
 
   it("log dialog refuses a date older than the edit limit", () => {
     const old = new Date(Date.now() - 30 * 86_400_000).toLocaleDateString("en-CA");
-    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft: { ...draft, date: old }, settings, projectName: "Tiino" }} onDone={() => undefined} />);
+    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft: { ...draft, date: old }, settings, projectName: "Contoso" }} onDone={() => undefined} />);
     expect(out).toContain("não podem ser criados nem alterados");
-    const fromTimer = html(<LogDialog request={{ kind: "log", mode: "create", task, draft: { ...draft, date: old }, settings, projectName: "Tiino", fromTimer: true }} onDone={() => undefined} />);
+    const fromTimer = html(<LogDialog request={{ kind: "log", mode: "create", task, draft: { ...draft, date: old }, settings, projectName: "Contoso", fromTimer: true }} onDone={() => undefined} />);
     expect(fromTimer).not.toContain("não podem ser criados nem alterados"); // a forgotten timer is still logged
   });
 
   it("Concluir offers the next step and suggests Remaining 0", () => {
-    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Tiino", fromTimer: true, conclude: true }} onDone={() => undefined} />);
+    const out = html(<LogDialog request={{ kind: "log", mode: "create", task, draft, settings, projectName: "Contoso", fromTimer: true, conclude: true }} onDone={() => undefined} />);
     expect(out).toContain("Próximo passo");
     expect(out).toContain("Enviado para revisão");
     expect(out).toContain("Outro…");
@@ -132,7 +132,7 @@ describe("dialogs render", () => {
 describe("team view render", () => {
   it("says when the team view is disabled", async () => {
     const { TeamNow } = await import("../src/common/ui/TeamNow");
-    const ctx = { projectId: "p", projectName: "Tiino", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings: { ...settings, teamPresence: false }, writer: { apply: async () => ({}) as never } };
+    const ctx = { projectId: "p", projectName: "Contoso", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings: { ...settings, teamPresence: false }, writer: { apply: async () => ({}) as never } };
     expect(html(<TeamNow ctx={ctx} />)).toContain("desativada");
   });
 });
@@ -146,16 +146,16 @@ describe("Meu tempo render", () => {
 
 describe("hub sections render", () => {
   it("export/import section", () => {
-    const ctx = { projectId: "p", projectName: "Tiino", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings, writer: { apply: async () => ({}) as never } };
+    const ctx = { projectId: "p", projectName: "Contoso", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings, writer: { apply: async () => ({}) as never } };
     const out = html(<MigrationSection ctx={ctx} onSettingsImported={() => undefined} />);
     expect(out).toContain("Exportar dados do projeto");
     expect(out).toContain("Importar do Time Log");
-    expect(out).toContain("tiino.time-tracker");
+    expect(out).toContain("contoso.time-tracker");
   });
 
   it("settings use pickers and have no daily target", async () => {
     const { SettingsView } = await import("../src/hub/SettingsView");
-    const ctx = { projectId: "p", projectName: "Tiino", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings, writer: { apply: async () => ({}) as never } };
+    const ctx = { projectId: "p", projectName: "Contoso", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings, writer: { apply: async () => ({}) as never } };
     const geral = html(<SettingsView ctx={ctx} onSaved={() => undefined} initialSection="geral" />);
     expect(geral).toContain("Gestores adicionais");
     expect(geral).toContain("Google Chat"); // side navigation

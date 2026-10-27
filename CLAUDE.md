@@ -1,9 +1,10 @@
 # TicTask – guia para agentes
 
-Extensão do Azure DevOps (publisher `ghmeyer0`, id `tictask`, privada) para apontar horas nas Tasks do
-projeto **Tiino** (org `tunesoft`, processo **Agile 2024**). Sem backend: dados no Extension Data
-Service. Leia também o [README](README.md) (arquitetura e regras), o [guia de uso](docs/como-usar.md)
-e o [plano da 0.7](docs/plano-pausar-concluir.md).
+Extensão do Azure DevOps (publisher `ghmeyer0`, id `tictask`, privada) para apontar horas nas Tasks.
+Sem backend: dados no Extension Data Service. Leia também o [README](README.md) (arquitetura e
+regras), o [guia de uso](docs/como-usar.md) e o [plano da 0.7](docs/plano-pausar-concluir.md).
+O que é da organização onde a extensão roda (projeto, processo, integrações) fica em
+`CLAUDE.local.md`, fora do git: nada disso entra no repositório (código, testes, docs ou prints).
 
 Stack: TypeScript, React 19, Fluent UI v9 (+ `react-timepicker-compat` e `react-datepicker-compat`),
 `azure-devops-extension-sdk` 4.x, FullCalendar 6, esbuild (`scripts/build.mjs`), vitest, tfx.
@@ -36,8 +37,8 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
   cross-origin).
 - **Prints para a documentação:** abrir a página com `?tictask-demo=1` (modo demonstração troca nomes,
   títulos e iniciais dentro da extensão) **e** anonimizar a página do ADO em volta via JavaScript no
-  topo (tunesoft→contoso, Tiino→Contoso, nomes de pessoas, títulos, avatar `.mectrl_profilepic`). Nada
-  da organização pode aparecer. Os prints saem de `computer screenshot`/`zoom` (arquivos em
+  topo (nome da org e do projeto→Contoso, nomes de pessoas, títulos, avatar `.mectrl_profilepic`).
+  Nada da organização pode aparecer. Os prints saem de `computer screenshot`/`zoom` (arquivos em
   `tool-results`), copiados para `docs/img/`.
 
 ## Modelo de uso (desde a 0.7)
@@ -55,9 +56,9 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
 - Fluxo de revisão: Desenvolvimento concluída como "Enviado para revisão"; correções numa única task
   de **Correção** por história (atividade separada de Desenvolvimento).
 - **Rotinas internas** (treinamento, release notes, administrativo): tipo **Rotina** no processo
-  (criado em 27/10/2026, ref `Agile2024.Rotina`, estados New/Active/Closed, nível Stories, sem Story
-  Points). Um item "Rotinas – Sprint N" por sprint; cada pessoa cria as próprias tasks embaixo, com
-  as atividades Treinamento ou Administrativo. Tipo de processo herdado não pode ser renomeado.
+  (estados New/Active/Closed, nível Stories, sem Story Points). Um item "Rotinas – Sprint N"
+  por sprint; cada pessoa cria as próprias tasks embaixo, com as atividades Treinamento ou
+  Administrativo. Tipo de processo herdado não pode ser renomeado.
 - **Importar do Time Log** (Configurações › Dados): CSV da página Time Log Admin
   (`id, minutes, user, userId, workItemId, date, dateWeek, type, comment`). Entradas `timelog-<id>`,
   horário montado a partir das 08:00 por pessoa e dia, sem mexer nos work items. Uma extensão não lê
@@ -77,27 +78,16 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
 - **Diálogo do host:** largura fixa de 480px (440px de conteúdo); o conteúdo é fluido.
 - **Menus/popovers no grupo da tela do work item** são cortados pelo iframe pequeno: o ▾ do Pausar abre
   um diálogo, não um menu.
-- **Regras do processo Tiino na Task:** de New para Active exige Original Estimate e Remaining; com a
-  task Active o Original Estimate fica somente leitura (até na mesma gravação). Por isso a estimativa é
-  gravada antes do estado (duas revisões) e iniciar timer em task sem estimativa pede a estimativa.
+- **Regras de processo na Task:** processos herdados podem exigir Original Estimate e Remaining de
+  New para Active e, com a task Active, deixar o Original Estimate somente leitura (até na mesma
+  gravação). Por isso a estimativa é gravada antes do estado (duas revisões) e iniciar timer em task
+  sem estimativa pede a estimativa.
   Erro visto: `TF401320: Rule Error for field Original Estimate`.
 - O processo precisa do estado **Stopped** na Task; a extensão não cria estados.
 - `Microsoft.VSTS.Common.StateChangeDate` é lido com os campos da task (dias parada em Paradas).
 
-## n8n (ipaas.tunesoft.com.br) e Google Chat
+## Integrações fora do repositório
 
-Workflows: `TT · LIB · Ler TicTask` (Pnn4PR3VNtLAytyZ), `TT · CRON · Lembrete de apontamento`
-(kNMZQi8ju9UKV1vY, de hora em hora), `CHAT · CRON · Resumo diário 7h30` (zgUkaw00IwltDwcK). Usam
-`ADO · LIB · GET na API do ADO` (WRMJ1ndESbYkoCjZ) e `CHAT · LIB · Enviar card por DM` (4hxyshOCta5XWlU4).
-
-- A LIB classifica cada documento **pelo conteúdo**, não pelo `pairedItem`: com muitos apontamentos o
-  `pairedItem` do GET não aponta a URL de origem e tudo virava "resposta sem origem" (lembretes pararam
-  de sair em 23/10/2026 até a correção).
-- `update_workflow` reescreve o workflow inteiro a partir do código do SDK: reproduza todos os nós.
-  O SDK não aceita template com tag (`String.raw`); evite `\` e `${` dentro do `jsCode`.
-- Depois de `update_workflow` é preciso `publish_workflow`.
-- A LIB só pode ser chamada por workflows do mesmo projeto: um workflow temporário de teste é negado.
-  Não rode os CRONs à mão (mandam mensagens reais ao time); confira a próxima execução agendada com
-  `search_executions` / `get_execution`.
-- Mudanças nos dados da extensão (campos novos em apontamentos, presença, configurações) precisam ser
-  refletidas na LIB.
+- Os lembretes no Google Chat são enviados por workflows do n8n que leem os documentos do TicTask
+  (detalhes no `CLAUDE.local.md`). Mudanças nos dados da extensão (campos novos em apontamentos,
+  presença, configurações) precisam ser refletidas neles.

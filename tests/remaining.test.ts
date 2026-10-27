@@ -12,7 +12,7 @@ describe("applyCreate", () => {
     expect(applyCreate(f(1, 0.5, 0.5), 1.5)).toEqual({ completed: 2, remaining: 0 });
   });
 
-  it("uses estimate − completed when Remaining was never filled (Tiino case)", () => {
+  it("uses estimate − completed when Remaining was never filled (common case)", () => {
     // Task with OriginalEstimate=3, Completed=1 and no Remaining.
     expect(applyCreate(f(3, null, 1), 1)).toEqual({ completed: 2, remaining: 1 });
   });

@@ -28,7 +28,7 @@ function entry(p: Partial<TimeEntry>): TimeEntry {
   };
 }
 
-const meta = { by: { id: "u1", displayName: "Ana", email: "ana@x.com" }, extension: "tiino.time-tracker", projectId: "proj-a", projectName: "Tiino", at: "2026-10-22T10:00:00.000Z" };
+const meta = { by: { id: "u1", displayName: "Ana", email: "ana@x.com" }, extension: "contoso.time-tracker", projectId: "proj-a", projectName: "Contoso", at: "2026-10-22T10:00:00.000Z" };
 const entries = [
   entry({ id: "e2", date: "2026-10-21", start: "2026-10-21T12:00:00.000Z", workItemId: 11, userId: "u2", __etag: 3 }),
   entry({ id: "e1" }),
@@ -43,7 +43,7 @@ describe("export file", () => {
     if (!parsed.ok) return;
     expect(parsed.file.entries.map((e) => e.id)).toEqual(["e3", "e1", "e2"]);
     expect(parsed.file.entries.some((e) => "__etag" in e)).toBe(false);
-    expect(parsed.file.source.extension).toBe("tiino.time-tracker");
+    expect(parsed.file.source.extension).toBe("contoso.time-tracker");
   });
 
   it("summarizes including deleted entries", () => {
@@ -65,10 +65,10 @@ describe("export file", () => {
   });
 
   it("prepares entries for the target project with an import audit line, once", () => {
-    const target = { projectId: "proj-b", by: "Bruno", at: "2026-10-23T09:00:00.000Z", sourceExtension: "tiino.time-tracker" };
+    const target = { projectId: "proj-b", by: "Bruno", at: "2026-10-23T09:00:00.000Z", sourceExtension: "contoso.time-tracker" };
     const once = prepareForImport(entries, target);
     expect(once.every((e) => e.projectId === "proj-b")).toBe(true);
-    expect(once[1].history.at(-1)).toEqual({ at: target.at, by: "Bruno", action: "import", detail: "importado de tiino.time-tracker" });
+    expect(once[1].history.at(-1)).toEqual({ at: target.at, by: "Bruno", action: "import", detail: "importado de contoso.time-tracker" });
     const twice = prepareForImport(once, target);
     expect(twice[1].history).toHaveLength(2);
   });

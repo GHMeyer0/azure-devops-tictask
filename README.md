@@ -46,8 +46,8 @@ interface: tecnicamente, qualquer membro do projeto consegue ler os dados do Ext
 - Task fechada: pede confirmação e reabre (ou bloqueia, conforme configuração).
 - Limite de dias (Configurações › Geral, padrão 7): depois dele o autor não edita nem exclui o
   apontamento, e também não cria nem move apontamentos para antes dele (exceto o tempo de um timer).
-- Regras do processo: no Tiino, Original Estimate e Remaining são obrigatórios para sair de New e o
-  Original Estimate fica somente leitura em Active. Por isso a estimativa é gravada antes do estado
+- Regras do processo: processos herdados podem exigir Original Estimate e Remaining para sair de New
+  e deixar o Original Estimate somente leitura em Active. Por isso a estimativa é gravada antes do estado
   (duas revisões), e iniciar o timer numa task sem estimativa pede a estimativa antes.
 - Horas, Remaining e estado vão num único patch (uma revisão no histórico), exceto quando o apontamento também define a estimativa: aí são duas (estimativa, depois estado).
 
@@ -84,7 +84,7 @@ src/pages           entradas de cada contribuição
 1. O manifesto usa o publisher `ghmeyer0` (https://marketplace.visualstudio.com/manage/publishers/ghmeyer0).
    Para publicar em outro, troque `"publisher"` em `vss-extension.json` — o upload exige que sejam iguais.
 2. `npm run package` e faça upload do `.vsix` em *New extension › Azure DevOps* (fica privado).
-3. Compartilhe com a organização (ex.: uma org pessoal de teste, depois `tunesoft`) e instale em
+3. Compartilhe com a organização (ex.: uma org pessoal de teste, depois a do time) e instale em
    *Organization settings › Extensions*.
 4. A cada nova versão, aumente `"version"` no manifesto antes de empacotar.
 
@@ -123,6 +123,14 @@ títulos, nomes, e-mails, comentários e o nome do projeto por dados fictícios 
 Só o que aparece muda: leitura e gravação continuam com os dados reais. Títulos de task com uma ou
 duas palavras e os nomes das atividades não são trocados. A parte da página que é do próprio ADO
 (organização, avatar, campos do work item) fica fora do iframe e precisa ser trocada à parte antes do print.
+
+## Lembretes no Google Chat (opcional)
+
+*Configurações › Google Chat* guarda quem recebe, o expediente e os limites, mas a extensão não
+envia mensagens (não há backend). Os lembretes e o resumo da manhã vêm de workflows do n8n, fora
+deste repositório, que leem os documentos do TicTask (apontamentos, presença e configurações) pela
+API do Extension Data Service e mandam cards pelo app do Google Chat. Sem essa automação, o resto da
+extensão funciona normalmente. Ao mudar o formato desses documentos, ajuste também a automação.
 
 ## Dados e auditoria
 

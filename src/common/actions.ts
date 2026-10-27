@@ -115,7 +115,7 @@ export async function startTimer(ctx: Ctx, task: TaskInfo, activity?: string): P
   if (!(await ensureCanStart(ctx, task.id))) return null;
   if (!(await confirmStart(ctx, task))) return null;
 
-  // A process may require the estimate to start work (Tiino: Original Estimate and Remaining
+  // A process may require the estimate to start work (e.g. Original Estimate and Remaining
   // required from New to Active): ask for it first and save it before the state.
   if (startStateChange(ctx, task) && needsEstimate(task)) {
     const answer = await openDialog(`Estimativa #${task.id}`, { kind: "estimate", task, settings: ctx.settings, activity: activity ?? defaultActivityFor(ctx, task) });
@@ -350,7 +350,7 @@ export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["sou
     if (upd.original !== undefined) changes.original = upd.original;
     const starts = startStateChange(ctx, current);
     const to = r.close ? ctx.settings.states.closed : opts.pausing ? opts.pauseState : starts && (opts.pauseState ?? starts);
-    // A process may lock Original Estimate by state (Tiino: read-only once Active), also inside the
+    // A process may lock Original Estimate by state (e.g. read-only once Active), also inside the
     // save that sets it: the estimate goes first and the state in a second save.
     if (to && to !== current.state) {
       if (changes.original !== undefined) laterState = to;
