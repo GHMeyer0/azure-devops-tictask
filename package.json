@@ -1,6 +1,6 @@
 {
   "name": "tictask",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "private": true,
   "license": "MIT",
   "description": "Apontamento de horas em Tasks/User Stories do Azure DevOps com timer, timesheet e calendário.",
