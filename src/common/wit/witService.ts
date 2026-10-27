@@ -85,6 +85,18 @@ export async function getWorkItems(ids: number[]): Promise<TaskInfo[]> {
   return out;
 }
 
+/** Like getWorkItems, but ids that no longer exist (or are not visible) are skipped instead of failing. */
+export async function getExistingWorkItems(ids: number[]): Promise<TaskInfo[]> {
+  const unique = [...new Set(ids)];
+  const out: TaskInfo[] = [];
+  for (let i = 0; i < unique.length; i += 200) {
+    // 2 = WorkItemErrorPolicy.Omit (a const enum, not usable with isolatedModules).
+    const batch = await witClient().getWorkItems(unique.slice(i, i + 200), undefined, INFO_FIELDS, undefined, undefined, 2 as never);
+    out.push(...batch.filter(Boolean).map(fromWorkItem));
+  }
+  return out;
+}
+
 /** Child work items (hierarchy links) of a parent. */
 export async function getChildren(parentId: number): Promise<TaskInfo[]> {
   const parent = await witClient().getWorkItem(parentId, undefined, undefined, undefined, WorkItemExpand.Relations);

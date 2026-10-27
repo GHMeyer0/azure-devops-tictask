@@ -149,6 +149,7 @@ describe("hub sections render", () => {
     const ctx = { projectId: "p", projectName: "Tiino", user: { id: "u1", displayName: "Ana", email: "ana@x.com" }, settings, writer: { apply: async () => ({}) as never } };
     const out = html(<MigrationSection ctx={ctx} onSettingsImported={() => undefined} />);
     expect(out).toContain("Exportar dados do projeto");
+    expect(out).toContain("Importar do Time Log");
     expect(out).toContain("tiino.time-tracker");
   });
 

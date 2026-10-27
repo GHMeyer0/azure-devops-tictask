@@ -39,6 +39,7 @@ estado da task. Tudo fica no histórico do work item: quem apontou, quanto e qua
   - [Calendário](#calendário)
   - [Time agora (gestores)](#time-agora-gestores)
   - [Configurações (gestores)](#configurações-gestores)
+- [Migrar de outra extensão (Time Log)](#migrar-de-outra-extensão-time-log)
 - [Lembretes no Google Chat](#lembretes-no-google-chat)
 - [Perguntas frequentes](#perguntas-frequentes)
 
@@ -447,10 +448,45 @@ rodapé, que também tem **Descartar** e **Restaurar padrão**.
 | **Atividades** | Nome, cor, título sugerido, campo *Activity* do ADO, estimativa padrão e quais são tasks padrão |
 | **Estados e motivos** | Estado ativo, de pausa e fechados; regra para task fechada; motivos de pausa e próximos passos (e quais comentam na US); limites do timer esquecido e da task parada; ativação do item pai |
 | **Google Chat** | Lembrete de apontamento (expediente, almoço, máximo por dia), quem recebe e o resumo da manhã |
-| **Dados** | Exportar e importar todos os apontamentos e configurações do projeto (JSON) |
+| **Dados** | Exportar e importar todos os apontamentos e configurações do projeto (JSON) e importar do Time Log (CSV). Veja [Migrar de outra extensão](#migrar-de-outra-extensão-time-log) |
 
 **Gestores** são os administradores de qualquer time do projeto, mais os e-mails adicionados em
 *Geral › Gestores*.
+
+---
+
+## Migrar de outra extensão (Time Log)
+
+Quem já apontava horas com a extensão **Time Log** traz o histórico para o TicTask pelo CSV dela.
+Feito por um gestor, uma vez por projeto:
+
+1. No projeto, abra *Project settings › **Time Log Admin*** e clique em **Download all logs as CSV**.
+   O arquivo tem todos os apontamentos de todas as pessoas.
+2. No TicTask, *Configurações › **Dados** › Importar do Time Log* › **Escolher CSV do Time Log**.
+3. Confira a prévia: quantidade, período, horas por pessoa e os tipos do Time Log que não existem como
+   atividade no TicTask.
+4. Clique em **Importar**.
+
+| No Time Log | No TicTask |
+|---|---|
+| Data e minutos | Data e duração. O Time Log não guarda horário: os apontamentos de cada pessoa no dia ficam em sequência a partir das **08:00** (ex.: 08:00–13:00, 13:00–14:30). O total do dia fica certo; o horário é aproximado. |
+| Pessoa (nome e id) | O mesmo usuário do Azure DevOps. O e-mail vem das pessoas dos times do projeto; quem saiu do time fica sem e-mail, mas os apontamentos continuam com o nome. |
+| Work item | O mesmo work item, com título e item pai lidos do ADO. Se ele não existir mais, o apontamento fica só com o número. |
+| Type | A atividade de mesmo nome (sem diferenciar maiúsculas). Tipo sem atividade correspondente entra com o próprio nome; cadastre em *Atividades* se quiser cor e *Activity* no ADO. |
+| Comment | Comentário. |
+
+**O que a importação não faz:**
+
+- **Não altera os work items.** O Time Log já somou essas horas no *Completed Work* e descontou do
+  *Remaining*: aplicar de novo duplicaria.
+- **Não duplica.** Cada linha do CSV vira sempre o mesmo apontamento: importar o arquivo de novo
+  (por exemplo, com mais linhas) só sobrescreve os que já entraram.
+- **Não respeita o limite de dias de edição**, porque é histórico. Depois de importados, os
+  apontamentos antigos ficam só para leitura, como qualquer outro.
+
+Apontamentos de mais de 24h (o Time Log permite) entram inteiros no dia, e no Calendário terminam num
+dia seguinte. Depois de importar, desinstale o Time Log ou combine com o time de apontar só no
+TicTask, para não lançar as mesmas horas duas vezes.
 
 ---
 
@@ -522,6 +558,9 @@ Ele é calculado como Remaining − horas apontadas, mas você pode digitar outr
 
 **Não vejo Time agora nem Configurações.**
 São só para gestores (administradores de time ou e-mails listados nas configurações).
+
+**Usávamos o Time Log. Dá para trazer o histórico?**
+Sim, pelo CSV dele: veja [Migrar de outra extensão](#migrar-de-outra-extensão-time-log).
 
 **Não recebo os lembretes no Google Chat.**
 Confira com um gestor se você está em *Configurações › Google Chat › Quem recebe* e se você já abriu

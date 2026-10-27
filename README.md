@@ -101,8 +101,16 @@ Service separa os dados por extensão — a nova começa vazia. Para levar os ap
    no histórico. Os campos dos work items não são alterados.
 4. Confira o timesheet e só então desinstale a extensão antiga e remova o publisher.
 
-A exportação lê os meses de jan/2024 até 12 meses à frente (`EXPORT_FIRST_MONTH` em
+A exportação lê os meses de jan/2020 até 12 meses à frente (`EXPORT_FIRST_MONTH` em
 `src/common/data/migration.ts`).
+
+### Migrar do Time Log
+
+*Configurações › Dados › Importar do Time Log* lê o CSV de *Project settings › Time Log Admin ›
+Download all logs as CSV* (`id, minutes, user, userId, workItemId, date, dateWeek, type, comment`).
+Cada linha vira o apontamento `timelog-<id>` (importar de novo não duplica), em sequência a partir das
+08:00 por pessoa e dia (o Time Log não guarda horário). Os campos dos work items não são alterados.
+Código em `src/common/domain/timelogImport.ts`; detalhes no [guia](docs/como-usar.md#migrar-de-outra-extensão-time-log).
 
 Para esconder o grupo/aba em tipos de WI onde não fazem sentido (ex.: Epic/Feature):
 *Organization settings › Process › (processo) › tipo de WI › Layout* → ocultar o grupo

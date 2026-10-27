@@ -4,15 +4,19 @@ import { buildExport, prepareForImport, type ExportFile } from "../domain/export
 import { mergeSettings } from "../domain/settings";
 import { addDays, monthKeys, toLocalDate } from "../domain/time";
 import type { Ctx } from "../actions";
+import { timeLogToEntries, type TimeLogRow } from "../domain/timelogImport";
 import type { Settings, TimeEntry } from "../domain/types";
+import { getExistingWorkItems, titlesOf } from "../wit/witService";
 import { listMonth, saveEntry } from "./entriesRepo";
+import { loadPeople } from "./people";
 import { saveSettings } from "./settingsRepo";
 
 /**
  * Months are stored as separate collections and there is no list of them, so the export scans
- * every month from this one until a year ahead (entries can be dated in the future).
+ * every month from this one until a year ahead (entries can be dated in the future). 2020: entries
+ * imported from Time Log go back to 2021.
  */
-export const EXPORT_FIRST_MONTH = "2024-01-01";
+export const EXPORT_FIRST_MONTH = "2020-01-01";
 
 export type Progress = (done: number, total: number) => void;
 
@@ -51,4 +55,27 @@ export async function importProject(ctx: Ctx, file: ExportFile, options: { setti
   }
   emit({ type: "entries", workItemIds: [...new Set(entries.map((e) => e.workItemId))] });
   return { entries: entries.length, settings };
+}
+
+/**
+ * Writes the rows of a Time Log CSV as entries of this project. Work item fields are not touched:
+ * Time Log already applied the hours to Completed/Remaining. Work items that no longer exist keep
+ * only their id.
+ */
+export async function importTimeLog(ctx: Ctx, rows: TimeLogRow[], progress?: Progress): Promise<{ entries: number; missingWorkItems: number[] }> {
+  const items = await getExistingWorkItems(rows.map((r) => r.workItemId));
+  const parentTitles = await titlesOf(items.map((i) => i.parentId).filter((id): id is number => !!id)).catch(() => new Map<number, string>());
+  const workItems = new Map(items.map((i) => [i.id, { title: i.title, type: i.type, parentId: i.parentId, parentTitle: i.parentId ? parentTitles.get(i.parentId) : undefined }]));
+  const people = await loadPeople(ctx.projectId).catch(() => []);
+  const entries = timeLogToEntries(rows, {
+    projectId: ctx.projectId,
+    by: { id: ctx.user.id, displayName: ctx.user.displayName },
+    at: new Date().toISOString(),
+    activities: ctx.settings.activities.map((a) => a.name),
+    workItems,
+    emails: new Map(people.map((p) => [p.id, p.email])),
+  });
+  await pool(entries, 5, async (e) => void (await saveEntry(e)), progress);
+  emit({ type: "entries", workItemIds: [...new Set(entries.map((e) => e.workItemId))] });
+  return { entries: entries.length, missingWorkItems: [...new Set(rows.map((r) => r.workItemId))].filter((id) => !workItems.has(id)) };
 }

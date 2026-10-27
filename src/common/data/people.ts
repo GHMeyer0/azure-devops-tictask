@@ -4,6 +4,8 @@ export interface Person {
   /** Lowercase e-mail (identity uniqueName). */
   email: string;
   name: string;
+  /** Identity id (the user id entries carry). */
+  id: string;
 }
 
 const cache = new Map<string, Promise<Person[]>>();
@@ -14,7 +16,7 @@ async function load(projectId: string): Promise<Person[]> {
   const map = new Map<string, Person>();
   for (const m of lists.flat()) {
     const email = (m.identity.uniqueName ?? "").toLowerCase();
-    if (email.includes("@") && !m.identity.isContainer) map.set(email, { email, name: m.identity.displayName });
+    if (email.includes("@") && !m.identity.isContainer) map.set(email, { email, name: m.identity.displayName, id: m.identity.id });
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 }

@@ -10,3 +10,4 @@
 - **Hub TicTask** (Boards): timesheet semanal, resumo de horas por pessoa, US/Bug, task e atividade
   (por dia, semana ou mês), calendário e configurações.
 - Auditoria: cada apontamento guarda início/fim/pausas, quem apontou e o snapshot antes/depois da task.
+- **Migração**: importa o histórico da extensão Time Log pelo CSV dela, sem alterar os work items.

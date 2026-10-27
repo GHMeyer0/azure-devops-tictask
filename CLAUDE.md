@@ -58,6 +58,10 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
   (criado em 27/10/2026, ref `Agile2024.Rotina`, estados New/Active/Closed, nível Stories, sem Story
   Points). Um item "Rotinas – Sprint N" por sprint; cada pessoa cria as próprias tasks embaixo, com
   as atividades Treinamento ou Administrativo. Tipo de processo herdado não pode ser renomeado.
+- **Importar do Time Log** (Configurações › Dados): CSV da página Time Log Admin
+  (`id, minutes, user, userId, workItemId, date, dateWeek, type, comment`). Entradas `timelog-<id>`,
+  horário montado a partir das 08:00 por pessoa e dia, sem mexer nos work items. Uma extensão não lê
+  os dados de outra: o caminho é o CSV. A exportação lê meses desde 2020 por causa desse histórico.
 - `lockDays` (Configurações › Geral): depois dele o autor não edita nem exclui, e também não cria nem
   move apontamentos para antes dele. Exceção: o tempo de um timer é sempre apontado.
 

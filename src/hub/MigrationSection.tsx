@@ -2,8 +2,9 @@ import { Button, Caption1, Checkbox, Field, Link, MessageBar, MessageBarBody, Sp
 import { ArrowDownloadRegular, ArrowUploadRegular } from "@fluentui/react-icons";
 import { useRef, useState } from "react";
 import type { Ctx } from "../common/actions";
-import { exportProject, importProject } from "../common/data/migration";
+import { exportProject, importProject, importTimeLog } from "../common/data/migration";
 import { parseExport, summarize, type ExportFile, type ExportSummary } from "../common/domain/exportFile";
+import { parseTimeLogCsv, summarizeTimeLog, TIMELOG_DAY_START, type TimeLogRow } from "../common/domain/timelogImport";
 import { formatDateBr, formatMinutes, toLocalDate } from "../common/domain/time";
 import type { Settings } from "../common/domain/types";
 import { confirmDialog, extensionFullId } from "../common/sdk";
@@ -157,6 +158,106 @@ export function MigrationSection({ ctx, onSettingsImported }: { ctx: Ctx; onSett
         )}
         <ErrorBar error={importer.error} />
       </div>
+
+      <TimeLogImport ctx={ctx} />
     </Section>
+  );
+}
+
+/** Import from the "Time Log" extension: the CSV of its admin page (Download all logs as CSV). */
+function TimeLogImport({ ctx }: { ctx: Ctx }) {
+  const st = useStyles();
+  const runner = useRunner();
+  const [rows, setRows] = useState<TimeLogRow[] | null>(null);
+  const [parseError, setParseError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<string | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  const summary = rows ? summarizeTimeLog(rows) : null;
+  const known = new Set(ctx.settings.activities.map((a) => a.name.toLowerCase()));
+  const newTypes = summary?.types.filter((t) => !known.has(t.toLowerCase())) ?? [];
+
+  const load = (text: string) => {
+    setDone(null);
+    const parsed = parseTimeLogCsv(text);
+    setRows(parsed.ok ? parsed.rows : null);
+    setParseError(parsed.ok ? null : parsed.error);
+  };
+
+  const doImport = () =>
+    runner.run(async () => {
+      if (!rows) return;
+      const ok = await confirmDialog(
+        `Importar ${rows.length} apontamentos do Time Log para ${ctx.projectName}? As horas dos work items não são alteradas (o Time Log já as aplicou); importar de novo o mesmo arquivo não duplica.`,
+        "Importar do Time Log",
+        "Importar",
+      );
+      if (!ok) return;
+      const result = await importTimeLog(ctx, rows, (n, total) => setProgress(`Gravando ${n}/${total}…`));
+      setProgress(null);
+      setRows(null);
+      setDone(
+        `${result.entries} apontamentos importados.` +
+          (result.missingWorkItems.length ? ` Work items que não existem mais (importados só com o número): ${result.missingWorkItems.map((id) => `#${id}`).join(", ")}.` : ""),
+      );
+    });
+
+  return (
+    <div className={st.box}>
+      <Text weight="semibold">Importar do Time Log</Text>
+      <Caption1 className={st.muted}>
+        Para quem usava a extensão Time Log: em Configurações do projeto › Time Log Admin, clique em "Download all logs as CSV" e escolha o arquivo aqui. As horas dos work items não são alteradas,
+        porque o Time Log já as somou. O Time Log não guarda horário: os apontamentos de cada pessoa no dia ficam em sequência a partir das {TIMELOG_DAY_START}.
+      </Caption1>
+      <div className={st.row}>
+        <input
+          ref={input}
+          type="file"
+          accept=".csv,text/csv"
+          style={{ display: "none" }}
+          onChange={async (e) => {
+            const f = e.target.files?.[0];
+            if (f) load(await f.text());
+            e.target.value = "";
+          }}
+        />
+        <Button icon={<ArrowUploadRegular />} disabled={runner.busy} onClick={() => input.current?.click()}>
+          Escolher CSV do Time Log
+        </Button>
+      </div>
+      <ErrorBar error={parseError} />
+      {summary && (
+        <>
+          <Text size={200}>
+            {summary.rows} apontamentos{summary.from && summary.to ? ` de ${formatDateBr(summary.from)} a ${formatDateBr(summary.to)}` : ""} · {summary.workItems} work items · {formatMinutes(summary.minutes)}
+          </Text>
+          <Caption1>{summary.people.map((p) => `${p.name}: ${formatMinutes(p.minutes)}`).join(" · ")}</Caption1>
+          {newTypes.length > 0 && (
+            <MessageBar intent="info">
+              <MessageBarBody>
+                Tipos do Time Log que não são atividades do TicTask: {newTypes.join(", ")}. Eles são importados com esse nome; cadastre em Atividades se quiser cor e Activity no ADO.
+              </MessageBarBody>
+            </MessageBar>
+          )}
+          {summary.overADay > 0 && (
+            <MessageBar intent="warning">
+              <MessageBarBody>{summary.overADay} apontamento(s) com mais de 24h: entram inteiros no dia, terminando em outro dia no Calendário.</MessageBarBody>
+            </MessageBar>
+          )}
+          <div className={st.row}>
+            <Button appearance="primary" icon={<ArrowUploadRegular />} disabled={runner.busy || !rows?.length} onClick={doImport}>
+              Importar {summary.rows} apontamentos
+            </Button>
+            {runner.busy && <Spinner size="tiny" label={progress ?? "Importando…"} />}
+          </div>
+        </>
+      )}
+      {done && (
+        <MessageBar intent="success">
+          <MessageBarBody>{done}</MessageBarBody>
+        </MessageBar>
+      )}
+      <ErrorBar error={runner.error} />
+    </div>
   );
 }
