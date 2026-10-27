@@ -14,9 +14,11 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
 
 - **Versão:** a cada entrega, subir a versão em `package.json`, `vss-extension.json` e
   `package-lock.json` (as duas primeiras ocorrências), rodar `npx tsc --noEmit -p .`, `npx vitest run`
-  e `npm run package` (gera `out/ghmeyer0.tictask-X.Y.Z.vsix`). Quem instala no ADO é o usuário; uma
-  versão empacotada e não instalada pode ganhar outra correção e virar a próxima versão.
-  No GitHub, um push na `main` com versão nova publica no Marketplace (`.github/workflows/publish.yml`).
+  e `npm run package` (gera `out/ghmeyer0.tictask-X.Y.Z.vsix`). Uma versão empacotada e ainda não
+  publicada pode ganhar outra correção e virar a próxima versão.
+- **Push na `main` com versão nova publica para todas as organizações** (veja Publicação abaixo). Só
+  faça push de versão nova com o "ok" do usuário; para testar antes, `npm run package:dev`
+  (extensão `tictask-dev`) ou um branch/PR, que só testa e empacota.
 - **Commit só quando o usuário pedir.** Mensagem em português, com a versão no título.
 - **Sempre atualizar a documentação** na mesma entrega: as páginas de `docs/wiki/` (publicadas na aba
   Wiki do GitHub pelo `wiki.yml`; links entre páginas `Pagina.md`, imagens `../img/…`, diagramas
@@ -25,6 +27,25 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
 - **Testar nas telas:** 1280×720, 1366×768, 1920×1080 e 1920×1200 (notebook do usuário, 2880×1800 a
   150%). Celular está fora de escopo.
 - **Antes de implementar algo grande**, discutir o desenho com o usuário; ele costuma querer revisar.
+
+## Publicação (GitHub: GHMeyer0/azure-devops-tictask)
+
+- `publish.yml`: em todo PR e push roda tsc, vitest e `npm run package` (o `.vsix` fica nos artefatos).
+  Num push na `main`, publica no Marketplace se a versão do manifesto ainda não estiver publicada;
+  sem versão nova, deixa o aviso "já está publicada" e não envia. As organizações já compartilhadas
+  recebem a versão sozinhas; `MARKETPLACE_SHARE_WITH` (opcional) só acrescenta organizações.
+- O Marketplace valida depois do envio: publicar com `--no-wait-validation`. Sem ele o `tfx` sai com
+  255 ("Validation is taking much longer than usual") mesmo com o envio já feito.
+- Secret `MARKETPLACE_PAT` no environment `marketplace`: PAT de *All accessible organizations*, só
+  o escopo *Marketplace › Publish*, da conta membro do publisher. Vence em até 1 ano.
+- `wiki.yml` copia `docs/wiki` para a aba Wiki (tira o `.md` dos links, aponta `../img/` para o
+  repositório) e `site.yml` publica `site/` + `docs/img` + logo no GitHub Pages
+  (https://ghmeyer0.github.io/azure-devops-tictask/). Edições feitas direto na aba Wiki são sobrescritas.
+- Pedidos de acesso chegam como issues pelo formulário `.github/ISSUE_TEMPLATE/pedir-acesso.yml`; o
+  compartilhamento é feito pelo usuário no Marketplace.
+- O log das Actions exige login. Sem login dá para ler status e anotações pela API pública:
+  `/repos/GHMeyer0/azure-devops-tictask/actions/runs`, `.../runs/<id>/jobs` e
+  `.../check-runs/<job>/annotations`.
 
 ## Testes no ADO (navegador embutido)
 
