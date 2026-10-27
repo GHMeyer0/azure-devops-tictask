@@ -56,7 +56,8 @@ duas vezes. Atualize a wiki (e os prints, se a tela mudou) no mesmo pull request
 O workflow [`publish.yml`](https://github.com/GHMeyer0/azure-devops-tictask/blob/main/.github/workflows/publish.yml)
 roda typecheck, testes e `npm run package` em todo pull request. Num push na `main`, publica o `.vsix`
 no Marketplace se a versão do manifesto ainda não estiver publicada; sem subir a versão, só testa e
-empacota. O `.vsix` de cada execução fica nos artefatos do workflow.
+empacota. O `.vsix` de cada execução fica nos artefatos do workflow. Depois do envio, o Marketplace
+ainda valida a versão por alguns minutos antes de liberá-la; a pipeline não espera essa validação.
 
 ```mermaid
 flowchart LR

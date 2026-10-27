@@ -55,7 +55,7 @@ TicTask guarda apenas o horário de início.
 
 **Para quem administra**
 
-- [Instalar](Instalar.md): publicar, compartilhar e instalar na organização
+- [Instalar](Instalar.md): pedir acesso e instalar na organização
 - [Preparar o processo](Preparar-o-processo.md): estado Stopped, estimativa, tipos pai e Rotina
 - [Configurar o TicTask](Configurar-o-TicTask.md): atividades, estados, motivos, limites e gestores
 - [Migrar dados](Migrar-dados.md): importar do Time Log e levar os dados para outro publisher

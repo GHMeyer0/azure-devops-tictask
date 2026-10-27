@@ -76,7 +76,10 @@ jobs:
           PAT: ${{ secrets.MARKETPLACE_PAT }}
           SHARE_WITH: ${{ vars.MARKETPLACE_SHARE_WITH }}
         run: |
-          args=(--vsix "${{ steps.check.outputs.vsix }}" --token "$PAT" --no-prompt)
+          # The Marketplace validates the upload afterwards; waiting for it can exceed tfx's own timeout
+          # (exit 255) even though the upload succeeded.
+          args=(--vsix "${{ steps.check.outputs.vsix }}" --token "$PAT" --no-prompt --no-wait-validation)
           # Organizations separated by spaces; already shared ones stay shared.
           if [ -n "$SHARE_WITH" ]; then args+=(--share-with $SHARE_WITH); fi
           npx tfx extension publish "${args[@]}"
+          echo "::notice::Versão enviada; o Marketplace valida em alguns minutos antes de liberar para as organizações."
