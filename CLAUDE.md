@@ -16,6 +16,7 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
   `package-lock.json` (as duas primeiras ocorrências), rodar `npx tsc --noEmit -p .`, `npx vitest run`
   e `npm run package` (gera `out/ghmeyer0.tictask-X.Y.Z.vsix`). Quem instala no ADO é o usuário; uma
   versão empacotada e não instalada pode ganhar outra correção e virar a próxima versão.
+  No GitHub, um push na `main` com versão nova publica no Marketplace (`.github/workflows/publish.yml`).
 - **Commit só quando o usuário pedir.** Mensagem em português, com a versão no título.
 - **Sempre atualizar a documentação** na mesma entrega: `docs/como-usar.md`, `README.md`,
   `overview.md` (página do marketplace, vai no .vsix: reempacotar se mudar) e prints de `docs/img/`.

@@ -1,0 +1,82 @@
+# Tests and packages every pull request; on main, publishes the .vsix to the Marketplace when the
+# manifest version is not published yet (a merge without a version bump only builds).
+name: Publicar extensão
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: Testar e empacotar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit -p .
+      - run: npx vitest run
+      - run: npm run package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vsix
+          path: out/*.vsix
+          if-no-files-found: error
+
+  publish:
+    name: Publicar no Marketplace
+    needs: build
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Holds the MARKETPLACE_PAT secret; add required reviewers to approve each publish.
+    environment: marketplace
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: vsix
+          path: out
+      - name: Conferir a versão publicada
+        id: check
+        env:
+          PAT: ${{ secrets.MARKETPLACE_PAT }}
+        run: |
+          vsix=$(ls out/*.vsix)
+          version=$(node -p "require('./vss-extension.json').version")
+          # Empty when the extension was never published (first publish).
+          published=$(npx tfx extension show --vsix "$vsix" --token "$PAT" --json --no-prompt 2>/dev/null \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).versions[0].version)}catch{console.log("")}})')
+          echo "vsix=$vsix" >> "$GITHUB_OUTPUT"
+          if [ "$published" = "$version" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::A versão $version já está publicada. Suba a versão para publicar."
+          else
+            echo "Publicando $version (publicada: ${published:-nenhuma})"
+          fi
+      - name: Publicar
+        if: steps.check.outputs.skip != 'true'
+        env:
+          PAT: ${{ secrets.MARKETPLACE_PAT }}
+          SHARE_WITH: ${{ vars.MARKETPLACE_SHARE_WITH }}
+        run: |
+          args=(--vsix "${{ steps.check.outputs.vsix }}" --token "$PAT" --no-prompt)
+          # Organizations separated by spaces; already shared ones stay shared.
+          if [ -n "$SHARE_WITH" ]; then args+=(--share-with $SHARE_WITH); fi
+          npx tfx extension publish "${args[@]}"

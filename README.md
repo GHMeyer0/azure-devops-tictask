@@ -88,6 +88,24 @@ src/pages           entradas de cada contribuição
    *Organization settings › Extensions*.
 4. A cada nova versão, aumente `"version"` no manifesto antes de empacotar.
 
+### Publicação automática (GitHub Actions)
+
+O workflow [.github/workflows/publish.yml](.github/workflows/publish.yml) roda typecheck, testes e
+`npm run package` em todo pull request. Num push na `main`, publica o `.vsix` no Marketplace se a
+versão do manifesto ainda não estiver publicada; sem subir a versão, só testa e empacota. O `.vsix`
+de cada execução fica nos artefatos do workflow.
+
+Para configurar no GitHub (*Settings* do repositório):
+
+1. *Environments › New environment* `marketplace`. Opcional: *Required reviewers*, para aprovar
+   cada publicação.
+2. Nesse environment, o secret `MARKETPLACE_PAT`: um PAT do Azure DevOps com *Organization: All
+   accessible organizations* e escopo *Marketplace › Publish*, criado por um membro do publisher.
+3. Opcional: a variável `MARKETPLACE_SHARE_WITH` com as organizações (separadas por espaço) com que
+   a extensão privada é compartilhada a cada publicação. As que já têm acesso continuam com ele.
+
+O PAT expira (no máximo 1 ano): renove o secret antes disso.
+
 ### Trocar de publisher (ex.: do interno para o pessoal)
 
 A identidade da extensão é `publisher.id`: outro publisher é outra extensão, e o Extension Data
@@ -115,6 +133,10 @@ Código em `src/common/domain/timelogImport.ts`; detalhes no [guia](docs/como-us
 Para esconder o grupo/aba em tipos de WI onde não fazem sentido (ex.: Epic/Feature):
 *Organization settings › Process › (processo) › tipo de WI › Layout* → ocultar o grupo
 "TicTask" e a página "Apontamentos".
+
+## Licença
+
+[MIT](LICENSE).
 
 ## Prints para a documentação (modo demonstração)
 
