@@ -1,8 +1,8 @@
 # TicTask – extensão Azure DevOps para apontamento de horas
 
 Apontamento de horas direto nas Tasks e User Stories/Bugs, com timer (iniciar/pausar/concluir),
-**Remaining calculado automaticamente**, estado da task acompanhando o trabalho, timesheet semanal
-e calendário. Sem backend: os dados ficam no *Extension Data Service* do próprio Azure DevOps.
+**Remaining calculado automaticamente**, estado da task acompanhando o trabalho, timesheet semanal,
+resumo por período e calendário. Sem backend: os dados ficam no *Extension Data Service* do próprio Azure DevOps.
 
 ## O que a extensão adiciona
 
@@ -11,7 +11,7 @@ e calendário. Sem backend: os dados ficam no *Extension Data Service* do própr
 | Tela principal do WI (aba Details) | `time-group` | ▶ Iniciar / ⏸ Pausar (▾ com motivo) / ✓ Concluir / + Apontar, cronômetro e Est/Compl/Rest |
 | Aba **Apontamentos** do WI | `time-tab` | Task: lista de apontamentos (início/fim/pausas), por pessoa/atividade. US/Bug: tasks filhas com horas, alertas de inconsistência, linha do tempo |
 | Backlog e Sprint › painel lateral **TicTask** | `time-backlog-panel` | Timer em andamento, item selecionado no backlog com Iniciar/Apontar e minhas tasks abertas (o ADO não permite extensões na barra superior global) |
-| Boards › **TicTask** (primeiro item do menu) | `time-hub` | **Meu tempo** para todos: timer com pausar/concluir, horas de hoje/semana, tasks paradas (Stopped, com motivo e há quantos dias úteis), tasks Active sem apontamento há 3+ dias e os apontamentos de hoje, em árvore sob o item pai (Bug/US/TS). **Timesheet** e **Calendário** para todos, cada um só com os próprios apontamentos. Gestores: timesheet/calendário de todos, **Time agora** e Configurações |
+| Boards › **TicTask** (primeiro item do menu) | `time-hub` | **Meu tempo** para todos: timer com pausar/concluir, horas de hoje/semana, tasks paradas (Stopped, com motivo e há quantos dias úteis), tasks Active sem apontamento há 3+ dias e os apontamentos de hoje, em árvore sob o item pai (Bug/US/TS). **Timesheet**, **Resumo** (pessoa › US/Bug › task › atividade por dia, semana ou mês) e **Calendário** para todos, cada um só com os próprios apontamentos. Gestores: timesheet/resumo/calendário de todos, **Time agora** e Configurações |
 | Diálogos no host | `time-dialog` | Apontar, "O que você vai fazer?", tasks padrão |
 
 **Gestores** = administradores de qualquer time do projeto, mais os e-mails listados em
@@ -57,7 +57,7 @@ Guia de uso com prints: [docs/como-usar.md](docs/como-usar.md).
 
 ```bash
 npm install
-npm test            # vitest: regras de horas, datas, estado, timesheet, CSV e render dos diálogos
+npm test            # vitest: regras de horas, datas, estado, timesheet, resumo, CSV e render dos diálogos
 npm run typecheck   # tsc (TypeScript 7)
 npm run build       # esbuild → dist/<página>.html + .js
 npm run package     # gera out/ghmeyer0.tictask-<versão>.vsix
@@ -69,13 +69,13 @@ SDK 5), `azure-devops-extension-api`, FullCalendar 6, esbuild, vitest.
 
 Estrutura:
 ```
-src/common/domain   regras puras (horas, Remaining, estado, timesheet, CSV) – testadas
+src/common/domain   regras puras (horas, Remaining, estado, timesheet, resumo, CSV) – testadas
 src/common/data     Extension Data: apontamentos, timer do usuário, configurações
 src/common/wit      leitura/escrita de work items (form service no WI aberto, REST nos demais)
 src/common/actions  orquestra timer, apontar, editar, excluir, criar tasks
 src/dialogs         diálogos (abertos no host via openCustomDialog)
 src/workitem        grupo da tela principal e aba Apontamentos
-src/hub             timesheet, calendário, configurações
+src/hub             meu tempo, timesheet, resumo, calendário, configurações
 src/pages           entradas de cada contribuição
 ```
 

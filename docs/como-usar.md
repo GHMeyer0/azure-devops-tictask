@@ -29,11 +29,13 @@ estado da task. Tudo fica no histórico do work item: quem apontou, quanto e qua
   - [Tasks padrão](#tasks-padrão)
   - [Fluxo de revisão de PR](#fluxo-de-revisão-de-pr)
   - [Ajudar alguém no meio do seu trabalho](#ajudar-alguém-no-meio-do-seu-trabalho)
+- [Rotinas internas (treinamento, release notes…)](#rotinas-internas-treinamento-release-notes)
 - [Aba Apontamentos](#aba-apontamentos)
 - [Painel no backlog](#painel-no-backlog)
 - [Hub TicTask](#hub-tictask)
   - [Meu tempo](#meu-tempo)
   - [Timesheet](#timesheet)
+  - [Resumo](#resumo)
   - [Calendário](#calendário)
   - [Time agora (gestores)](#time-agora-gestores)
   - [Configurações (gestores)](#configurações-gestores)
@@ -49,7 +51,7 @@ estado da task. Tudo fica no histórico do work item: quem apontou, quanto e qua
 | Tela do work item, aba **Details** | Grupo **TicTask** com Iniciar / Pausar / Concluir / Apontar e as horas da task |
 | Tela do work item, aba **Apontamentos** | Todos os apontamentos da task (ou das tasks filhas, na US/Bug) |
 | **Boards › Backlogs / Sprints**, painel lateral | Timer em andamento, item selecionado e suas tasks abertas |
-| **Boards › TicTask** | Meu tempo, Timesheet, Calendário e, para gestores, Time agora e Configurações |
+| **Boards › TicTask** | Meu tempo, Timesheet, Resumo, Calendário e, para gestores, Time agora e Configurações |
 
 Você só pode ter **um timer por vez**. Ele continua contando mesmo com o navegador fechado, porque o
 TicTask guarda apenas o horário de início.
@@ -226,8 +228,6 @@ Você está com o timer na sua task (#100 Desenvolvimento). Um colega pede revis
 
 ---
 
-## Trabalhando numa User Story ou Bug---
-
 ## Trabalhando numa User Story ou Bug
 
 Na US, Technical Story ou Bug, o grupo **TicTask** soma as horas das tasks filhas e oferece
@@ -295,6 +295,45 @@ Se esqueceu de iniciar o timer na ajuda, aponte depois com **+ Apontar** na US d
 
 ---
 
+## Rotinas internas (treinamento, release notes…)
+
+Nem todo trabalho é US, Technical Story ou Bug: treinamento do time, revisar a sprint e montar os
+release notes, organização interna. Para apontar esse tempo, o projeto usa o tipo **Rotina**.
+
+**Como usar:** em cada sprint existe um item **"Rotinas – Sprint N"** (tipo Rotina). Cada pessoa cria
+as próprias tasks embaixo, pelo **▶ Iniciar** ou **+ Apontar** do item → **Nova task**, com um título
+que diga o que foi feito e a atividade certa:
+
+| Rotina | Título da task (exemplo) | Atividade |
+|---|---|---|
+| Treinamento | Treinamento Clean Code | Treinamento |
+| Release notes | Release notes da sprint | Administrativo |
+| Organização interna | Revisar itens da sprint | Administrativo |
+
+Num treinamento, cada participante cria a sua task: assim o tempo de cada um fica com quem participou.
+O total da rotina aparece no próprio item, e o Timesheet agrupado por item pai separa esse tempo do
+trabalho de produto.
+
+### Configurar em outra organização
+
+A Rotina é um tipo do processo, criado uma vez por um administrador da organização:
+
+1. *Organization settings › Process › (seu processo herdado) › **New work item type***: nome
+   **Rotina**, um ícone e uma cor que a diferencie da User Story. O tipo novo já vem com os estados
+   New, Active e Closed.
+2. Não inclua Story Points no layout: rotina não é entrega e não deve pesar na velocity.
+3. *Process › (seu processo) › **Backlog levels** › Stories › Edit*: marque **Rotina**. Sem isso ela
+   não aparece no backlog e no quadro da sprint e não aceita tasks como filhas no quadro.
+4. No **quadro (Kanban)** de cada time, confirme o mapeamento dos estados da Rotina para as colunas
+   (o ADO pede na primeira vez; senão, em Configurações do quadro › Colunas).
+5. No TicTask, *Configurações › Geral › Tipos pai*: inclua **Rotina**. Em *Configurações ›
+   Atividades*, crie **Treinamento** e **Administrativo** (Activity no ADO: *Documentation*).
+
+O nome não precisa ser "Rotina": o TicTask usa o que estiver em *Tipos pai*. Um tipo de work item
+criado no processo herdado não pode ser renomeado depois, então escolha o nome antes.
+
+---
+
 ## Aba Apontamentos
 
 A aba **Apontamentos** do work item mostra o histórico completo:
@@ -323,8 +362,8 @@ escolha **TicTask**. Ele mostra:
 
 ## Hub TicTask
 
-Em **Boards › TicTask** (primeiro item do menu do Boards). Todo mundo vê **Meu tempo**, **Timesheet** e
-**Calendário** com os próprios apontamentos; gestores veem também os de todo o time, mais **Time
+Em **Boards › TicTask** (primeiro item do menu do Boards). Todo mundo vê **Meu tempo**, **Timesheet**,
+**Resumo** e **Calendário** com os próprios apontamentos; gestores veem também os de todo o time, mais **Time
 agora** e **Configurações**.
 
 ### Meu tempo
@@ -354,6 +393,25 @@ Horas por dia da semana, como uma planilha.
 - **Exportar**: resumo ou apontamentos detalhados em CSV (abre no Excel).
 - Gestores escolhem **Quem**: eu, uma pessoa ou o time todo.
 
+### Resumo
+
+As horas do período numa tabela só: uma linha por pessoa, US/Bug, task e atividade, e uma coluna por
+dia, semana ou mês. Bom para fechar o mês ou ver onde foi o tempo de uma história.
+
+![Resumo](img/hub-resumo.png)
+
+- **Período**: esta semana, semana passada, este mês ou mês passado; **◀ ▶** anda um mês (ou uma
+  semana) e **De / até** escolhe qualquer intervalo.
+- **Colunas**: por dia (agrupadas por semana), por semana ou por mês. **Só colunas com horas** esconde
+  os dias sem apontamento.
+- **Linhas**: escolha quais colunas formam as linhas. Desmarcando Task e Atividade, por exemplo, fica
+  uma linha por US/Bug. Valores repetidos aparecem uma vez só, e cada US/Bug (ou pessoa) tem o seu
+  total.
+- As colunas da esquerda ficam fixas ao rolar para os lados. Clique na task ou na US para abri-la.
+- **Exportar**: o resumo ou os apontamentos detalhados em CSV (abre no Excel).
+- Gestores escolhem **Quem** (eu, todos ou um time) e, dentro dele, uma **Pessoa**.
+- Período, colunas e linhas ficam lembrados no navegador.
+
 ### Calendário
 
 Seus apontamentos na semana ou no dia, como uma agenda. Cada bloco mostra o item pai, a task, o horário
@@ -370,7 +428,7 @@ e a atividade.
 
 ### Time agora (gestores)
 
-Quem está com timer rodando, em qual task e desde quando, e quem pausou por último (com o estado e o
+Quem está com timer rodando, em qual task (e item pai) e desde quando, e quem pausou por último (com o estado e o
 motivo). Atualiza a cada 30 segundos; timer aberto há mais de 10h (configurável) aparece em vermelho
 (provável esquecimento).
 

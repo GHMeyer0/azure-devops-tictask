@@ -7,12 +7,23 @@ import type { ReasonDef, Settings } from "../common/domain/types";
 const useStyles = makeStyles({
   // Two columns: the reasons are short and a single column made the 480px dialog too tall.
   reasons: { display: "grid", gridTemplateColumns: "1fr 1fr", columnGap: "8px" },
+  listbox: { maxHeight: "240px" },
 });
 
 export function ActivityField({ settings, value, onChange, label = "Atividade" }: { settings: Settings; value: string; onChange: (v: string) => void; label?: string }) {
+  const st = useStyles();
   return (
     <Field label={label} required>
-      <Dropdown value={value} selectedOptions={[value]} onOptionSelect={(_, d) => d.optionValue && onChange(d.optionValue)} style={{ minWidth: 0, width: "100%" }}>
+      {/* Below the field, scrolling when it does not fit: with 9+ activities the list did not fit the
+          dialog iframe, so it opened beside the field, cut off and leaving trails ("menu fantasma"). */}
+      <Dropdown
+        value={value}
+        selectedOptions={[value]}
+        onOptionSelect={(_, d) => d.optionValue && onChange(d.optionValue)}
+        style={{ minWidth: 0, width: "100%" }}
+        positioning={{ position: "below", align: "start", autoSize: "height" }}
+        listbox={{ className: st.listbox }}
+      >
         {settings.activities.map((a) => (
           <Option key={a.name} value={a.name} text={a.name}>
             <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: 2, background: a.color, marginRight: 8 }} />

@@ -54,6 +54,10 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
   "Outro…" (texto livre) é fixo na interface.
 - Fluxo de revisão: Desenvolvimento concluída como "Enviado para revisão"; correções numa única task
   de **Correção** por história (atividade separada de Desenvolvimento).
+- **Rotinas internas** (treinamento, release notes, administrativo): tipo **Rotina** no processo
+  (criado em 27/10/2026, ref `Agile2024.Rotina`, estados New/Active/Closed, nível Stories, sem Story
+  Points). Um item "Rotinas – Sprint N" por sprint; cada pessoa cria as próprias tasks embaixo, com
+  as atividades Treinamento ou Administrativo. Tipo de processo herdado não pode ser renomeado.
 - `lockDays` (Configurações › Geral): depois dele o autor não edita nem exclui, e também não cria nem
   move apontamentos para antes dele. Exceção: o tempo de um timer é sempre apontado.
 

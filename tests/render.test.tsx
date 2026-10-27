@@ -193,3 +193,22 @@ describe("components render", () => {
     expect(html(<EntriesTable entries={[entry]} canEdit={() => true} onEdit={() => undefined} onDelete={() => undefined} />)).toContain("1h30");
   });
 });
+
+describe("summary render", () => {
+  it("merged dimension cells, week header and totals", async () => {
+    const { SummaryTable } = await import("../src/hub/SummaryTable");
+    const { buildSummary } = await import("../src/common/domain/summary");
+    const base = {
+      id: "e", projectId: "p", workItemId: 17823, workItemTitle: "Ajustar layout", workItemType: "Task", parentId: 11065, parentTitle: "Relatório", userId: "u1", userName: "Ana Souza",
+      userEmail: "a@x", date: "2026-10-19", start: "", end: "", minutes: 360, segments: [], activity: "Desenvolvimento/Correção", comment: "", source: "manual" as const, createdAt: "", createdBy: "u1", history: [],
+    };
+    const entries = [base, { ...base, id: "f", date: "2026-10-27", minutes: 30, activity: "Revisão" }];
+    const dims = ["user", "parent", "task", "activity"] as const;
+    const summary = buildSummary(entries, { from: "2026-10-01", to: "2026-10-31", bucket: "day", dims: [...dims], hideEmpty: true });
+    const out = html(<SummaryTable summary={summary} dims={[...dims]} colorOf={() => "#0078d4"} />);
+    expect(out).toContain("19–25/10");
+    expect(out).toContain("Seg 19/10");
+    expect(out).toContain('rowSpan="2"');
+    expect(out).toContain("6h30");
+  });
+});

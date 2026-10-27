@@ -1,4 +1,5 @@
 import { formatDateBr, minutesToHours, toLocalTime } from "./time";
+import { DIMS, type Dim, type Summary } from "./summary";
 import type { TimeEntry } from "./types";
 
 /** Excel pt-BR friendly: ';' separator, ',' decimal, BOM so accents open correctly. */
@@ -51,5 +52,15 @@ export function sheetToCsv(days: string[], rows: { level: number; label: string;
     return [...levelCells, ...r.perDay.map((m) => (m ? minutesToHours(m) : "")), minutesToHours(r.total)].map(cell).join(SEP);
   });
   const totals = ["Total", "", "", ...dayTotals.map(minutesToHours), minutesToHours(total)].map(cell).join(SEP);
+  return "﻿" + [header.map(cell).join(SEP), ...lines, totals].join("\r\n");
+}
+
+/** "Resumo" as a flat sheet: every row repeats its dimension values (no merged cells, no subtotals). */
+export function summaryToCsv(summary: Summary, dims: Dim[]): string {
+  const header = [...dims.map((d) => DIMS.find((x) => x.value === d)!.label), ...summary.columns.map((c) => (c.from === c.to ? formatDateBr(c.from) : c.label)), "Total"];
+  const lines = summary.rows
+    .filter((r) => r.kind === "item")
+    .map((r) => [...dims.map((d) => r.cells[d]!.label), ...r.perCol.map((m) => (m ? minutesToHours(m) : "")), minutesToHours(r.total)].map(cell).join(SEP));
+  const totals = ["Total", ...dims.slice(1).map(() => ""), ...summary.colTotals.map(minutesToHours), minutesToHours(summary.total)].map(cell).join(SEP);
   return "﻿" + [header.map(cell).join(SEP), ...lines, totals].join("\r\n");
 }

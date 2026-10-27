@@ -197,3 +197,35 @@ export function businessDaysBetween(from: string, to: string): number {
 export function firstOpenDate(lockDays: number, today: string): string {
   return addDays(today, -lockDays);
 }
+
+/** First day of the month containing `date`. */
+export function monthStart(date: string): string {
+  return `${date.slice(0, 7)}-01`;
+}
+
+/** Last day of the month containing `date`. */
+export function monthEnd(date: string): string {
+  const [y, m] = date.split("-").map(Number);
+  return toLocalDate(new Date(y, m, 0));
+}
+
+/** Same day `n` months later, clamped to the end of the month (31/01 + 1 → 28/02). */
+export function addMonths(date: string, n: number): string {
+  const [y, m, d] = date.split("-").map(Number);
+  const last = new Date(y, m - 1 + n + 1, 0).getDate();
+  return toLocalDate(new Date(y, m - 1 + n, Math.min(d, last)));
+}
+
+const MONTHS = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+
+/** "out/2026" */
+export function formatMonth(date: string): string {
+  const [y, m] = date.split("-").map(Number);
+  return `${MONTHS[m - 1]}/${y}`;
+}
+
+/** "20/10" */
+export function formatDayMonth(date: string): string {
+  const [, m, d] = date.split("-");
+  return `${d}/${m}`;
+}

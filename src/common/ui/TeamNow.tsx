@@ -91,6 +91,12 @@ export function TeamNow({ ctx, compact }: { ctx: Ctx; compact?: boolean }) {
                 <Text size={200} truncate wrap={false}>
                   <WorkItemLink id={p.workItem.id} title={p.workItem.title} />
                 </Text>
+                {/* Task names repeat ("Desenvolvimento", "Revisão de PR"): the parent tells what it is about. */}
+                {p.workItem.parentId && (
+                  <Caption1 className={st.muted} truncate wrap={false}>
+                    em <WorkItemLink id={p.workItem.parentId} title={p.workItem.parentTitle} />
+                  </Caption1>
+                )}
                 <Caption1 className={stale ? st.stale : st.muted}>
                   {p.status === "running"
                     ? `${p.activity} · desde ${toLocalTime(openSince ?? p.updatedAt)}`
