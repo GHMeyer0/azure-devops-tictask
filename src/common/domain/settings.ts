@@ -1,6 +1,6 @@
 import type { ActivityDef, ReasonDef, Settings } from "./types";
 
-/** Activity of the review rework task (see the review flow in docs/como-usar.md). */
+/** Activity of the review rework task (see the review flow in docs/wiki/Usar-numa-User-Story-ou-Bug.md). */
 export const CORRECTION = "Correção";
 
 export const DEFAULT_ACTIVITIES: ActivityDef[] = [

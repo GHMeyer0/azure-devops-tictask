@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TicTask – time tracking in Azure DevOps</title>
+  <meta name="description" content="Azure DevOps extension to log hours on Tasks with a timer, automatic Remaining Work, timesheet and calendar.">
+  <link rel="icon" href="../img/logo.png">
+  <link rel="alternate" hreflang="pt-BR" href="../">
+  <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="./"><img src="../img/logo.png" alt="">TicTask</a>
+      <nav>
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#get-started">Get started</a>
+        <a href="https://github.com/GHMeyer0/azure-devops-tictask/wiki">Docs</a>
+        <a class="lang" href="../" hreflang="pt-BR" lang="pt-BR">PT</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap">
+        <div>
+          <span class="tag">Azure DevOps extension</span>
+          <h1>Log hours without leaving the Task</h1>
+          <p class="lead">Start a timer on the work item and TicTask does the rest: Completed Work, Remaining
+            Work and the task state stay up to date, with a record of who logged how much and when.</p>
+          <div class="actions">
+            <a class="btn primary" href="https://github.com/GHMeyer0/azure-devops-tictask/issues/new?template=pedir-acesso.yml">Request access</a>
+            <a class="btn secondary" href="https://github.com/GHMeyer0/azure-devops-tictask/wiki">Read the docs</a>
+          </div>
+          <p class="note">The extension is private: an access request shares it with your organization. The
+            extension and its docs are in Portuguese. Open source, MIT license.</p>
+        </div>
+        <div class="shot"><img src="../img/wi-task-timer.jpg" width="800" height="622" alt="TicTask group on the Task form, with the timer buttons and the estimated, completed and remaining hours"></div>
+      </div>
+    </section>
+
+    <section class="alt" id="features">
+      <div class="wrap">
+        <h2>Features</h2>
+        <p class="sub">Everything inside Azure DevOps, with no server of its own: the data lives in your
+          organization's Extension Data Service.</p>
+
+        <div class="feature">
+          <div class="text">
+            <h3>Timer on the work item</h3>
+            <p>Start, pause and complete right on the Task. Pausing already logs the time and takes it off
+              Remaining Work: nothing is left pending.</p>
+            <ul>
+              <li>One timer per person: starting another task pauses the current one.</li>
+              <li>Keeps counting with the browser closed.</li>
+              <li>Notices a forgotten timer and asks until when you worked.</li>
+            </ul>
+          </div>
+          <div class="media"><div class="shot"><img src="../img/wi-us-grupo.png" width="600" height="300" alt="TicTask group on a Bug, with the timer of another task running"></div></div>
+        </div>
+
+        <div class="feature flip">
+          <div class="text">
+            <h3>Reasons and next step</h3>
+            <p>When pausing, say why (waiting for review, helping a colleague, meeting). When completing, the
+              next step (sent for review, PR approved). It all goes to the task discussion and, when it
+              matters, to the story's.</p>
+            <ul>
+              <li>Reasons configurable per project.</li>
+              <li>PR review flow with a single Fix task per story.</li>
+            </ul>
+          </div>
+          <div class="media small"><div class="shot"><img src="../img/dialogo-pausar-motivo.png" width="240" height="330" alt="Pause with reason dialog"></div></div>
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h3>Start from the story</h3>
+            <p>On the User Story or Bug, pick one of your tasks or create a new one from a description: it is
+              assigned to you, with the story's area and iteration, and the timer starts on it.</p>
+            <ul>
+              <li>Standard tasks (Development, Testing…) created in one click.</li>
+              <li>Reviewers create their own review task on someone else's story.</li>
+            </ul>
+          </div>
+          <div class="media small"><div class="shot"><img src="../img/dialogo-iniciar.png" width="350" height="372" alt="What are you going to do dialog, with the story's tasks and the new task option"></div></div>
+        </div>
+
+        <div class="feature flip">
+          <div class="text">
+            <h3>My time</h3>
+            <p>Your day at a glance: the running timer, today's and this week's hours, paused tasks with the
+              reason and how many days they have been waiting, and today's entries as a tree.</p>
+          </div>
+          <div class="media"><div class="shot"><img src="../img/hub-meu-tempo.png" width="800" height="540" alt="TicTask hub, My time tab"></div></div>
+        </div>
+
+        <div class="feature">
+          <div class="text">
+            <h3>Timesheet, Summary and Calendar</h3>
+            <p>Hours by day, week or month, per person, story, task and activity, with CSV export. In the
+              calendar, drag to log time or fix the hours.</p>
+            <ul>
+              <li>Managers see the whole team and who has a timer running.</li>
+              <li>Imports the history of the Time Log extension.</li>
+            </ul>
+          </div>
+          <div class="media"><div class="shot"><img src="../img/hub-calendario.jpg" width="800" height="625" alt="Calendar with the week's entries"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works">
+      <div class="wrap">
+        <h2>How it works</h2>
+        <p class="sub">The task state tells who is working on it. Each entry adds to Completed Work, takes off
+          Remaining Work and creates one revision in the work item history.</p>
+        <div class="diagram">
+          <svg viewBox="0 0 760 280" role="img" aria-labelledby="states-title">
+            <title id="states-title">Task state cycle: New, Active, Stopped and Closed</title>
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z"/></marker>
+            </defs>
+            <path class="edge" d="M150 65 L313 65"/>
+            <text class="label" x="232" y="55">▶ Start</text>
+            <path class="edge" d="M445 65 L608 65"/>
+            <text class="label" x="527" y="55">✓ Complete</text>
+            <path class="edge" d="M360 90 L360 198"/>
+            <text class="label" x="304" y="150">⏸ Pause</text>
+            <path class="edge" d="M400 200 L400 92"/>
+            <text class="label" x="458" y="150">▶ Resume</text>
+            <path class="edge" d="M85 90 C85 190 190 225 313 225"/>
+            <text class="label" x="215" y="190">+ Log time</text>
+            <path class="edge" d="M665 40 C640 4 420 4 398 38"/>
+            <text class="label" x="530" y="18">▶ Start (reopens)</text>
+            <g class="node new"><rect x="20" y="40" width="130" height="50" rx="10"/><text x="85" y="65">New</text></g>
+            <g class="node active"><rect x="315" y="40" width="130" height="50" rx="10"/><text x="380" y="65">Active</text></g>
+            <g class="node closed"><rect x="610" y="40" width="130" height="50" rx="10"/><text x="675" y="65">Closed</text></g>
+            <g class="node stopped"><rect x="315" y="200" width="130" height="50" rx="10"/><text x="380" y="225">Stopped</text></g>
+          </svg>
+        </div>
+        <div class="states">
+          <div class="state active"><b>Active</b><span>Someone has the timer on it right now.</span></div>
+          <div class="state stopped"><b>Stopped</b><span>Started, nobody working on it right now. Shown under Paused.</span></div>
+          <div class="state closed"><b>Closed</b><span>Done.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="alt" id="get-started">
+      <div class="wrap">
+        <h2>Get started</h2>
+        <p class="sub">An organization administrator does this once. The full guide is in the
+          <a href="https://github.com/GHMeyer0/azure-devops-tictask/wiki/Instalar">wiki</a> (in Portuguese).</p>
+        <ol class="steps">
+          <li><b>Request access</b><p><a href="https://github.com/GHMeyer0/azure-devops-tictask/issues/new?template=pedir-acesso.yml">Open a request</a> with your organization name, or publish it with your own publisher from the source.</p></li>
+          <li><b>Install</b><p>In Organization settings › Extensions › Shared, install TicTask.</p></li>
+          <li><b>Prepare the process</b><p>Add the Stopped state to the Task if it doesn't exist. <a href="https://github.com/GHMeyer0/azure-devops-tictask/wiki/Preparar-o-processo">See how</a>.</p></li>
+          <li><b>Configure</b><p>In Boards › TicTask › Settings, review activities, states and reasons.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <section id="faq">
+      <div class="wrap">
+        <h2>FAQ</h2>
+        <div class="faq">
+          <details>
+            <summary>Do I need a server?</summary>
+            <p>No. Entries live in Azure DevOps' own Extension Data Service, and the hours go to the work item fields.</p>
+          </details>
+          <details>
+            <summary>Does it work with any process?</summary>
+            <p>With Agile, Scrum and inherited processes. The process needs a pause state on the Task (Stopped by default), and the types and states are configurable.</p>
+          </details>
+          <details>
+            <summary>Is this a time clock?</summary>
+            <p>No. TicTask measures the effort on each task. Pausing means leaving the task for now (another task, a meeting, end of day), not a coffee break.</p>
+          </details>
+          <details>
+            <summary>Can I bring my Time Log history?</summary>
+            <p>Yes, from the CSV exported on the Time Log Admin page, without changing the work items. <a href="https://github.com/GHMeyer0/azure-devops-tictask/wiki/Migrar-dados">See how</a>.</p>
+          </details>
+          <details>
+            <summary>Who sees whose hours?</summary>
+            <p>Everyone sees their own. Managers (team administrators and configured e-mails) see the whole team and who has a timer running.</p>
+          </details>
+        </div>
+        <p class="note"><a href="https://github.com/GHMeyer0/azure-devops-tictask/wiki/Perguntas-frequentes">More questions in the wiki</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>TicTask · MIT license</span>
+      <span><a href="https://github.com/GHMeyer0/azure-devops-tictask">GitHub</a> · <a href="https://github.com/GHMeyer0/azure-devops-tictask/wiki">Docs</a> · <a href="https://github.com/GHMeyer0/azure-devops-tictask/issues">Issues</a></span>
+    </div>
+  </footer>
+</body>
+</html>

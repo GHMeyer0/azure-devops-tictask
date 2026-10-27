@@ -1,0 +1,31 @@
+name: Pedir acesso / Request access
+description: Peça para compartilhar o TicTask com a sua organização do Azure DevOps. / Ask to share TicTask with your Azure DevOps organization.
+title: "Acesso: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        O TicTask é uma extensão privada: para instalar, ela precisa ser compartilhada com a sua organização.
+        Este pedido é público; não coloque dados sensíveis.
+
+        TicTask is a private extension: to install it, it has to be shared with your organization.
+        This request is public; don't include sensitive data.
+  - type: input
+    id: organizacao
+    attributes:
+      label: Organização no Azure DevOps / Azure DevOps organization
+      description: O nome que aparece em dev.azure.com/<nome>. / The name in dev.azure.com/<name>.
+      placeholder: contoso
+    validations:
+      required: true
+  - type: textarea
+    id: uso
+    attributes:
+      label: Como pretende usar / How you plan to use it
+      description: Opcional. Tamanho do time, processo (Agile, Scrum…), se vem de outra extensão. / Optional.
+  - type: checkboxes
+    id: admin
+    attributes:
+      label: Instalação / Installation
+      options:
+        - label: Sou administrador da organização, ou vou pedir a um para instalar. / I'm an organization administrator, or will ask one to install it.

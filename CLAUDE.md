@@ -1,8 +1,8 @@
 # TicTask – guia para agentes
 
 Extensão do Azure DevOps (publisher `ghmeyer0`, id `tictask`, privada) para apontar horas nas Tasks.
-Sem backend: dados no Extension Data Service. Leia também o [README](README.md) (arquitetura e
-regras), o [guia de uso](docs/como-usar.md) e o [plano da 0.7](docs/plano-pausar-concluir.md).
+Sem backend: dados no Extension Data Service. Leia também o [README](README.md) e a wiki em
+[docs/wiki](docs/wiki/Home.md) (uso, administração, arquitetura e contribuição).
 O que é da organização onde a extensão roda (projeto, processo, integrações) fica em
 `CLAUDE.local.md`, fora do git: nada disso entra no repositório (código, testes, docs ou prints).
 
@@ -18,8 +18,10 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
   versão empacotada e não instalada pode ganhar outra correção e virar a próxima versão.
   No GitHub, um push na `main` com versão nova publica no Marketplace (`.github/workflows/publish.yml`).
 - **Commit só quando o usuário pedir.** Mensagem em português, com a versão no título.
-- **Sempre atualizar a documentação** na mesma entrega: `docs/como-usar.md`, `README.md`,
-  `overview.md` (página do marketplace, vai no .vsix: reempacotar se mudar) e prints de `docs/img/`.
+- **Sempre atualizar a documentação** na mesma entrega: as páginas de `docs/wiki/` (publicadas na aba
+  Wiki do GitHub pelo `wiki.yml`; links entre páginas `Pagina.md`, imagens `../img/…`, diagramas
+  Mermaid), `README.md`, `overview.md` (página do marketplace, vai no .vsix: reempacotar se mudar),
+  o site em `site/` (português e inglês, GitHub Pages pelo `site.yml`) e prints de `docs/img/`.
 - **Testar nas telas:** 1280×720, 1366×768, 1920×1080 e 1920×1200 (notebook do usuário, 2880×1800 a
   150%). Celular está fora de escopo.
 - **Antes de implementar algo grande**, discutir o desenho com o usuário; ele costuma querer revisar.

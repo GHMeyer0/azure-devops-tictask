@@ -1,0 +1,39 @@
+# Publishes site/ to GitHub Pages, with the screenshots of docs/img and the extension logo.
+name: Publicar site
+
+on:
+  push:
+    branches: [main]
+    paths: ["site/**", "docs/img/**", "static/logo.png", ".github/workflows/site.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Publicar no GitHub Pages
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Montar o site
+        run: |
+          mkdir -p _site/img
+          cp -r site/. _site/
+          cp docs/img/* _site/img/
+          cp static/logo.png _site/img/logo.png
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

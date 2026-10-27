@@ -1,0 +1,49 @@
+# Copies docs/wiki to the repository wiki (a separate git repo), so the wiki is reviewed in pull
+# requests with the code. Links lose ".md" and images point to docs/img in the main repo.
+name: Publicar wiki
+
+on:
+  push:
+    branches: [main]
+    paths: ["docs/wiki/**", "docs/img/**", ".github/workflows/wiki.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: wiki
+  cancel-in-progress: false
+
+jobs:
+  wiki:
+    name: Publicar wiki
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Clonar a wiki
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # The wiki repo exists only after its first page is created in the Wiki tab.
+        run: git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/${{ github.repository }}.wiki.git" wiki
+      - name: Copiar as páginas
+        run: |
+          find wiki -maxdepth 1 -name '*.md' -delete
+          cp docs/wiki/*.md wiki/
+          img="https://github.com/${{ github.repository }}/raw/${{ github.sha }}/docs/img/"
+          sed -i -E \
+            -e "s|\]\(\.\./img/|](${img}|g" \
+            -e 's|\]\(([A-Za-z0-9_-]+)\.md(#[^)]*)?\)|](\1\2)|g' \
+            wiki/*.md
+      - name: Publicar
+        working-directory: wiki
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "A wiki já está atualizada."
+            exit 0
+          fi
+          git commit -m "Wiki gerada de ${{ github.sha }}"
+          git push
