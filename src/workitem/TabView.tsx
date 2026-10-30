@@ -16,13 +16,13 @@ import {
 } from "@fluentui/react-components";
 import { AddRegular, ArrowClockwiseRegular, PlayRegular, TaskListAddRegular } from "@fluentui/react-icons";
 import { useCallback, useEffect, useState } from "react";
-import { canEdit, createStandardTasks, deleteEntry, editEntry, entriesFor, isTask, logTime, startOnParent, startTimer, type Ctx } from "../common/actions";
+import { canEdit, createStandardTasks, deleteEntry, editEntry, entriesFor, isTask, logTime, startOnParent, startTimer, syncCompleted, type Ctx } from "../common/actions";
 import { breakdown, lastEntryByWorkItem, sum } from "../common/domain/aggregate";
 import { findActivity, guessActivity } from "../common/domain/settings";
 import { findInconsistencies } from "../common/domain/state";
 import { formatDateBr, formatHours, formatMinutes, toLocalDate } from "../common/domain/time";
 import type { ActiveTimer, TaskInfo, TimeEntry } from "../common/domain/types";
-import { BreakdownBars, EntriesTable, ErrorBar, HoursSummary, Section, Stat, StateBadge, TimerControls, WorkItemLink } from "../common/ui/components";
+import { BreakdownBars, CompletedMismatchBar, EntriesTable, ErrorBar, HoursSummary, Section, Stat, StateBadge, TimerControls, WorkItemLink } from "../common/ui/components";
 import { useCtx, useRunner, useTimer, useTrackerEvents } from "../common/ui/hooks";
 import { getChildren } from "../common/wit/witService";
 import { sumHours } from "./GroupView";
@@ -56,6 +56,14 @@ function useEntries(ctx: Ctx, item: TaskInfo, children?: TaskInfo[] | null) {
   useEffect(load, [load]);
   useTrackerEvents([item.id, ...(children ?? []).map((c) => c.id)], load);
   return { entries, reload: load };
+}
+
+/** "Ajustar": Completed of each task back to the sum of its entries. */
+function adjust(ctx: Ctx, run: (fn: () => Promise<unknown>) => Promise<void>) {
+  return (ids: number[]) =>
+    run(async () => {
+      for (const id of ids) await syncCompleted(ctx, id);
+    });
 }
 
 function TimerArea({ ctx, timer, elapsedMs, busy, run, here, onStart, onLog }: {
@@ -108,6 +116,7 @@ function TaskView({ ctx, info }: { ctx: Ctx; info: TaskInfo }) {
         {info.activity && <Caption1 className={st.muted}>Activity: {info.activity}</Caption1>}
       </div>
       <HoursSummary fields={info} />
+      {entries && <CompletedMismatchBar tasks={[info]} entries={entries} busy={busy} onAdjust={adjust(ctx, run)} />}
       <div style={{ marginTop: 12 }}>
         <TimerArea ctx={ctx} timer={timer} elapsedMs={elapsedMs} busy={busy} run={run} here={timer?.workItem.id === info.id} onStart={() => run(() => startTimer(ctx, info))} onLog={() => run(() => logTime(ctx, info))} />
       </div>
@@ -170,6 +179,7 @@ function ParentView({ ctx, info }: { ctx: Ctx; info: TaskInfo }) {
         </Tooltip>
       </div>
       <ErrorBar error={error} />
+      {entries && <CompletedMismatchBar tasks={children} entries={entries} busy={busy} onAdjust={adjust(ctx, run)} />}
       {issues.length > 0 && (
         <MessageBar intent="warning" layout="multiline">
           <MessageBarBody>

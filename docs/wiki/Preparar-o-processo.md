@@ -29,10 +29,10 @@ O TicTask lida com isso: iniciar o timer numa task sem estimativa pede a estimat
 gravada numa revisão separada, antes da mudança de estado. Sem essa ordem, o ADO responde
 `TF401320: Rule Error for field Original Estimate`.
 
-## Tipos pai
+## Tipos de WI pai
 
 O grupo do TicTask funciona como "US" (escolher ou criar a task, somar as horas das filhas) nos tipos
-listados em *Configurações › Geral › Tipos pai*. O padrão é User Story, Technical Story e Bug; ajuste
+listados em *Configurações › Geral › Tipos de WI pai*. O padrão é User Story, Technical Story e Bug; ajuste
 aos nomes do seu processo.
 
 ## Tipo Rotina
@@ -47,10 +47,10 @@ Para apontar [rotinas internas](Rotinas-internas.md) (treinamento, release notes
    não aparece no backlog e no quadro da sprint e não aceita tasks como filhas no quadro.
 4. No **quadro (Kanban)** de cada time, confirme o mapeamento dos estados da Rotina para as colunas
    (o ADO pede na primeira vez; senão, em Configurações do quadro › Colunas).
-5. No TicTask, *Configurações › Geral › Tipos pai*: inclua **Rotina**. Em *Configurações ›
+5. No TicTask, *Configurações › Geral › Tipos de WI pai*: inclua **Rotina**. Em *Configurações ›
    Atividades*, crie **Treinamento** e **Administrativo** (Activity no ADO: *Documentation*).
 
-O nome não precisa ser "Rotina": o TicTask usa o que estiver em *Tipos pai*. Um tipo de work item
+O nome não precisa ser "Rotina": o TicTask usa o que estiver em *Tipos de WI pai*. Um tipo de work item
 criado no processo herdado não pode ser renomeado depois, então escolha o nome antes.
 
 ## Esconder o TicTask em alguns tipos

@@ -17,7 +17,7 @@ que foi feito e a atividade certa:
 | Organização interna | Revisar itens da sprint | Administrativo |
 
 Num treinamento, cada participante cria a sua task: assim o tempo de cada um fica com quem participou.
-O total da rotina aparece no próprio item, e o Timesheet agrupado por item pai separa esse tempo do
+O total da rotina aparece no próprio item, e o Resumo por WI pai separa esse tempo do
 trabalho de produto.
 
 ```mermaid

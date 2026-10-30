@@ -3,6 +3,7 @@ import { concludeTimer, loadCtx, pauseTimer, resumeTimer, type Ctx } from "../ac
 import { isOlder, readTimerDoc, timerOf, type TimerDoc } from "../data/timerRepo";
 import { segmentsMs } from "../domain/time";
 import type { ActiveTimer } from "../domain/types";
+import { errorMessage } from "../errors";
 import { subscribe, type TrackerEvent } from "../events";
 import { SDK } from "../sdk";
 import type { WorkItemWriter } from "../wit/writer";
@@ -132,8 +133,4 @@ export function useRunner(): { busy: boolean; error: string | null; run: (fn: ()
   return { busy, error, run, clearError: () => setError(null) };
 }
 
-export function errorMessage(e: unknown): string {
-  if (!e) return "Erro desconhecido";
-  const err = e as { message?: string; serverError?: { message?: string } };
-  return err.serverError?.message ?? err.message ?? String(e);
-}
+export { errorMessage };

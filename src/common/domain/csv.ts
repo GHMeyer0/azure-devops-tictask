@@ -12,7 +12,7 @@ function cell(value: string | number | undefined | null): string {
 }
 
 export function entriesToCsv(entries: TimeEntry[]): string {
-  const header = ["Data", "Início", "Fim", "Horas", "Pausas", "Usuário", "E-mail", "Task", "Título", "Item pai", "Título pai", "Atividade", "Comentário", "Motivo", "Origem", "Estado antes", "Estado depois", "Remaining depois", "Apontado em"];
+  const header = ["Data", "Início", "Fim", "Horas", "Pausas", "Usuário", "E-mail", "Task", "Título", "WI pai", "Título do WI pai", "Atividade", "Comentário", "Motivo", "Origem", "Estado antes", "Estado depois", "Remaining depois", "Apontado em"];
   const lines = [...entries]
     .filter((e) => !e.deleted)
     .sort((a, b) => a.start.localeCompare(b.start))
@@ -42,17 +42,6 @@ export function entriesToCsv(entries: TimeEntry[]): string {
         .join(SEP),
     );
   return "﻿" + [header.map(cell).join(SEP), ...lines].join("\r\n");
-}
-
-export function sheetToCsv(days: string[], rows: { level: number; label: string; perDay: number[]; total: number }[], dayTotals: number[], total: number): string {
-  const header = ["Nível 1", "Nível 2", "Nível 3", ...days.map(formatDateBr), "Total"];
-  const lines = rows.map((r) => {
-    const levelCells = ["", "", ""];
-    levelCells[r.level] = r.label;
-    return [...levelCells, ...r.perDay.map((m) => (m ? minutesToHours(m) : "")), minutesToHours(r.total)].map(cell).join(SEP);
-  });
-  const totals = ["Total", "", "", ...dayTotals.map(minutesToHours), minutesToHours(total)].map(cell).join(SEP);
-  return "﻿" + [header.map(cell).join(SEP), ...lines, totals].join("\r\n");
 }
 
 /** "Resumo" as a flat sheet: every row repeats its dimension values (no merged cells, no subtotals). */

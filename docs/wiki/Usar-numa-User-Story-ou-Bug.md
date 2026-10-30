@@ -35,7 +35,7 @@ sugeridos. Só aparecem as que ainda faltam na US.
 
 A sugestão do TicTask: a task de **Desenvolvimento** é concluída quando o PR vai para revisão, e todas
 as rodadas de correção vão numa **única task de Correção** por história. Assim a estimativa do
-desenvolvimento fica limpa, e o retrabalho de revisão aparece separado no Timesheet.
+desenvolvimento fica limpa, e o retrabalho de revisão aparece separado no Resumo.
 
 ```mermaid
 sequenceDiagram

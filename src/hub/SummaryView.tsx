@@ -19,14 +19,14 @@ import {
 import { ArrowDownloadRegular, ChevronLeftRegular, ChevronRightRegular, TableSimpleRegular, TextBulletListSquareRegular } from "@fluentui/react-icons";
 import type { WebApiTeam } from "azure-devops-extension-api/Core";
 import { useEffect, useMemo, useState } from "react";
-import type { Ctx } from "../common/actions";
+import { canEdit, deleteEntry, editEntry, type Ctx } from "../common/actions";
 import { listByRange } from "../common/data/entriesRepo";
 import { entriesToCsv, summaryToCsv } from "../common/domain/csv";
 import { findActivity } from "../common/domain/settings";
 import { DIMS, buildSummary, type Bucket, type Dim } from "../common/domain/summary";
 import { addDays, addMonths, daysBetween, formatDateBr, formatMinutes, monthEnd, monthStart, toLocalDate, weekStart } from "../common/domain/time";
 import type { TimeEntry } from "../common/domain/types";
-import { ErrorBar } from "../common/ui/components";
+import { EntriesTable, ErrorBar } from "../common/ui/components";
 import { DateInput } from "../common/ui/dateTime";
 import { errorMessage, useRunner, useTrackerEvents } from "../common/ui/hooks";
 import { EmptyState, PageCard, Toolbar } from "../common/ui/page";
@@ -80,9 +80,11 @@ interface Prefs {
   bucket: Bucket;
   dims: Dim[];
   hideEmpty: boolean;
+  /** Also lists each entry (edit/delete), below the table. */
+  detailed: boolean;
 }
 const PREFS_KEY = "tt-summary";
-const DEFAULT_PREFS: Prefs = { bucket: "day", dims: ["user", "parent", "task", "activity"], hideEmpty: true };
+const DEFAULT_PREFS: Prefs = { bucket: "day", dims: ["user", "parent", "task", "activity"], hideEmpty: true, detailed: false };
 
 function readPrefs(): Prefs {
   try {
@@ -96,7 +98,8 @@ function readPrefs(): Prefs {
 
 /**
  * Hours per person / US / task / activity across days, weeks or months (like the TimeLog "Time Log
- * Summary"). Non-managers only see their own hours.
+ * Summary"), and optionally each entry with edit/delete ("Detalhado"). Non-managers only see their
+ * own hours.
  */
 export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
   const st = useStyles();
@@ -195,6 +198,7 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
         end={
           <>
             <Switch label="Só colunas com horas" checked={prefs.hideEmpty} onChange={(_, d) => setPrefs({ ...prefs, hideEmpty: d.checked })} />
+            <Switch label="Detalhado" checked={prefs.detailed} onChange={(_, d) => setPrefs({ ...prefs, detailed: d.checked })} />
             <Menu>
               <MenuTrigger disableButtonEnhancement>
                 <MenuButton icon={<ArrowDownloadRegular />}>Exportar</MenuButton>
@@ -275,7 +279,7 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
           onCheckedValueChange={(_, d) => d.checkedItems.length && setPrefs({ ...prefs, dims: DIMS.map((x) => x.value).filter((v) => d.checkedItems.includes(v)) })}
         >
           <MenuTrigger disableButtonEnhancement>
-            <Tooltip content={`Linhas por ${dimsText}. Desmarque colunas para somar as linhas (ex.: só US/Bug).`} relationship="description">
+            <Tooltip content={`Linhas por ${dimsText}. Desmarque colunas para somar as linhas (ex.: só WI pai).`} relationship="description">
               <MenuButton icon={<TextBulletListSquareRegular />}>Linhas ({dims.length})</MenuButton>
             </Tooltip>
           </MenuTrigger>
@@ -303,6 +307,11 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
               <SummaryTable summary={summary} dims={dims} colorOf={(a) => findActivity(ctx.settings, a)?.color} />
             </div>
           )}
+        </PageCard>
+      )}
+      {prefs.detailed && entries && (
+        <PageCard title={`Apontamentos (${visible.length})`} description="Cada apontamento com horário, atividade e comentário. Os seus podem ser editados ou excluídos até o limite de dias.">
+          <EntriesTable entries={visible} showTask canEdit={(e) => canEdit(ctx, e)} onEdit={(e) => run(() => editEntry(ctx, e))} onDelete={(e) => run(() => deleteEntry(ctx, e))} />
         </PageCard>
       )}
       {busy && <Spinner size="tiny" />}

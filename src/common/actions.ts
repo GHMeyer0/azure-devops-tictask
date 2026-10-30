@@ -1,10 +1,11 @@
+import { errorMessage } from "./errors";
 import { emit } from "./events";
 import { getSettings } from "./data/settingsRepo";
-import { listByWorkItem, newEntryId, saveEntry } from "./data/entriesRepo";
+import { listByWorkItem, newEntryId, removeEntry, saveEntry } from "./data/entriesRepo";
 import { listPresence, publishPaused } from "./data/presenceRepo";
 import { clearTimer, getTimer, isOlder, readTimerDoc, saveTimer, timerOf } from "./data/timerRepo";
 import { openDialog, type LogDraft, type LogResult, type NewTaskInput } from "./dialogs";
-import { applyCreate, applyDelete, applyEdit, currentRemaining, needsEstimate } from "./domain/remaining";
+import { applyCreate, applyDelete, applyEdit, completedOf, currentRemaining, needsEstimate, withEntry } from "./domain/remaining";
 import { buildTaskTitle, CORRECTION, findActivity, guessActivity, reasonsOf } from "./domain/settings";
 import { decideParentStart, decideStart, isClosedState } from "./domain/state";
 import { addMinutesToTime, combineLocal, daysBetween, firstOpenDate, formatDateBr, formatMinutes, minutesBetweenTimes, minutesToHours, segmentsMs, toLocalDate, toLocalTime } from "./domain/time";
@@ -337,49 +338,64 @@ function reasonText(reason?: string, detail?: string): string {
 
 const escapeHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-/** Writes Completed/Remaining/State on the task and stores the entry. */
+/**
+ * Runs the steps after the task was saved: a failure there must not lose the entry (it is already
+ * stored) nor stop the caller (a timer that is not cleared would log the same time again). The
+ * failures are reported once, in a dialog.
+ */
+function afterSave() {
+  const failed: string[] = [];
+  const step = async <T>(what: string, fn: () => Promise<T>): Promise<T | undefined> => {
+    try {
+      return await fn();
+    } catch (e) {
+      console.warn(what, e);
+      failed.push(`${what} (${errorMessage(e)})`);
+      return undefined;
+    }
+  };
+  const report = () => {
+    if (failed.length) void messageDialog(`O apontamento foi salvo e as horas estão na task, mas não foi possível ${failed.join("; ")}.`, "Apontamento salvo com avisos");
+  };
+  return { step, report };
+}
+
+/**
+ * The task refused a change that was already on the entry: the entry change is undone and the user
+ * is told in a dialog, so it is not missed. Returns the error that stops the caller (a timer stays
+ * running, a dialog can be tried again).
+ */
+async function refused(taskId: number, e: unknown, change: { title: string; what: string }, undo: () => Promise<unknown>): Promise<Error> {
+  const undone = await undo().then(
+    () => true,
+    (err) => (console.warn("entry rollback", err), false),
+  );
+  const message =
+    `A task #${taskId} não aceitou a gravação: ${errorMessage(e)} ` +
+    (undone
+      ? `${change.what} foi desfeito: nada mudou na task nem nos apontamentos. Corrija o que o Azure DevOps pediu e tente de novo.`
+      : `${change.what} não pôde ser desfeito e ficou diferente das horas da task: abra a task e use "Ajustar" no TicTask.`);
+  await messageDialog(message, change.title).catch(() => undefined);
+  return new Error(message);
+}
+
+/**
+ * Stores the entry and writes Completed/Remaining/State on the task, as one operation: the entry is
+ * saved first and taken back when the task cannot be saved, so a task never keeps hours without
+ * their entry (seen on 30/10/2026: the hours reached the task, the entry was lost). Completed is
+ * the sum of the task's entries.
+ */
 export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["source"], opts: EntryOptions = {}): Promise<TimeEntry> {
   if (source !== "timer") assertOpenDate(ctx, r.draft.date);
   const hours = minutesToHours(r.draft.minutes);
   const reasonLine = reasonText(r.reason, r.reasonDetail);
-  let laterState: string | undefined;
-  const first = await ctx.writer.apply(r.task.id, (current) => {
-    laterState = undefined;
-    const upd = applyCreate(current, hours, r.estimate);
-    const changes: FieldChanges = { completed: upd.completed, remaining: r.remaining ?? upd.remaining };
-    if (upd.original !== undefined) changes.original = upd.original;
-    const starts = startStateChange(ctx, current);
-    const to = r.close ? ctx.settings.states.closed : opts.pausing ? opts.pauseState : starts && (opts.pauseState ?? starts);
-    // A process may lock Original Estimate by state (e.g. read-only once Active), also inside the
-    // save that sets it: the estimate goes first and the state in a second save.
-    if (to && to !== current.state) {
-      if (changes.original !== undefined) laterState = to;
-      else changes.state = to;
-    }
-    const lines = [
-      ctx.settings.postComment && `⏱ ${formatMinutes(r.draft.minutes)} · ${r.draft.activity} · ${r.draft.date} ${r.draft.startTime}–${r.draft.endTime}${r.draft.comment ? ` · ${escapeHtml(r.draft.comment)}` : ""}`,
-      reasonLine && `${r.close ? "✓ Concluída" : "⏸ Pausada"}: ${escapeHtml(reasonLine)}`,
-    ].filter(Boolean);
-    if (lines.length) changes.history = lines.join("<br>");
-    return changes;
-  });
-  const before = first.before;
-  const pending = laterState;
-  const after = pending ? (await ctx.writer.apply(r.task.id, (current) => (current.state === pending ? null : { state: pending }))).after : first.after;
-  const parentStateAtStart = opts.parentStateAtStart ?? (await activateParent(ctx, before.parentId));
-  const parent = await withParentTitle(before);
-  const def = ctx.settings.states.reasons.find((d) => d.name === r.reason && d.kind === (r.close ? "conclude" : "pause"));
-  if (def?.commentOnParent && before.parentId) {
-    const line = `${r.close ? "✓" : "⏸"} #${before.id} ${before.title}${r.close ? " concluída" : ""} (${ctx.user.displayName}): ${reasonLine}`;
-    // The task is already saved: a failure here must not lose the entry.
-    await ctx.writer.apply(before.parentId, () => ({ history: escapeHtml(line) })).catch((e) => console.warn("parent comment", e));
-  }
-  const entry: TimeEntry = {
+  const [existing, parent] = await Promise.all([listByWorkItem(ctx.projectId, r.task.id), withParentTitle(r.task)]);
+  let entry: TimeEntry = {
     id: newEntryId(),
     projectId: ctx.projectId,
-    workItemId: before.id,
-    workItemTitle: before.title,
-    workItemType: before.type,
+    workItemId: r.task.id,
+    workItemTitle: r.task.title,
+    workItemType: r.task.type,
     ...parent,
     userId: ctx.user.id,
     userName: ctx.user.displayName,
@@ -388,16 +404,67 @@ export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["sou
     activity: r.draft.activity,
     comment: r.draft.comment,
     source,
-    before: { ...snapshot(before), state: opts.stateAtStart ?? before.state },
-    after: snapshot(after),
-    parentStateAtStart,
+    before: { ...snapshot(r.task), state: opts.stateAtStart ?? r.task.state },
+    after: snapshot(r.task),
+    parentStateAtStart: opts.parentStateAtStart,
     createdAt: now(),
     createdBy: ctx.user.id,
     history: [{ at: now(), by: ctx.user.displayName, action: "create", detail: formatMinutes(r.draft.minutes) }],
     ...(r.reason ? { reason: r.reason } : {}),
     ...(r.reasonDetail ? { reasonDetail: r.reasonDetail } : {}),
   };
-  const saved = await saveEntry(entry);
+  await saveEntry(entry);
+  const completed = completedOf(withEntry(existing, entry))!;
+
+  let laterState: string | undefined;
+  let first: { before: TaskInfo; after: TaskInfo };
+  try {
+    first = await ctx.writer.apply(r.task.id, (current) => {
+      laterState = undefined;
+      const upd = applyCreate(current, hours, r.estimate);
+      const changes: FieldChanges = { completed, remaining: r.remaining ?? upd.remaining };
+      if (upd.original !== undefined) changes.original = upd.original;
+      const starts = startStateChange(ctx, current);
+      const to = r.close ? ctx.settings.states.closed : opts.pausing ? opts.pauseState : starts && (opts.pauseState ?? starts);
+      // A process may lock Original Estimate by state (e.g. read-only once Active), also inside the
+      // save that sets it: the estimate goes first and the state in a second save.
+      if (to && to !== current.state) {
+        if (changes.original !== undefined) laterState = to;
+        else changes.state = to;
+      }
+      const lines = [
+        ctx.settings.postComment && `⏱ ${formatMinutes(r.draft.minutes)} · ${r.draft.activity} · ${r.draft.date} ${r.draft.startTime}–${r.draft.endTime}${r.draft.comment ? ` · ${escapeHtml(r.draft.comment)}` : ""}`,
+        reasonLine && `${r.close ? "✓ Concluída" : "⏸ Pausada"}: ${escapeHtml(reasonLine)}`,
+      ].filter(Boolean);
+      if (lines.length) changes.history = lines.join("<br>");
+      return changes;
+    });
+  } catch (e) {
+    throw await refused(r.task.id, e, { title: "Apontamento não registrado", what: "O apontamento" }, () => removeEntry(entry));
+  }
+
+  const { step, report } = afterSave();
+  const before = first.before;
+  const pending = laterState;
+  const later = pending ? await step(`mudar o estado para ${pending}`, () => ctx.writer.apply(r.task.id, (current) => (current.state === pending ? null : { state: pending }))) : undefined;
+  const after = later?.after ?? first.after;
+  const parentStateAtStart = opts.parentStateAtStart ?? (await step("ativar o WI pai", () => activateParent(ctx, before.parentId)));
+  const def = ctx.settings.states.reasons.find((d) => d.name === r.reason && d.kind === (r.close ? "conclude" : "pause"));
+  if (def?.commentOnParent && before.parentId) {
+    const parentId = before.parentId;
+    const line = `${r.close ? "✓" : "⏸"} #${before.id} ${before.title}${r.close ? " concluída" : ""} (${ctx.user.displayName}): ${reasonLine}`;
+    await step("comentar no WI pai", () => ctx.writer.apply(parentId, () => ({ history: escapeHtml(line) })));
+  }
+  entry = {
+    ...entry,
+    workItemTitle: before.title,
+    workItemType: before.type,
+    before: { ...snapshot(before), state: opts.stateAtStart ?? before.state },
+    after: snapshot(after),
+    parentStateAtStart,
+  };
+  const saved = (await step("guardar o estado da task no apontamento", () => saveEntry(entry))) ?? entry;
+  report();
   emit({ type: "entries", workItemIds: [entry.workItemId, ...(entry.parentId ? [entry.parentId] : [])] });
   emit({ type: "workitems", workItemIds: [entry.workItemId, ...(entry.parentId ? [entry.parentId] : [])] });
   return saved;
@@ -443,29 +510,46 @@ export async function editEntry(ctx: Ctx, entry: TimeEntry): Promise<TimeEntry |
   return updateEntry(ctx, entry, result.draft, result.remaining);
 }
 
-/** Applies new times/activity/comment to an entry and the hours delta to the task. */
+/**
+ * Applies new times/activity/comment to an entry and the hours to the task (Completed = sum of the
+ * entries, Remaining moves by the difference). Like createEntry, the entry is saved first and put
+ * back when the task cannot be saved.
+ */
 export async function updateEntry(ctx: Ctx, entry: TimeEntry, draft: LogDraft, remaining?: number): Promise<TimeEntry> {
   if (draft.date !== entry.date) assertOpenDate(ctx, draft.date);
-  const { after } = await ctx.writer.apply(entry.workItemId, (current) => {
-    if (draft.minutes === entry.minutes && remaining === undefined) return null;
-    const upd = applyEdit(current, minutesToHours(entry.minutes), minutesToHours(draft.minutes));
-    return { completed: upd.completed, remaining: remaining ?? upd.remaining };
-  });
   const changes: string[] = [];
   if (draft.minutes !== entry.minutes) changes.push(`${formatMinutes(entry.minutes)} → ${formatMinutes(draft.minutes)}`);
   if (draft.date !== entry.date) changes.push(`data ${entry.date} → ${draft.date}`);
   if (draft.activity !== entry.activity) changes.push(`atividade ${entry.activity} → ${draft.activity}`);
   if (draft.comment !== entry.comment) changes.push("comentário");
-  const updated: TimeEntry = {
+  let updated: TimeEntry = {
     ...entry,
     ...draftTimes(draft),
     activity: draft.activity,
     comment: draft.comment,
-    after: snapshot(after),
     updatedAt: now(),
     history: [...entry.history, { at: now(), by: ctx.user.displayName, action: "update", detail: changes.join(", ") || "horário" }],
   };
-  const saved = await saveEntry(updated, entry);
+  const existing = await listByWorkItem(ctx.projectId, entry.workItemId);
+  let saved = await saveEntry(updated, entry);
+  const completed = completedOf(withEntry(existing, updated));
+  let result: { before: TaskInfo; after: TaskInfo };
+  try {
+    result = await ctx.writer.apply(entry.workItemId, (current) => {
+      const fields: FieldChanges = {};
+      if (draft.minutes !== entry.minutes || remaining !== undefined) {
+        fields.remaining = remaining ?? applyEdit(current, minutesToHours(entry.minutes), minutesToHours(draft.minutes)).remaining;
+      }
+      if (completed !== null && completed !== current.completed) fields.completed = completed;
+      return Object.keys(fields).length ? fields : null;
+    });
+  } catch (e) {
+    throw await refused(entry.workItemId, e, { title: "Alteração não salva", what: "A alteração do apontamento" }, () => saveEntry(entry, updated));
+  }
+  if (result.after !== result.before) {
+    updated = { ...updated, after: snapshot(result.after) };
+    saved = await saveEntry(updated).catch((e) => (console.warn("entry after", e), saved));
+  }
   emit({ type: "entries", workItemIds: [entry.workItemId, ...(entry.parentId ? [entry.parentId] : [])] });
   emit({ type: "workitems", workItemIds: [entry.workItemId] });
   return saved;
@@ -479,17 +563,40 @@ export async function deleteEntry(ctx: Ctx, entry: TimeEntry): Promise<boolean> 
     "Excluir",
   );
   if (!ok) return false;
-  await ctx.writer.apply(entry.workItemId, (current) => {
-    const upd = applyDelete(current, minutesToHours(entry.minutes), !isClosedState(current.state, ctx.settings.states));
-    return { completed: upd.completed, remaining: upd.remaining };
-  });
-  await saveEntry(
-    { ...entry, deleted: true, deletedAt: now(), deletedBy: ctx.user.displayName, history: [...entry.history, { at: now(), by: ctx.user.displayName, action: "delete", detail: formatMinutes(entry.minutes) }] },
-    entry,
-  );
+  const deleted: TimeEntry = {
+    ...entry,
+    deleted: true,
+    deletedAt: now(),
+    deletedBy: ctx.user.displayName,
+    history: [...entry.history, { at: now(), by: ctx.user.displayName, action: "delete", detail: formatMinutes(entry.minutes) }],
+  };
+  const existing = await listByWorkItem(ctx.projectId, entry.workItemId);
+  await saveEntry(deleted, entry);
+  // With no entry left, Completed goes back by the hours: it may hold hours from before the extension.
+  const completed = completedOf(withEntry(existing, deleted));
+  try {
+    await ctx.writer.apply(entry.workItemId, (current) => {
+      const upd = applyDelete(current, minutesToHours(entry.minutes), !isClosedState(current.state, ctx.settings.states));
+      return { completed: completed ?? upd.completed, remaining: upd.remaining };
+    });
+  } catch (e) {
+    throw await refused(entry.workItemId, e, { title: "Exclusão não salva", what: "A exclusão do apontamento" }, () => saveEntry(entry, deleted));
+  }
   emit({ type: "entries", workItemIds: [entry.workItemId, ...(entry.parentId ? [entry.parentId] : [])] });
   emit({ type: "workitems", workItemIds: [entry.workItemId] });
   return true;
+}
+
+/**
+ * Sets Completed of a task to the sum of its entries ("Ajustar", for a Completed typed in the form).
+ * Returns the new Completed, or null when the task has no entries.
+ */
+export async function syncCompleted(ctx: Ctx, taskId: number): Promise<number | null> {
+  const completed = completedOf(await listByWorkItem(ctx.projectId, taskId));
+  if (completed === null) return null;
+  await ctx.writer.apply(taskId, (current) => (current.completed === completed ? null : { completed }));
+  emit({ type: "workitems", workItemIds: [taskId] });
+  return completed;
 }
 
 // ---------------------------------------------------------------- parent (US/Bug)

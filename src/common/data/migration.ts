@@ -1,9 +1,11 @@
+import { completedMismatch } from "../domain/remaining";
+import { errorMessage } from "../errors";
 import { emit } from "../events";
 import { extensionFullId } from "../sdk";
 import { buildExport, prepareForImport, type ExportFile } from "../domain/exportFile";
 import { mergeSettings } from "../domain/settings";
 import { addDays, monthKeys, toLocalDate } from "../domain/time";
-import type { Ctx } from "../actions";
+import { syncCompleted, type Ctx } from "../actions";
 import { timeLogToEntries, type TimeLogRow } from "../domain/timelogImport";
 import type { Settings, TimeEntry } from "../domain/types";
 import { getExistingWorkItems, titlesOf } from "../wit/witService";
@@ -78,4 +80,53 @@ export async function importTimeLog(ctx: Ctx, rows: TimeLogRow[], progress?: Pro
   await pool(entries, 5, async (e) => void (await saveEntry(e)), progress);
   emit({ type: "entries", workItemIds: [...new Set(entries.map((e) => e.workItemId))] });
   return { entries: entries.length, missingWorkItems: [...new Set(rows.map((r) => r.workItemId))].filter((id) => !workItems.has(id)) };
+}
+
+/** A task whose Completed is not the sum of its entries. */
+export interface CompletedMismatch {
+  id: number;
+  title: string;
+  state: string;
+  assignedTo?: string;
+  completed: number | null;
+  /** Sum of the entries, in hours. */
+  fromEntries: number;
+}
+
+/**
+ * Every task of the project with entries whose Completed differs from their sum (typed in the
+ * form, or saved by a version that wrote the task before the entry). Reads all months, like the export.
+ */
+export async function findCompletedMismatches(ctx: Ctx, progress?: Progress): Promise<{ tasks: number; mismatches: CompletedMismatch[] }> {
+  const months = monthKeys(EXPORT_FIRST_MONTH, addDays(toLocalDate(new Date()), 366));
+  const byTask = new Map<number, TimeEntry[]>();
+  await pool(
+    months,
+    6,
+    async (key) => {
+      for (const e of await listMonth(ctx.projectId, key)) byTask.set(e.workItemId, [...(byTask.get(e.workItemId) ?? []), e]);
+    },
+    progress,
+  );
+  const tasks = await getExistingWorkItems([...byTask.keys()]);
+  const mismatches = tasks
+    .map((t) => ({ t, sum: completedMismatch(t.completed, byTask.get(t.id) ?? []) }))
+    .filter((x): x is { t: (typeof tasks)[number]; sum: number } => x.sum !== null)
+    .map(({ t, sum }) => ({ id: t.id, title: t.title, state: t.state, assignedTo: t.assignedTo?.displayName, completed: t.completed, fromEntries: sum }))
+    .sort((a, b) => a.id - b.id);
+  return { tasks: tasks.length, mismatches };
+}
+
+/** Sets Completed = sum of the entries on each task; returns the ids that could not be saved. */
+export async function adjustCompleted(ctx: Ctx, ids: number[], progress?: Progress): Promise<{ id: number; error: string }[]> {
+  const failed: { id: number; error: string }[] = [];
+  await pool(
+    ids,
+    3,
+    async (id) => {
+      await syncCompleted(ctx, id).catch((e) => void failed.push({ id, error: errorMessage(e) }));
+    },
+    progress,
+  );
+  return failed.sort((a, b) => a.id - b.id);
 }

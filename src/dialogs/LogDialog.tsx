@@ -256,7 +256,7 @@ function TaskPicker({ request, value, onChange }: { request: LogRequest; value: 
     <Field
       label="Task"
       required
-      hint={value ? undefined : "Suas tasks abertas, agrupadas pelo item pai. Digite parte do título ou o #id."}
+      hint={value ? undefined : "Suas tasks abertas, agrupadas pelo WI pai. Digite parte do título ou o #id."}
       validationMessage={error ?? undefined}
       validationState={error ? "error" : "none"}
     >
@@ -301,7 +301,7 @@ function TaskPicker({ request, value, onChange }: { request: LogRequest; value: 
                   </Text>
                 </span>
               ) : (
-                "(sem item pai)"
+                "(sem WI pai)"
               )
             }
           >

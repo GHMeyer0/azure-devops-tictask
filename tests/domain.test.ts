@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { breakdown, buildSheet } from "../src/common/domain/aggregate";
+import { breakdown } from "../src/common/domain/aggregate";
 import { entriesToCsv } from "../src/common/domain/csv";
 import { buildTaskTitle, DEFAULT_SETTINGS, guessActivity, mergeSettings } from "../src/common/domain/settings";
 import { decideParentStart, decideStart, findInconsistencies } from "../src/common/domain/state";
@@ -112,8 +112,7 @@ describe("settings helpers", () => {
   });
 });
 
-describe("buildSheet", () => {
-  const days = ["2026-10-19", "2026-10-20"];
+describe("breakdown", () => {
   const entries = [
     entry({ date: "2026-10-19", minutes: 60 }),
     entry({ date: "2026-10-20", minutes: 30 }),
@@ -122,25 +121,6 @@ describe("buildSheet", () => {
     entry({ date: "2026-10-21", minutes: 999 }), // out of range
     entry({ date: "2026-10-19", minutes: 999, deleted: true }),
   ];
-
-  it("totals per day and overall", () => {
-    const sheet = buildSheet(entries, days, "user");
-    expect(sheet.dayTotals).toEqual([60, 90]);
-    expect(sheet.total).toBe(150);
-  });
-
-  it("nests user > task > activity", () => {
-    const sheet = buildSheet(entries, days, "user");
-    expect(sheet.rows.map((r) => [r.level, r.label, r.total])).toEqual([
-      [0, "Ana", 105],
-      [1, "#1 Task", 105],
-      [2, "Desenvolvimento/Correção", 90],
-      [2, "Revisão", 15],
-      [0, "Bruno", 45],
-      [1, "#2 Outra", 45],
-      [2, "Desenvolvimento/Correção", 45],
-    ]);
-  });
 
   it("breakdown by activity", () => {
     expect(breakdown(entries.slice(0, 4), (e) => e.activity)).toEqual([

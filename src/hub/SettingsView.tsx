@@ -85,10 +85,10 @@ const REASON_KINDS: PickOption[] = [
 
 const SECTIONS: { key: SectionKey; label: string; description: string; icon: React.ReactElement }[] = [
   { key: "geral", label: "Geral", description: "Quem administra, tipos de work item e regras de apontamento.", icon: <SettingsRegular /> },
-  { key: "atividades", label: "Atividades", description: "Tipos de trabalho oferecidos ao apontar e as tasks padrão criadas nas US/Bugs.", icon: <TagMultipleRegular /> },
-  { key: "estados", label: "Estados e motivos", description: "Como o estado da task e do item pai acompanha o apontamento, motivos de pausa e avisos.", icon: <ArrowSyncRegular /> },
+  { key: "atividades", label: "Atividades", description: "Tipos de trabalho oferecidos ao apontar e as tasks padrão criadas nos WI pai.", icon: <TagMultipleRegular /> },
+  { key: "estados", label: "Estados e motivos", description: "Como o estado da task e do WI pai acompanha o apontamento, motivos de pausa e avisos.", icon: <ArrowSyncRegular /> },
   { key: "chat", label: "Google Chat", description: "Lembretes de apontamento e o resumo da manhã, enviados pelo n8n.", icon: <ChatRegular /> },
-  { key: "dados", label: "Dados", description: "Exportar e importar apontamentos e configurações do projeto.", icon: <DatabaseRegular /> },
+  { key: "dados", label: "Dados", description: "Exportar e importar apontamentos e configurações, e conferir o Completed das tasks.", icon: <DatabaseRegular /> },
 ];
 
 /** Options loaded from Azure DevOps; null while loading, [] when the request fails. */
@@ -184,13 +184,13 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
         {section === "geral" && (
           <>
             <SettingsCard title="Gestores" description="Administradores de time do projeto já são gestores.">
-              <SettingRow first label="Gestores adicionais" description="Veem Time agora, timesheet e calendário de todos, e podem alterar estas configurações.">
+              <SettingRow first label="Gestores adicionais" description="Veem Time agora, resumo e calendário de todos, e podem alterar estas configurações.">
                 <MultiPicker ariaLabel="Gestores adicionais" options={people} values={s.managers} keyOf={lower} onChange={(v) => set({ managers: v.map(lower) })} placeholder="Nenhum além dos administradores" />
               </SettingRow>
             </SettingsCard>
             <SettingsCard title="Tipos de work item">
-              <SettingRow first label="Tipos pai" description='Onde o "Iniciar" pergunta "O que você vai fazer?" e oferece as tasks padrão.'>
-                <MultiPicker ariaLabel="Tipos pai" options={types} values={s.parentTypes} onChange={(v) => set({ parentTypes: v })} />
+              <SettingRow first label="Tipos de WI pai" description='Tipos de work item com tasks embaixo (ex.: User Story, Bug, Rotina). Neles o "Iniciar" pergunta "O que você vai fazer?" e oferece as tasks padrão.'>
+                <MultiPicker ariaLabel="Tipos de WI pai" options={types} values={s.parentTypes} onChange={(v) => set({ parentTypes: v })} />
               </SettingRow>
               <SettingRow label="Tipo de task" description="Onde as horas são apontadas (Completed e Remaining).">
                 <Picker ariaLabel="Tipo de task" options={types} value={s.taskType} onChange={(v) => set({ taskType: v })} />
@@ -298,7 +298,7 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
             </SettingsCard>
             <SettingsCard
               title="Motivos"
-              description='Oferecidos em "Pausar com motivo…" (pausa) e no campo "Próximo passo" do Concluir. "Outro…", com texto livre, sempre aparece. O motivo vai para a discussão da task; marque "Comenta na US" para também comentar no item pai.'
+              description='Oferecidos em "Pausar com motivo…" (pausa) e no campo "Próximo passo" do Concluir. "Outro…", com texto livre, sempre aparece. O motivo vai para a discussão da task; marque "Comenta no WI pai" para também comentar nele.'
               action={
                 <Button size="small" icon={<AddRegular />} onClick={() => setStates({ reasons: [...s.states.reasons, { name: "", kind: "pause", commentOnParent: false }] })}>
                   Adicionar
@@ -310,7 +310,7 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
                   <TableRow>
                     <TableHeaderCell>Nome</TableHeaderCell>
                     <TableHeaderCell style={{ width: 220 }}>Tipo</TableHeaderCell>
-                    <TableHeaderCell style={{ width: 120 }}>Comenta na US</TableHeaderCell>
+                    <TableHeaderCell style={{ width: 120 }}>Comenta no WI pai</TableHeaderCell>
                     <TableHeaderCell style={{ width: 44 }} />
                   </TableRow>
                 </TableHeader>
@@ -324,7 +324,7 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
                         <Picker size="small" ariaLabel="Tipo do motivo" options={REASON_KINDS} value={r.kind} onChange={(v) => setReason(i, { kind: v as ReasonDef["kind"] })} />
                       </TableCell>
                       <TableCell>
-                        <Checkbox aria-label="Comenta na US" checked={r.commentOnParent} onChange={(_, d) => setReason(i, { commentOnParent: !!d.checked })} />
+                        <Checkbox aria-label="Comenta no WI pai" checked={r.commentOnParent} onChange={(_, d) => setReason(i, { commentOnParent: !!d.checked })} />
                       </TableCell>
                       <TableCell>
                         <Tooltip content="Remover" relationship="label">
@@ -346,12 +346,12 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
                 <Text className={st.muted}>dias úteis</Text>
               </SettingRow>
             </SettingsCard>
-            <SettingsCard title="Item pai (US/Bug)" description="Estados dos tipos pai selecionados em Geral.">
-              <SettingRow first label="Ativar quando estiver em" description="Ao começar o trabalho numa task filha, o item pai nesses estados é ativado.">
-                <MultiPicker ariaLabel="Item pai: ativar quando estiver em" options={parentStates} values={s.states.parentAutoActivateFrom} onChange={(v) => setStates({ parentAutoActivateFrom: v })} />
+            <SettingsCard title="WI pai" description="Estados dos tipos de WI pai selecionados em Geral.">
+              <SettingRow first label="Ativar quando estiver em" description="Ao começar o trabalho numa task filha, o WI pai nesses estados é ativado.">
+                <MultiPicker ariaLabel="WI pai: ativar quando estiver em" options={parentStates} values={s.states.parentAutoActivateFrom} onChange={(v) => setStates({ parentAutoActivateFrom: v })} />
               </SettingRow>
-              <SettingRow label="Estado ativo" description="Estado aplicado ao item pai nesse caso.">
-                <Picker ariaLabel="Item pai: estado ativo" options={parentStates} value={s.states.parentActive} onChange={(v) => setStates({ parentActive: v })} />
+              <SettingRow label="Estado ativo" description="Estado aplicado ao WI pai nesse caso.">
+                <Picker ariaLabel="WI pai: estado ativo" options={parentStates} value={s.states.parentActive} onChange={(v) => setStates({ parentActive: v })} />
               </SettingRow>
             </SettingsCard>
           </>

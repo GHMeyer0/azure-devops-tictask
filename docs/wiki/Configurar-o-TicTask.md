@@ -9,12 +9,12 @@ aba. As alterações só valem depois de **Salvar**, no rodapé, que também tem
 ## Gestores
 
 **Gestores** são os administradores de qualquer time do projeto, mais os e-mails adicionados em
-*Geral › Gestores*. Eles veem o tempo de todos (Timesheet, Resumo, Calendário), o **Time agora** e as
+*Geral › Gestores*. Eles veem o tempo de todos (Resumo, Calendário), o **Time agora** e as
 Configurações.
 
 ## Geral
 
-- **Tipos pai**: os tipos de work item em que o grupo funciona como US (por padrão User Story,
+- **Tipos de WI pai**: os tipos de work item em que o grupo funciona como US (por padrão User Story,
   Technical Story e Bug; inclua **Rotina** se usar [rotinas internas](Rotinas-internas.md)).
 - **Tipo de task**: o tipo onde as horas são apontadas (por padrão Task).
 - **Gestores adicionais**: e-mails que também são gestores.
@@ -39,11 +39,11 @@ retrabalho de revisão aparecer à parte.
   (vale o primeiro que o tipo de task tiver, ex.: Stopped); o de conclusão e os considerados fechados
   (Closed). Estados configurados que o tipo de task não tem são ignorados.
 - **Task fechada**: ao iniciar ou apontar numa task Closed, pedir confirmação e reabrir, ou bloquear.
-- **Motivos de pausa** e **próximos passos** ao concluir, cada um com a opção **Também comenta na US**.
+- **Motivos de pausa** e **próximos passos** ao concluir, cada um com a opção **Comenta no WI pai**.
   "Outro…", com texto livre, sempre aparece.
 - **Limites**: horas para considerar um timer esquecido (padrão 10h) e dias úteis para destacar uma
   task parada (padrão 5).
-- **Item pai**: de quais estados a US vai para Active quando alguém começa a trabalhar numa task dela
+- **WI pai**: de quais estados o WI pai vai para Active quando alguém começa a trabalhar numa task dela
   (padrão New e Ready for Development).
 
 ## Google Chat
@@ -55,3 +55,9 @@ envio depende de uma automação externa: veja [Lembretes no Google Chat](Lembre
 
 Exportar e importar todos os apontamentos e configurações do projeto (JSON) e importar do Time Log
 (CSV). Veja [Migrar dados](Migrar-dados.md).
+
+**Conferir o Completed das tasks** lista as tasks com apontamentos em que o *Completed Work* ficou
+diferente da soma deles (por exemplo, editado à mão no formulário), com o Completed atual e a soma.
+Marque as que quer corrigir e clique em **Ajustar**: o Completed passa a ser a soma e o Remaining não
+muda. Tasks sem apontamento não entram. A conferência lê todos os meses, como a exportação, e pode
+levar alguns segundos.

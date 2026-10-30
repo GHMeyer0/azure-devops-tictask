@@ -35,7 +35,7 @@ stateDiagram-v2
 | Tela do work item, aba **Details** | Grupo **TicTask** com Iniciar / Pausar / Concluir / Apontar e as horas da task |
 | Tela do work item, aba **Apontamentos** | Todos os apontamentos da task (ou das tasks filhas, na US/Bug) |
 | **Boards › Backlogs / Sprints**, painel lateral | Timer em andamento, item selecionado e suas tasks abertas |
-| **Boards › TicTask** | Meu tempo, Timesheet, Resumo, Calendário e, para gestores, Time agora e Configurações |
+| **Boards › TicTask** | Meu tempo, Resumo, Calendário e, para gestores, Time agora e Configurações |
 
 Você só pode ter **um timer por vez**. Ele continua contando mesmo com o navegador fechado, porque o
 TicTask guarda apenas o horário de início.
@@ -49,14 +49,14 @@ TicTask guarda apenas o horário de início.
   padrão e o fluxo de revisão de PR
 - [Rotinas internas](Rotinas-internas.md): treinamento, release notes e trabalho administrativo
 - [Telas do TicTask](Telas-do-TicTask.md): aba Apontamentos, painel do backlog e o hub (Meu tempo,
-  Timesheet, Resumo, Calendário, Time agora)
+  Resumo, Calendário, Time agora)
 - [Lembretes no Google Chat](Lembretes-no-Google-Chat.md)
 - [Perguntas frequentes](Perguntas-frequentes.md)
 
 **Para quem administra**
 
 - [Instalar](Instalar.md): pedir acesso e instalar na organização
-- [Preparar o processo](Preparar-o-processo.md): estado Stopped, estimativa, tipos pai e Rotina
+- [Preparar o processo](Preparar-o-processo.md): estado Stopped, estimativa, tipos de WI pai e Rotina
 - [Configurar o TicTask](Configurar-o-TicTask.md): atividades, estados, motivos, limites e gestores
 - [Migrar dados](Migrar-dados.md): importar do Time Log e levar os dados para outro publisher
 

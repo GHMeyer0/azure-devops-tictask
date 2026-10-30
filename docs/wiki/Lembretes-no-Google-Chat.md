@@ -21,7 +21,7 @@ esta aba não tem efeito.
 
 **Resumo da manhã**: às 7h30 dos dias úteis vem:
 
-- **"O que fiz ontem"**, com os apontamentos do dia útil anterior em árvore (item pai › tasks) para
+- **"O que fiz ontem"**, com os apontamentos do dia útil anterior em árvore (WI pai › tasks) para
   ajudar na daily;
 - **"Tasks paradas há 5+ dias úteis"** (configurável), com o motivo da última pausa, quando houver.
 

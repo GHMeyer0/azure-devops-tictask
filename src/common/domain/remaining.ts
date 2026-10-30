@@ -1,5 +1,5 @@
-import { round2 } from "./time";
-import type { WorkItemSnapshot } from "./types";
+import { minutesToHours, round2 } from "./time";
+import type { TimeEntry, WorkItemSnapshot } from "./types";
 
 // Empty fields are null, but a task sent to a dialog crosses the host bridge, which turns null into
 // undefined: the checks below use `== null` to cover both.
@@ -52,6 +52,27 @@ export function applyDelete(fields: HoursFields, hours: number, restoreRemaining
     completed: Math.max(0, round2((fields.completed ?? 0) - hours)),
     remaining: restoreRemaining ? round2(remaining + hours) : remaining,
   };
+}
+
+/**
+ * Completed of a task from its entries (hours, deleted entries left out). Once a task has entries,
+ * Completed is always their sum, also for hours typed in the form or logged before the extension;
+ * null when it has none, so a task never logged here keeps its own Completed.
+ */
+export function completedOf(entries: Pick<TimeEntry, "minutes" | "deleted">[]): number | null {
+  const live = entries.filter((e) => !e.deleted);
+  return live.length ? minutesToHours(live.reduce((s, e) => s + e.minutes, 0)) : null;
+}
+
+/** The entries of a task with `entry` in its current version (added, replaced or deleted). */
+export function withEntry<T extends Pick<TimeEntry, "id">>(entries: T[], entry: T): T[] {
+  return [...entries.filter((e) => e.id !== entry.id), entry];
+}
+
+/** Completed differs from the sum of the task's entries (only when it has entries). */
+export function completedMismatch(completed: number | null | undefined, entries: Pick<TimeEntry, "minutes" | "deleted">[]): number | null {
+  const sum = completedOf(entries);
+  return sum !== null && sum !== round2(completed ?? 0) ? sum : null;
 }
 
 /** Percentage of the estimate already consumed (null when there is no estimate). */

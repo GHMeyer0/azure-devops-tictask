@@ -2,9 +2,9 @@
   "manifestVersion": 1,
   "id": "tictask",
   "publisher": "ghmeyer0",
-  "version": "0.8.4",
+  "version": "0.9.0",
   "name": "TicTask - Apontamento de Horas",
-  "description": "Apontamento de horas em Tasks e User Stories com timer (iniciar/pausar/parar), Remaining automático, timesheet semanal e calendário.",
+  "description": "Apontamento de horas em Tasks e User Stories com timer (iniciar/pausar/parar), Completed pela soma dos apontamentos, Remaining automático, resumo por dia, semana ou mês e calendário.",
   "public": false,
   "categories": ["Azure Boards"],
   "tags": ["time tracking", "timesheet", "apontamento", "horas"],
@@ -41,7 +41,7 @@
     {
       "id": "time-hub",
       "type": "ms.vss-web.hub",
-      "description": "Meu tempo, timesheet e calendário (cada um vê os próprios); gestores também veem o time, Time agora e configurações.",
+      "description": "Meu tempo, resumo e calendário (cada um vê os próprios); gestores também veem o time, Time agora e configurações.",
       "targets": ["ms.vss-work-web.work-hub-group"],
       "properties": {
         "name": "TicTask",

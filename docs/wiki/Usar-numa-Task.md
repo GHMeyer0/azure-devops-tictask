@@ -29,8 +29,8 @@ flowchart TD
     E -- Sim --> DE[Pede a estimativa e grava<br/>antes de mudar o estado]
     E -- Não --> AT
     DE --> AT[Task → Active, o timer começa]
-    AT --> US{"Item pai em New ou<br/>Ready for Development?"}
-    US -- Sim --> UA[Item pai → Active]
+    AT --> US{"WI pai em New ou<br/>Ready for Development?"}
+    US -- Sim --> UA[WI pai → Active]
 ```
 
 Cada pausa vira uma linha de apontamento. Exemplo: iniciou às 11:30, pausou às 11:45, retomou às 12:15 e
@@ -55,7 +55,7 @@ Também aparecem em **Paradas**, ao lado da task.
 
 ![Diálogo Pausar com motivo](../img/dialogo-pausar-motivo.png)
 
-| Motivo | Quando usar | Também comenta na US |
+| Motivo | Quando usar | Comenta no WI pai |
 |---|---|---|
 | Aguardando revisão | Subi o PR (ou as correções) e espero a revisão | Sim |
 | Aguardando correções | Revisei o PR e espero o autor ajustar os comentários | Sim |
@@ -65,7 +65,7 @@ Também aparecem em **Paradas**, ao lado da task.
 | Reunião | Saí para uma reunião | Não |
 | Outro… | Escreva o motivo | Não |
 
-Os motivos marcados com "Também comenta na US" escrevem também na discussão da US/Bug, para quem
+Os motivos marcados com "Comenta no WI pai" escrevem também na discussão da US/Bug, para quem
 acompanha a história: `⏸ #11222 Correção (Ana): Aguardando revisão. PR !1234`. Os outros ficam só na
 task, para não notificar todo mundo que segue a US. A lista é configurável em
 [Configurações › Estados e motivos](Configurar-o-TicTask.md#estados-e-motivos).
@@ -85,7 +85,7 @@ flowchart TD
     D1 --> R
     R -- Sim --> D2[Pergunta quanto ainda falta<br/>ou a estimativa]
     R -- Não --> A
-    D2 --> A["Aponta o trecho<br/>Completed + horas, Remaining − horas"]
+    D2 --> A["Aponta o trecho<br/>Completed = soma, Remaining − horas"]
     A --> S[Task → Stopped, aparece em Paradas]
 ```
 
@@ -140,11 +140,20 @@ manualmente**.
 
 A cada apontamento:
 
-- **Completed Work** = Completed + horas apontadas
+- **Completed Work** = soma de todos os apontamentos da task
 - **Remaining Work** = Remaining − horas apontadas (nunca abaixo de zero), **editável** no diálogo
 
 Se a task ainda não tem **Original Estimate**, o primeiro apontamento pede a estimativa. Editar um
-apontamento aplica só a diferença; excluir devolve as horas ao Remaining.
+apontamento aplica só a diferença no Remaining; excluir devolve as horas ao Remaining.
+
+O Completed não deve ser editado à mão: numa task com apontamentos, ele é sempre a soma deles. Se
+alguém mudar o campo no formulário, o grupo e a aba **Apontamentos** mostram um aviso ("O Completed é
+diferente da soma dos apontamentos") com o botão **Ajustar**, e o próximo apontamento também corrige.
+Faltou apontar alguma hora? Use **Apontar** com a data e o horário em que o trabalho foi feito.
+
+Se o Azure DevOps não aceitar a gravação da task (uma regra do processo, um campo obrigatório), o
+apontamento é desfeito e aparece um aviso com o motivo: nada fica pela metade. Corrija o que foi
+pedido e aponte de novo. Falhas passageiras de rede são tentadas de novo sozinhas.
 
 Horas, Remaining e estado vão numa única gravação, o que gera uma só revisão no **History** do work
 item. A exceção é o primeiro apontamento de uma task sem estimativa: a estimativa é gravada antes e o

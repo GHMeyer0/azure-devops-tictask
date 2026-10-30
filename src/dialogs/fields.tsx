@@ -108,7 +108,7 @@ export function ReasonField({ settings, kind, label, value, onChange, optional }
   const chosen = settings.states.reasons.find((r) => r.kind === kind && r.name === value.choice);
   return (
     <>
-      <Field label={label} required={!optional} hint={chosen?.commentOnParent ? "Também vai para a discussão da US/Bug." : undefined}>
+      <Field label={label} required={!optional} hint={chosen?.commentOnParent ? "Também vai para a discussão do WI pai." : undefined}>
         <RadioGroup className={st.reasons} value={value.choice} onChange={(_, d) => onChange({ ...value, choice: d.value })}>
           {optional && <Radio value="" label="Nenhum" />}
           {reasonsOf(settings, kind).map((r) => (

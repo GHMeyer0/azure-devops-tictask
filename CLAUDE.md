@@ -89,6 +89,14 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
   os dados de outra: o caminho é o CSV. A exportação lê meses desde 2020 por causa desse histórico.
 - `lockDays` (Configurações › Geral): depois dele o autor não edita nem exclui, e também não cria nem
   move apontamentos para antes dele. Exceção: o tempo de um timer é sempre apontado.
+- **Completed = soma dos apontamentos** (desde a 0.9), também em tasks antigas e com horas digitadas
+  à mão: criar, editar e excluir regravam a soma (`completedOf` em `domain/remaining.ts`). Task sem
+  apontamento mantém o Completed. Divergência: aviso com **Ajustar** no grupo/aba do work item e
+  *Configurações › Dados › Conferir o Completed das tasks*. O Remaining continua por diferença.
+- **WI pai** é o nome na interface para o work item acima da task (tipos em *Tipos de WI pai*:
+  User Story, Bug, TS, Rotina…). Não usar "US/Bug" em texto novo.
+- O hub tem Meu tempo, Resumo, Calendário (+ Time agora e Configurações para gestores). A aba
+  Timesheet saiu na 0.9; a lista de apontamentos com editar/excluir é o "Detalhado" do Resumo.
 
 ## Armadilhas já resolvidas (não reintroduzir)
 
@@ -98,6 +106,15 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
 - **Leitura atrasada:** logo depois de gravar, a leitura pode devolver a versão anterior. O timer tem
   `savedAt` e, ao ser limpo, vira um marcador `{ cleared: true, savedAt }`; telas ignoram leituras mais
   antigas do que o que mostram (`isOlder` em `data/timerRepo.ts`).
+- **Apontamento e task numa operação só** (`createEntry`/`updateEntry`/`deleteEntry` em
+  `actions.ts`): o apontamento é salvo primeiro e desfeito se a task recusar a gravação, com aviso
+  (`refused`). Antes da 0.9 a task era gravada primeiro e uma falha depois perdia o apontamento (visto
+  em 30/10/2026: horas e comentário na task, nenhum apontamento). Passos depois da task (estado em 2ª
+  revisão, WI pai) não desfazem nada: avisam. Escritas têm `withRetry` (`retry.ts`) só para falhas
+  passageiras; o `formWriter` devolve os campos do formulário se o save falhar, senão as horas ficavam
+  no formulário e a pessoa salvava à mão.
+- **Leitura atrasada de coleções:** `entriesRepo` junta às leituras o que a página gravou nos últimos
+  3 minutos (`withRecent`); sem isso a soma do Completed logo após um apontamento perde o anterior.
 - **Ponte host/iframe:** `null` vira `undefined` na configuração dos diálogos; use `== null`.
 - **Diálogo do host:** largura fixa de 480px (440px de conteúdo); o conteúdo é fluido.
 - **Menus/popovers no grupo da tela do work item** são cortados pelo iframe pequeno: o ▾ do Pausar abre

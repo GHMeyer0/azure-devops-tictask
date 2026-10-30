@@ -2,7 +2,7 @@
 
 Extensão do Azure DevOps para apontar horas direto nas Tasks e User Stories/Bugs, com timer
 (iniciar, pausar, concluir), **Remaining calculado automaticamente**, estado da task acompanhando o
-trabalho, timesheet, resumo por período e calendário. Sem backend: os dados ficam no *Extension Data
+trabalho, resumo por período e calendário. Sem backend: os dados ficam no *Extension Data
 Service* do próprio Azure DevOps.
 
 ![Grupo TicTask na Task](docs/img/wi-task-timer.jpg)
@@ -13,10 +13,13 @@ Service* do próprio Azure DevOps.
 
 - **Timer** na tela do work item: iniciar, pausar e concluir. Pausar já aponta o tempo; nada fica
   pendente. Um timer por pessoa: iniciar outro pausa o atual.
-- **Remaining automático**: cada apontamento soma em *Completed Work* e desconta de *Remaining Work*.
+- **Horas sempre batendo**: o *Completed Work* da task é a soma dos apontamentos e cada apontamento
+  desconta do *Remaining Work*. Apontamento e task são gravados juntos: se a task recusar, o
+  apontamento é desfeito e a pessoa é avisada. Uma conferência acha e ajusta tasks com o Completed
+  editado à mão.
 - **Na US/Bug**: escolha uma task sua ou crie uma nova pela descrição; crie as tasks padrão com um clique.
 - **Estado da task** acompanha o trabalho, com motivos de pausa e próximo passo comentados na task e na US.
-- **Hub TicTask** (Boards): Meu tempo, Timesheet, Resumo, Calendário e, para gestores, Time agora e
+- **Hub TicTask** (Boards): Meu tempo, Resumo, Calendário e, para gestores, Time agora e
   Configurações.
 - **Auditoria**: cada apontamento guarda início, fim e pausas, quem apontou e a task antes e depois.
 - **Migração**: importa o histórico da extensão Time Log pelo CSV dela.

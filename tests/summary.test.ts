@@ -58,7 +58,7 @@ describe("buildSummary", () => {
     expect(a3.spans).toEqual({ user: 0, parent: 0, task: 1, activity: 1 });
     expect(a1.perCol).toEqual([60, 30, 0, 0]);
     expect(s.rows[3].total).toBe(255);
-    expect(items(s.rows)[3].cells.parent!.label).toBe("(sem item pai)");
+    expect(items(s.rows)[3].cells.parent!.label).toBe("(sem WI pai)");
     expect(s.colTotals).toEqual([60, 75, 90, 120]);
     expect(s.total).toBe(345);
   });
@@ -70,7 +70,7 @@ describe("buildSummary", () => {
     expect(buildSummary([], { from: "2026-09-28", to: "2026-10-04", bucket: "week", dims: ["user"], hideEmpty: false }).columns[0].label).toBe("28/09–04/10");
     expect(byWeek.rows.map((r) => r.kind === "item" && [r.cells.parent!.label, r.total])).toEqual([
       ["#1 US A", 255],
-      ["(sem item pai)", 90],
+      ["(sem WI pai)", 90],
     ]);
     const byMonth = buildSummary(entries, { from: "2026-10-15", to: "2026-11-30", bucket: "month", dims: ["user"], hideEmpty: false });
     expect(byMonth.columns).toEqual([

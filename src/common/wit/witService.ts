@@ -1,6 +1,7 @@
 import { WorkItemExpand, WorkItemTypeFieldsExpandLevel, type WorkItem } from "azure-devops-extension-api/WorkItemTracking";
 import type { JsonPatchOperation } from "azure-devops-extension-api/WebApi";
 import { demoActive, demoScan } from "../demo";
+import { withRetry } from "../retry";
 import { witClient } from "../sdk";
 import type { TaskInfo } from "../domain/types";
 
@@ -134,11 +135,12 @@ export async function updateWorkItem(id: number, changes: FieldChanges, expected
  */
 export async function applyWithRetry(id: number, compute: (current: TaskInfo) => FieldChanges | null): Promise<{ before: TaskInfo; after: TaskInfo }> {
   for (let attempt = 0; ; attempt++) {
-    const before = await getWorkItem(id);
+    const before = await withRetry(() => getWorkItem(id));
     const changes = compute(before);
     if (!changes || !Object.keys(changes).length) return { before, after: before };
     try {
-      const after = await updateWorkItem(id, changes, before.rev);
+      // A retried save that had gone through fails the revision test and is recomputed below.
+      const after = await withRetry(() => updateWorkItem(id, changes, before.rev));
       return { before, after };
     } catch (e) {
       if (attempt >= 1) throw e;

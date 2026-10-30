@@ -1,11 +1,12 @@
 import { Button, Caption1, ProgressBar, Spinner, Text, makeStyles, tokens } from "@fluentui/react-components";
 import { AddRegular, PlayRegular, TaskListAddRegular } from "@fluentui/react-icons";
 import { useEffect, useState } from "react";
-import { createStandardTasks, isTask, logTime, startOnParent, startTimer } from "../common/actions";
+import { createStandardTasks, isTask, logTime, startOnParent, startTimer, syncCompleted } from "../common/actions";
+import { listByWorkItem } from "../common/data/entriesRepo";
 import { consumption } from "../common/domain/remaining";
 import { round2, formatHours } from "../common/domain/time";
-import type { TaskInfo } from "../common/domain/types";
-import { ErrorBar, StateBadge, TimerControls } from "../common/ui/components";
+import type { TaskInfo, TimeEntry } from "../common/domain/types";
+import { CompletedMismatchBar, ErrorBar, StateBadge, TimerControls } from "../common/ui/components";
 import { useAutoResize, useCtx, useRunner, useTimer, useTrackerEvents } from "../common/ui/hooks";
 import { getChildren } from "../common/wit/witService";
 import { useTimerHandlers, useWorkItemForm } from "./useWorkItemForm";
@@ -39,6 +40,14 @@ export function GroupView() {
   };
   useEffect(loadChildren, [parentMode, info?.id]);
   useTrackerEvents(info ? [info.id, ...(children ?? []).map((c) => c.id)] : [], loadChildren);
+  // Entries of the task, to flag a Completed that is not their sum.
+  const [entries, setEntries] = useState<TimeEntry[] | null>(null);
+  const taskId = ctx && info && isTask(ctx, info) ? info.id : null;
+  const loadEntries = () => {
+    if (ctx && taskId) listByWorkItem(ctx.projectId, taskId).then(setEntries).catch(() => setEntries(null));
+  };
+  useEffect(loadEntries, [ctx?.projectId, taskId]);
+  useTrackerEvents(taskId ? [taskId] : [], loadEntries);
 
   if (ctxError) return <ErrorBar error={ctxError} />;
   if (isNew) return <Caption1 className={st.muted}>Salve o work item para apontar horas.</Caption1>;
@@ -83,6 +92,7 @@ export function GroupView() {
         {busy && <Spinner size="extra-tiny" />}
       </div>
       {pct !== null && <ProgressBar value={Math.min(1, pct / 100)} color={pct > 100 ? "error" : pct >= 90 ? "warning" : "brand"} />}
+      {!parentMode && entries && <CompletedMismatchBar tasks={[info]} entries={entries} busy={busy} onAdjust={() => run(() => syncCompleted(ctx, info.id))} />}
       <ErrorBar error={error} />
     </div>
   );

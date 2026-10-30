@@ -110,7 +110,7 @@ export function PanelView() {
       <ErrorBar error={runError} />
 
       <Section title="Selecionado no backlog">
-        {selected.length === 0 && <Caption1 className={st.muted}>Selecione uma US, Bug ou Task no backlog.</Caption1>}
+        {selected.length === 0 && <Caption1 className={st.muted}>Selecione um WI pai (US, Bug…) ou uma Task no backlog.</Caption1>}
         {selected.map((t) => (
           <div key={t.id} className={st.card}>
             <Text weight="semibold">

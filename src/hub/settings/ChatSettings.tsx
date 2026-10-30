@@ -162,7 +162,7 @@ export function ChatSettingsSection({ ctx, value, onChange }: { ctx: Ctx; value:
       </SettingsCard>
 
       <SettingsCard title="Resumo da manhã" description="Enviado às 7h30 dos dias úteis, junto com WIs e PRs.">
-        <SettingRow first label='Incluir "O que fiz ontem"' description="Apontamentos do dia útil anterior em árvore (item pai → tasks), para facilitar a daily. Gestores recebem o total por pessoa.">
+        <SettingRow first label='Incluir "O que fiz ontem"' description="Apontamentos do dia útil anterior em árvore (WI pai → tasks), para facilitar a daily. Gestores recebem o total por pessoa.">
           <Switch checked={value.yesterdayInDaily} onChange={(_, d) => set({ yesterdayInDaily: d.checked })} label={value.yesterdayInDaily ? "Ligado" : "Desligado"} />
         </SettingRow>
       </SettingsCard>

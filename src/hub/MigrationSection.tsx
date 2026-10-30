@@ -1,14 +1,33 @@
-import { Button, Caption1, Checkbox, Field, Link, MessageBar, MessageBarBody, Spinner, Text, Textarea, makeStyles, tokens } from "@fluentui/react-components";
-import { ArrowDownloadRegular, ArrowUploadRegular } from "@fluentui/react-icons";
+import {
+  Button,
+  Caption1,
+  Checkbox,
+  Field,
+  Link,
+  MessageBar,
+  MessageBarBody,
+  Spinner,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableHeaderCell,
+  TableRow,
+  Text,
+  Textarea,
+  makeStyles,
+  tokens,
+} from "@fluentui/react-components";
+import { ArrowDownloadRegular, ArrowUploadRegular, CheckmarkCircleRegular, SearchRegular } from "@fluentui/react-icons";
 import { useRef, useState } from "react";
 import type { Ctx } from "../common/actions";
-import { exportProject, importProject, importTimeLog } from "../common/data/migration";
+import { adjustCompleted, exportProject, findCompletedMismatches, importProject, importTimeLog, type CompletedMismatch } from "../common/data/migration";
 import { parseExport, summarize, type ExportFile, type ExportSummary } from "../common/domain/exportFile";
 import { parseTimeLogCsv, summarizeTimeLog, TIMELOG_DAY_START, type TimeLogRow } from "../common/domain/timelogImport";
-import { formatDateBr, formatMinutes, toLocalDate } from "../common/domain/time";
+import { formatDateBr, formatHours, formatMinutes, toLocalDate } from "../common/domain/time";
 import type { Settings } from "../common/domain/types";
 import { confirmDialog, extensionFullId } from "../common/sdk";
-import { ErrorBar, Section } from "../common/ui/components";
+import { ErrorBar, Section, WorkItemLink } from "../common/ui/components";
 import { useRunner } from "../common/ui/hooks";
 import { downloadText } from "./download";
 
@@ -160,6 +179,7 @@ export function MigrationSection({ ctx, onSettingsImported }: { ctx: Ctx; onSett
       </div>
 
       <TimeLogImport ctx={ctx} />
+      <CompletedCheck ctx={ctx} />
     </Section>
   );
 }
@@ -249,6 +269,121 @@ function TimeLogImport({ ctx }: { ctx: Ctx }) {
               Importar {summary.rows} apontamentos
             </Button>
             {runner.busy && <Spinner size="tiny" label={progress ?? "Importando…"} />}
+          </div>
+        </>
+      )}
+      {done && (
+        <MessageBar intent="success">
+          <MessageBarBody>{done}</MessageBarBody>
+        </MessageBar>
+      )}
+      <ErrorBar error={runner.error} />
+    </div>
+  );
+}
+
+/**
+ * Tasks whose Completed is not the sum of their entries (typed in the form, or left by a failed
+ * save), with the option to set it from the entries. Tasks without entries are not touched.
+ */
+function CompletedCheck({ ctx }: { ctx: Ctx }) {
+  const st = useStyles();
+  const runner = useRunner();
+  const [progress, setProgress] = useState<string | null>(null);
+  const [result, setResult] = useState<{ tasks: number; mismatches: CompletedMismatch[] } | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [done, setDone] = useState<string | null>(null);
+
+  const check = () =>
+    runner.run(async () => {
+      setDone(null);
+      const found = await findCompletedMismatches(ctx, (n, total) => setProgress(`Lendo meses ${n}/${total}…`));
+      setProgress(null);
+      setResult(found);
+      setSelected(new Set(found.mismatches.map((m) => m.id)));
+    });
+
+  const adjust = () =>
+    runner.run(async () => {
+      if (!result) return;
+      const ids = result.mismatches.filter((m) => selected.has(m.id)).map((m) => m.id);
+      const ok = await confirmDialog(`Gravar em ${ids.length} ${ids.length === 1 ? "task" : "tasks"} o Completed igual à soma dos apontamentos? O Remaining não muda.`, "Ajustar Completed", "Ajustar");
+      if (!ok) return;
+      const failed = await adjustCompleted(ctx, ids, (n, total) => setProgress(`Gravando ${n}/${total}…`));
+      setProgress(null);
+      const left = new Set(failed.map((f) => f.id));
+      setResult({ ...result, mismatches: result.mismatches.filter((m) => !selected.has(m.id) || left.has(m.id)) });
+      setSelected(left);
+      setDone(`${ids.length - failed.length} ${ids.length - failed.length === 1 ? "task ajustada" : "tasks ajustadas"}.` + (failed.length ? ` Não foi possível gravar: ${failed.map((f) => `#${f.id} (${f.error})`).join("; ")}.` : ""));
+    });
+
+  const toggle = (id: number, on: boolean) => {
+    const next = new Set(selected);
+    if (on) next.add(id);
+    else next.delete(id);
+    setSelected(next);
+  };
+  const all = !!result && result.mismatches.length > 0 && result.mismatches.every((m) => selected.has(m.id));
+
+  return (
+    <div className={st.box}>
+      <Text weight="semibold">Conferir o Completed das tasks</Text>
+      <Caption1 className={st.muted}>
+        Em uma task com apontamentos, o Completed é a soma deles. Aqui aparecem as tasks em que ele ficou diferente (por exemplo, editado à mão no formulário) e você pode ajustá-las de uma vez. Tasks
+        sem apontamento não entram.
+      </Caption1>
+      <div className={st.row}>
+        <Button icon={<SearchRegular />} disabled={runner.busy} onClick={check}>
+          Conferir
+        </Button>
+        {runner.busy && <Spinner size="tiny" label={progress ?? "Conferindo…"} />}
+      </div>
+      {result && result.mismatches.length === 0 && (
+        <MessageBar intent="success" icon={<CheckmarkCircleRegular />}>
+          <MessageBarBody>Todas as {result.tasks} tasks com apontamento estão com o Completed igual à soma.</MessageBarBody>
+        </MessageBar>
+      )}
+      {result && result.mismatches.length > 0 && (
+        <>
+          <Text size={200}>
+            {result.mismatches.length} de {result.tasks} tasks com apontamento estão com o Completed diferente da soma.
+          </Text>
+          <div style={{ overflowX: "auto" }}>
+            <Table size="small" aria-label="Tasks com Completed diferente" style={{ minWidth: 640 }}>
+              <TableHeader>
+                <TableRow>
+                  <TableHeaderCell style={{ width: 40 }}>
+                    <Checkbox aria-label="Marcar todas" checked={all ? true : selected.size ? "mixed" : false} onChange={(_, d) => setSelected(d.checked ? new Set(result.mismatches.map((m) => m.id)) : new Set())} />
+                  </TableHeaderCell>
+                  <TableHeaderCell>Task</TableHeaderCell>
+                  <TableHeaderCell style={{ width: 160 }}>Responsável</TableHeaderCell>
+                  <TableHeaderCell style={{ width: 90 }}>Estado</TableHeaderCell>
+                  <TableHeaderCell style={{ width: 90 }}>Completed</TableHeaderCell>
+                  <TableHeaderCell style={{ width: 110 }}>Apontamentos</TableHeaderCell>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {result.mismatches.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell>
+                      <Checkbox aria-label={`Ajustar #${m.id}`} checked={selected.has(m.id)} onChange={(_, d) => toggle(m.id, !!d.checked)} />
+                    </TableCell>
+                    <TableCell>
+                      <WorkItemLink id={m.id} title={m.title} />
+                    </TableCell>
+                    <TableCell>{m.assignedTo ?? "—"}</TableCell>
+                    <TableCell>{m.state}</TableCell>
+                    <TableCell>{formatHours(m.completed ?? 0)}</TableCell>
+                    <TableCell>{formatHours(m.fromEntries)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <div className={st.row}>
+            <Button appearance="primary" disabled={runner.busy || !selected.size} onClick={adjust}>
+              Ajustar {selected.size} {selected.size === 1 ? "task" : "tasks"}
+            </Button>
           </div>
         </>
       )}

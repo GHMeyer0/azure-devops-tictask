@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TicTask – time tracking in Azure DevOps</title>
-  <meta name="description" content="Azure DevOps extension to log hours on Tasks with a timer, automatic Remaining Work, timesheet and calendar.">
+  <meta name="description" content="Azure DevOps extension to log hours on Tasks with a timer, Completed Work from the entries, automatic Remaining Work, summary and calendar.">
   <link rel="icon" href="../img/logo.png">
   <link rel="alternate" hreflang="pt-BR" href="../">
   <link rel="stylesheet" href="../style.css">
@@ -100,7 +100,7 @@
 
         <div class="feature">
           <div class="text">
-            <h3>Timesheet, Summary and Calendar</h3>
+            <h3>Summary and Calendar</h3>
             <p>Hours by day, week or month, per person, story, task and activity, with CSV export. In the
               calendar, drag to log time or fix the hours.</p>
             <ul>
@@ -116,8 +116,8 @@
     <section id="how-it-works">
       <div class="wrap">
         <h2>How it works</h2>
-        <p class="sub">The task state tells who is working on it. Each entry adds to Completed Work, takes off
-          Remaining Work and creates one revision in the work item history.</p>
+        <p class="sub">The task state tells who is working on it. Completed Work is the sum of the entries,
+          each entry takes off Remaining Work and everything stays in the work item history.</p>
         <div class="diagram">
           <svg viewBox="0 0 760 280" role="img" aria-labelledby="states-title">
             <title id="states-title">Task state cycle: New, Active, Stopped and Closed</title>

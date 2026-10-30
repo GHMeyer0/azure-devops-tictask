@@ -4,6 +4,7 @@ import {
   Caption1,
   Link,
   MessageBar,
+  MessageBarActions,
   MessageBarBody,
   ProgressBar,
   SplitButton,
@@ -22,10 +23,10 @@ import { CheckmarkRegular, DeleteRegular, EditRegular, PauseRegular, PlayRegular
 import { WorkItemTrackingServiceIds, type IWorkItemFormNavigationService } from "azure-devops-extension-api/WorkItemTracking";
 import { Fragment, useState } from "react";
 import type { Breakdown } from "../domain/aggregate";
-import { consumption } from "../domain/remaining";
+import { completedMismatch, consumption } from "../domain/remaining";
 import { formatClock, formatDateBr, formatHours, formatMinutes, toLocalDate, toLocalTime } from "../domain/time";
 import { isForgotten } from "../domain/timer";
-import type { ActiveTimer, Settings, TimeEntry, WorkItemSnapshot } from "../domain/types";
+import type { ActiveTimer, Settings, TaskInfo, TimeEntry, WorkItemSnapshot } from "../domain/types";
 import { SDK } from "../sdk";
 import { PageCard } from "./page";
 
@@ -75,6 +76,36 @@ export function ErrorBar({ error }: { error: string | null }) {
   return (
     <MessageBar intent="error">
       <MessageBarBody>{error}</MessageBarBody>
+    </MessageBar>
+  );
+}
+
+/**
+ * Tasks whose Completed is not the sum of their entries (typed in the form, or saved before the
+ * entry), with a button that sets it from the entries.
+ */
+export function CompletedMismatchBar({ tasks, entries, busy, onAdjust }: {
+  tasks: Pick<TaskInfo, "id" | "completed">[];
+  entries: TimeEntry[];
+  busy?: boolean;
+  onAdjust: (taskIds: number[]) => void;
+}) {
+  const wrong = tasks
+    .map((t) => ({ id: t.id, completed: t.completed, sum: completedMismatch(t.completed, entries.filter((e) => e.workItemId === t.id)) }))
+    .filter((t): t is { id: number; completed: number | null; sum: number } => t.sum !== null);
+  if (!wrong.length) return null;
+  const text =
+    wrong.length === 1 && tasks.length === 1
+      ? `O Completed (${formatHours(wrong[0].completed ?? 0)}) é diferente da soma dos apontamentos (${formatHours(wrong[0].sum)}).`
+      : `Completed diferente da soma dos apontamentos: ${wrong.map((t) => `#${t.id} ${formatHours(t.completed ?? 0)} × ${formatHours(t.sum)}`).join(", ")}.`;
+  return (
+    <MessageBar intent="warning" layout="multiline">
+      <MessageBarBody>{text}</MessageBarBody>
+      <MessageBarActions>
+        <Button size="small" disabled={busy} onClick={() => onAdjust(wrong.map((t) => t.id))}>
+          Ajustar
+        </Button>
+      </MessageBarActions>
     </MessageBar>
   );
 }

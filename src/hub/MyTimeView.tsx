@@ -213,7 +213,7 @@ export function MyTimeView() {
         </PageCard>
       </div>
 
-      <PageCard title={`Hoje · ${formatMinutes(todayMin)}`} description="Por item pai (Bug/US/TS) → task → apontamentos. Suas outras tasks abertas do mesmo item aparecem como não apontadas.">
+      <PageCard title={`Hoje · ${formatMinutes(todayMin)}`} description="Por WI pai → task → apontamentos. Suas outras tasks abertas do mesmo WI pai aparecem como não apontadas.">
         <TodayTree
           groups={tree}
           settings={ctx.settings}
@@ -242,7 +242,7 @@ function ParentLine({ parent, right }: { parent: ParentRef | null; right?: React
           </span>
         </>
       ) : (
-        <Text className={st.muted}>(sem item pai)</Text>
+        <Text className={st.muted}>(sem WI pai)</Text>
       )}
       {right}
     </div>

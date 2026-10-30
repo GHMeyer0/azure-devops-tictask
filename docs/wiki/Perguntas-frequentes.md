@@ -33,6 +33,17 @@ porque o apontamento já nasceria sem poder ser corrigido. O tempo de um timer e
 apontado, mesmo que tenha começado antes do limite. Precisa registrar algo mais antigo? Fale com um
 gestor.
 
+**O Completed da task está diferente das horas apontadas.**
+Numa task com apontamentos, o Completed é sempre a soma deles. Se alguém editou o campo à mão, a tela
+da task mostra o aviso com o botão **Ajustar**, e o próximo apontamento também corrige. Não edite o
+Completed no formulário: se faltou alguma hora, use **Apontar** com a data em que o trabalho foi feito.
+Um gestor confere o projeto inteiro em *Configurações › Dados › Conferir o Completed das tasks*.
+
+**Apareceu "Apontamento não registrado".**
+O Azure DevOps recusou a gravação da task (uma regra do processo ou um campo obrigatório, por exemplo),
+e o TicTask desfez o apontamento para não deixar a task com horas sem apontamento. O aviso traz o
+motivo: corrija o que foi pedido e aponte de novo.
+
 **Por que o Remaining não ficou como eu esperava?**
 Ele é calculado como Remaining − horas apontadas, mas você pode digitar outro valor no campo
 **Remaining após apontar** antes de salvar.

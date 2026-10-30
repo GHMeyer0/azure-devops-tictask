@@ -24,8 +24,8 @@ escolha **TicTask**. Ele mostra:
 
 ## Hub TicTask
 
-Em **Boards › TicTask** (primeiro item do menu do Boards). Todo mundo vê **Meu tempo**, **Timesheet**,
-**Resumo** e **Calendário** com os próprios apontamentos; gestores veem também os de todo o time, mais
+Em **Boards › TicTask** (primeiro item do menu do Boards). Todo mundo vê **Meu tempo**, **Resumo** e
+**Calendário** com os próprios apontamentos; gestores veem também os de todo o time, mais
 **Time agora** e [Configurações](Configurar-o-TicTask.md).
 
 ### Meu tempo
@@ -36,29 +36,19 @@ O painel do seu dia.
 
 - **Timer**: o que está rodando agora, com pausar e concluir.
 - **Horas**: total de hoje e da semana, e o botão **Apontar horas** (escolha a task na lista, agrupada
-  pelo item pai).
+  pelo WI pai).
 - **Paradas**: suas tasks em Stopped, com o motivo da última pausa e há quantos dias úteis estão
   paradas. A partir de 5 dias úteis (configurável), o tempo fica em destaque. O **▶** retoma a task.
 - **Sem apontamento recente**: suas tasks Active sem apontamento há 3 dias ou mais.
-- **Hoje**: os apontamentos do dia em árvore (item pai › task › apontamentos), com editar e excluir.
-  Suas outras tasks abertas do mesmo item pai aparecem como "não apontada hoje", com ▶ para iniciar.
-
-### Timesheet
-
-Horas por dia da semana, como uma planilha.
-
-![Timesheet](../img/hub-timesheet.jpg)
-
-- **◀ Esta semana ▶** navega por semana; **De / até** escolhe qualquer período.
-- **Agrupar**: Usuário › Task › Atividade, Usuário › Item pai › Task, entre outros.
-- **Detalhado**: mostra cada apontamento.
-- **Exportar**: resumo ou apontamentos detalhados em CSV (abre no Excel).
-- Gestores escolhem **Quem**: eu, uma pessoa ou o time todo.
+- **Hoje**: os apontamentos do dia em árvore (WI pai › task › apontamentos), com editar e excluir.
+  Suas outras tasks abertas do mesmo WI pai aparecem como "não apontada hoje", com ▶ para iniciar.
 
 ### Resumo
 
-As horas do período numa tabela só: uma linha por pessoa, US/Bug, task e atividade, e uma coluna por
-dia, semana ou mês. Bom para fechar o mês ou ver onde foi o tempo de uma história.
+As horas do período numa tabela só: uma linha por pessoa, WI pai, task e atividade, e uma coluna por
+dia, semana ou mês. Bom para fechar o mês ou ver onde foi o tempo de uma história. **WI pai** é o
+work item acima da task (User Story, Bug, Rotina…: os tipos de *Configurações › Geral › Tipos de WI
+pai*). Até a versão 0.8 havia também a aba Timesheet, que virou o Resumo.
 
 ![Resumo](../img/hub-resumo.png)
 
@@ -67,12 +57,14 @@ dia, semana ou mês. Bom para fechar o mês ou ver onde foi o tempo de uma hist�
 - **Colunas**: por dia (agrupadas por semana), por semana ou por mês. **Só colunas com horas** esconde
   os dias sem apontamento.
 - **Linhas**: escolha quais colunas formam as linhas. Desmarcando Task e Atividade, por exemplo, fica
-  uma linha por US/Bug. Valores repetidos aparecem uma vez só, e cada US/Bug (ou pessoa) tem o seu
+  uma linha por WI pai. Valores repetidos aparecem uma vez só, e cada WI pai (ou pessoa) tem o seu
   total.
-- As colunas da esquerda ficam fixas ao rolar para os lados. Clique na task ou na US para abri-la.
+- As colunas da esquerda ficam fixas ao rolar para os lados. Clique na task ou no WI pai para abri-lo.
+- **Detalhado**: lista cada apontamento do período abaixo da tabela, com horário, atividade e
+  comentário. Os seus têm **editar** e **excluir** (até o limite de dias).
 - **Exportar**: o resumo ou os apontamentos detalhados em CSV (abre no Excel).
 - Gestores escolhem **Quem** (eu, todos ou um time) e, dentro dele, uma **Pessoa**.
-- Período, colunas e linhas ficam lembrados no navegador.
+- Período, colunas, linhas e o Detalhado ficam lembrados no navegador.
 
 ### Calendário
 

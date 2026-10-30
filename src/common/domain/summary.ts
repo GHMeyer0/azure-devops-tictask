@@ -3,15 +3,15 @@ import { addDays, dayRange, formatDayMonth, formatDayShort, formatMonth, isWeeke
 import type { TimeEntry } from "./types";
 
 // "Resumo" (hub): like the TimeLog "Time Log Summary", a flat table with one column per dimension
-// (Pessoa, US/Bug, Task, Atividade) and one per day, week or month. Repeated dimension values are
-// merged (rowSpan) instead of nested like the Timesheet tree.
+// (Pessoa, WI pai, Task, Atividade) and one per day, week or month. Repeated dimension values are
+// merged (rowSpan) instead of nested in a tree.
 
 export type Bucket = "day" | "week" | "month";
 export type Dim = "user" | "parent" | "task" | "activity";
 
 export const DIMS: { value: Dim; label: string }[] = [
   { value: "user", label: "Pessoa" },
-  { value: "parent", label: "US/Bug" },
+  { value: "parent", label: "WI pai" },
   { value: "task", label: "Task" },
   { value: "activity", label: "Atividade" },
 ];
@@ -96,7 +96,7 @@ function cellOf(e: TimeEntry, dim: Dim): SummaryCell {
     case "parent":
       return e.parentId
         ? { key: String(e.parentId), label: `#${e.parentId} ${e.parentTitle ?? ""}`.trim(), workItemId: e.parentId, title: e.parentTitle }
-        : { key: "", label: "(sem item pai)" };
+        : { key: "", label: "(sem WI pai)" };
     case "task":
       return { key: String(e.workItemId), label: `#${e.workItemId} ${e.workItemTitle}`, workItemId: e.workItemId, title: e.workItemTitle };
     case "activity":

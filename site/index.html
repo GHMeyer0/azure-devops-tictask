@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>TicTask – apontamento de horas no Azure DevOps</title>
-  <meta name="description" content="Extensão do Azure DevOps para apontar horas nas Tasks com timer, Remaining automático, timesheet e calendário.">
+  <meta name="description" content="Extensão do Azure DevOps para apontar horas nas Tasks com timer, Completed pela soma dos apontamentos, Remaining automático, resumo e calendário.">
   <link rel="icon" href="img/logo.png">
   <link rel="alternate" hreflang="en" href="en/">
   <link rel="stylesheet" href="style.css">
@@ -100,7 +100,7 @@
 
         <div class="feature">
           <div class="text">
-            <h3>Timesheet, Resumo e Calendário</h3>
+            <h3>Resumo e Calendário</h3>
             <p>Horas por dia, semana ou mês, por pessoa, história, task e atividade, com exportação para CSV.
               No calendário, arraste para apontar ou corrigir o horário.</p>
             <ul>
@@ -116,8 +116,8 @@
     <section id="como-funciona">
       <div class="wrap">
         <h2>Como funciona</h2>
-        <p class="sub">O estado da task diz quem está trabalhando nela. Cada apontamento soma no Completed Work,
-          desconta do Remaining Work e gera uma revisão no histórico do work item.</p>
+        <p class="sub">O estado da task diz quem está trabalhando nela. O Completed Work é a soma dos
+          apontamentos, cada apontamento desconta do Remaining Work e tudo fica no histórico do work item.</p>
         <div class="diagram">
           <svg viewBox="0 0 760 280" role="img" aria-labelledby="estados-titulo">
             <title id="estados-titulo">Ciclo de estados da task: New, Active, Stopped e Closed</title>

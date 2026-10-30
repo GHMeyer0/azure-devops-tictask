@@ -16,7 +16,7 @@ Feito por um gestor, uma vez por projeto:
 |---|---|
 | Data e minutos | Data e duração. O Time Log não guarda horário: os apontamentos de cada pessoa no dia ficam em sequência a partir das **08:00** (ex.: 08:00–13:00, 13:00–14:30). O total do dia fica certo; o horário é aproximado. |
 | Pessoa (nome e id) | O mesmo usuário do Azure DevOps. O e-mail vem das pessoas dos times do projeto; quem saiu do time fica sem e-mail, mas os apontamentos continuam com o nome. |
-| Work item | O mesmo work item, com título e item pai lidos do ADO. Se ele não existir mais, o apontamento fica só com o número. |
+| Work item | O mesmo work item, com título e WI pai lidos do ADO. Se ele não existir mais, o apontamento fica só com o número. |
 | Type | A atividade de mesmo nome (sem diferenciar maiúsculas). Tipo sem atividade correspondente entra com o próprio nome; cadastre em *Atividades* se quiser cor e *Activity* no ADO. |
 | Comment | Comentário. |
 
@@ -47,7 +47,7 @@ Service separa os dados por extensão. A nova começa vazia. Para levar os apont
 3. Na nova: *Configurações › Dados › Escolher arquivo de exportação › Importar*. Os ids são mantidos
    (importar de novo sobrescreve, não duplica) e cada apontamento ganha a linha "importado de …"
    no histórico. Os campos dos work items não são alterados.
-4. Confira o timesheet e só então desinstale a extensão antiga e remova o publisher.
+4. Confira o Resumo e só então desinstale a extensão antiga e remova o publisher.
 
 A exportação lê os meses de jan/2020 até 12 meses à frente (`EXPORT_FIRST_MONTH` em
 `src/common/data/migration.ts`).

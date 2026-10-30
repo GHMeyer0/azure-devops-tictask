@@ -4,7 +4,7 @@
 
 ```bash
 npm install
-npm test            # vitest: regras de horas, datas, estado, timesheet, resumo, CSV e render dos diálogos
+npm test            # vitest: regras de horas, datas, estado, resumo, CSV, gravação do apontamento e render dos diálogos
 npm run typecheck   # tsc
 npm run build       # esbuild → dist/<página>.html + .js
 npm run package     # gera out/<publisher>.tictask-<versão>.vsix
@@ -21,13 +21,13 @@ no manifesto localmente, sem commitar) e compartilhe com uma organização de te
 ## Estrutura
 
 ```
-src/common/domain   regras puras (horas, Remaining, estado, timesheet, resumo, CSV) – testadas
+src/common/domain   regras puras (horas, Completed, Remaining, estado, resumo, CSV) – testadas
 src/common/data     Extension Data: apontamentos, timer do usuário, presença, configurações
 src/common/wit      leitura/escrita de work items (form service no WI aberto, REST nos demais)
 src/common/actions  orquestra timer, apontar, editar, excluir, criar tasks
 src/dialogs         diálogos (abertos no host via openCustomDialog)
 src/workitem        grupo da tela principal e aba Apontamentos
-src/hub             meu tempo, timesheet, resumo, calendário, configurações
+src/hub             meu tempo, resumo, calendário, configurações
 src/pages           entradas de cada contribuição
 docs/wiki           esta wiki (publicada na aba Wiki do GitHub)
 docs/img            prints usados na wiki e no site
