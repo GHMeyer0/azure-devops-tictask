@@ -59,5 +59,6 @@ Exportar e importar todos os apontamentos e configurações do projeto (JSON) e 
 **Conferir o Completed das tasks** lista as tasks com apontamentos em que o *Completed Work* ficou
 diferente da soma deles (por exemplo, editado à mão no formulário), com o Completed atual e a soma.
 Marque as que quer corrigir e clique em **Ajustar**: o Completed passa a ser a soma e o Remaining não
-muda. Tasks sem apontamento não entram. A conferência lê todos os meses, como a exportação, e pode
-levar alguns segundos.
+muda. Não entram tasks sem apontamento, outros tipos de work item (apontamentos importados do Time
+Log em Epics ou Issues, que não têm Completed) nem diferenças de menos de 1 minuto, que são
+arredondamento. A conferência lê todos os meses, como a exportação, e pode levar alguns segundos.

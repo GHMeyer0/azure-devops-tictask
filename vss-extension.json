@@ -2,7 +2,7 @@
   "manifestVersion": 1,
   "id": "tictask",
   "publisher": "ghmeyer0",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "name": "TicTask - Apontamento de Horas",
   "description": "Apontamento de horas em Tasks e User Stories com timer (iniciar/pausar/parar), Completed pela soma dos apontamentos, Remaining automático, resumo por dia, semana ou mês e calendário.",
   "public": false,

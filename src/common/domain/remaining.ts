@@ -69,10 +69,14 @@ export function withEntry<T extends Pick<TimeEntry, "id">>(entries: T[], entry: 
   return [...entries.filter((e) => e.id !== entry.id), entry];
 }
 
-/** Completed differs from the sum of the task's entries (only when it has entries). */
+/**
+ * The sum of the task's entries when Completed differs from it by a minute or more (only when the
+ * task has entries). Less than that is rounding: up to 0.9 each entry added its hours rounded to
+ * 2 decimals, so a Completed of 1.04 for 62 minutes (1.03) is not a difference.
+ */
 export function completedMismatch(completed: number | null | undefined, entries: Pick<TimeEntry, "minutes" | "deleted">[]): number | null {
   const sum = completedOf(entries);
-  return sum !== null && sum !== round2(completed ?? 0) ? sum : null;
+  return sum !== null && Math.abs(sum - (completed ?? 0)) * 60 >= 1 ? sum : null;
 }
 
 /** Percentage of the estimate already consumed (null when there is no estimate). */

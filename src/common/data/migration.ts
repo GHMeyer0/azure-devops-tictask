@@ -95,7 +95,9 @@ export interface CompletedMismatch {
 
 /**
  * Every task of the project with entries whose Completed differs from their sum (typed in the
- * form, or saved by a version that wrote the task before the entry). Reads all months, like the export.
+ * form, or saved by a version that wrote the task before the entry). Reads all months, like the
+ * export. Only the task type counts: entries imported from Time Log may sit on Epics or Issues,
+ * which have no Completed.
  */
 export async function findCompletedMismatches(ctx: Ctx, progress?: Progress): Promise<{ tasks: number; mismatches: CompletedMismatch[] }> {
   const months = monthKeys(EXPORT_FIRST_MONTH, addDays(toLocalDate(new Date()), 366));
@@ -108,7 +110,7 @@ export async function findCompletedMismatches(ctx: Ctx, progress?: Progress): Pr
     },
     progress,
   );
-  const tasks = await getExistingWorkItems([...byTask.keys()]);
+  const tasks = (await getExistingWorkItems([...byTask.keys()])).filter((t) => t.type === ctx.settings.taskType);
   const mismatches = tasks
     .map((t) => ({ t, sum: completedMismatch(t.completed, byTask.get(t.id) ?? []) }))
     .filter((x): x is { t: (typeof tasks)[number]; sum: number } => x.sum !== null)

@@ -21,6 +21,12 @@ describe("Completed from the entries", () => {
     expect(completedMismatch(4, [])).toBeNull(); // no entries: nothing to compare with
   });
 
+  it("ignores rounding left by the old per-entry sums (less than a minute)", () => {
+    expect(completedMismatch(1.04, [e("a", 62)])).toBeNull(); // #11249: 1.04 for 1.03
+    expect(completedMismatch(4.66, [e("a", 279)])).toBeNull(); // #11250: 4.66 for 4.65
+    expect(completedMismatch(4.67, [e("a", 279)])).toBe(4.65); // 1.2 min off
+  });
+
   it("withEntry adds, replaces and keeps deletions", () => {
     const list = [e("a", 5), e("b", 10)];
     expect(completedOf(withEntry(list, e("c", 45)))).toBe(1);

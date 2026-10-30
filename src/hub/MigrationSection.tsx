@@ -330,7 +330,7 @@ function CompletedCheck({ ctx }: { ctx: Ctx }) {
       <Text weight="semibold">Conferir o Completed das tasks</Text>
       <Caption1 className={st.muted}>
         Em uma task com apontamentos, o Completed é a soma deles. Aqui aparecem as tasks em que ele ficou diferente (por exemplo, editado à mão no formulário) e você pode ajustá-las de uma vez. Tasks
-        sem apontamento não entram.
+        sem apontamento, outros tipos de work item e diferenças de menos de 1 minuto (arredondamento) não entram.
       </Caption1>
       <div className={st.row}>
         <Button icon={<SearchRegular />} disabled={runner.busy} onClick={check}>
