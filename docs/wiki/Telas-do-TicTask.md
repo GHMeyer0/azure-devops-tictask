@@ -62,7 +62,12 @@ pai*). Até a versão 0.8 havia também a aba Timesheet, que virou o Resumo.
 - As colunas da esquerda ficam fixas ao rolar para os lados. Clique na task ou no WI pai para abri-lo.
 - **Detalhado**: lista cada apontamento do período abaixo da tabela, com horário, atividade e
   comentário. Os seus têm **editar** e **excluir** (até o limite de dias).
-- **Exportar**: o resumo ou os apontamentos detalhados em CSV (abre no Excel).
+- **Exportar**:
+  - **Resumo (PDF)**: a tabela como está na tela (linhas, colunas e filtros escolhidos), em A4
+    deitado, com período, quem, total, quem gerou e quando, e número de página. Bom para enviar ou
+    arquivar o fechamento do mês. Num período longo por dia, as colunas continuam nas páginas
+    seguintes, repetindo pessoa, WI pai, task e atividade.
+  - **Resumo (CSV)** e **Apontamentos detalhados (CSV)**: para abrir no Excel.
 - Gestores escolhem **Quem** (eu, todos ou um time) e, dentro dele, uma **Pessoa**.
 - Período, colunas, linhas e o Detalhado ficam lembrados no navegador.
 

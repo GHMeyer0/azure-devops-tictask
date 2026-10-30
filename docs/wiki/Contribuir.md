@@ -6,13 +6,14 @@
 npm install
 npm test            # vitest: regras de horas, datas, estado, resumo, CSV, gravação do apontamento e render dos diálogos
 npm run typecheck   # tsc
-npm run build       # esbuild → dist/<página>.html + .js
+npm run build       # esbuild → dist/<página>.html + .js, e dist/pdf.js (gerador de PDF, carregado sob demanda)
 npm run package     # gera out/<publisher>.tictask-<versão>.vsix
 npm run package:dev # mesma extensão com id tictask-dev (para testar sem afetar a oficial)
 ```
 
 Stack: TypeScript, React 19, Fluent UI v9, `azure-devops-extension-sdk` 4.2 (a API 5.279 ainda não
-aceita o SDK 5), `azure-devops-extension-api`, FullCalendar 6, esbuild e vitest. Interface, wiki e
+aceita o SDK 5), `azure-devops-extension-api`, FullCalendar 6, jsPDF 4 + jspdf-autotable 5 (PDF do Resumo), esbuild e
+vitest. Interface, wiki e
 commits em português; comentários de código em inglês.
 
 Para testar numa organização sua, publique o `package:dev` com o seu publisher (troque `"publisher"`
@@ -28,6 +29,7 @@ src/common/actions  orquestra timer, apontar, editar, excluir, criar tasks
 src/dialogs         diálogos (abertos no host via openCustomDialog)
 src/workitem        grupo da tela principal e aba Apontamentos
 src/hub             meu tempo, resumo, calendário, configurações
+src/hub/pdf         PDF do Resumo: bundle próprio (dist/pdf.js) que o hub carrega ao exportar
 src/pages           entradas de cada contribuição
 docs/wiki           esta wiki (publicada na aba Wiki do GitHub)
 docs/img            prints usados na wiki e no site

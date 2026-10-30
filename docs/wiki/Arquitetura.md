@@ -24,7 +24,7 @@ flowchart LR
 | Tela principal do WI (aba Details) | `time-group` | ▶ Iniciar / ⏸ Pausar (▾ com motivo) / ✓ Concluir / + Apontar, cronômetro e Est/Compl/Rest |
 | Aba **Apontamentos** do WI | `time-tab` | Task: lista de apontamentos (início/fim/pausas), por pessoa/atividade. US/Bug: tasks filhas com horas, alertas de inconsistência, linha do tempo |
 | Backlog e Sprint › painel lateral **TicTask** | `time-backlog-panel` | Timer em andamento, item selecionado no backlog com Iniciar/Apontar e minhas tasks abertas (o ADO não permite extensões na barra superior global) |
-| Boards › **TicTask** | `time-hub` | Meu tempo, Resumo, Calendário e, para gestores, Time agora e Configurações |
+| Boards › **TicTask** | `time-hub` | Meu tempo, Resumo, Calendário e, para gestores, Time agora e Configurações. O PDF do Resumo é gerado no navegador por `dist/pdf.js` (jsPDF), carregado só quando alguém exporta |
 | Diálogos no host | `time-dialog` | Apontar, pausar, concluir, estimativa, "O que você vai fazer?", tasks padrão |
 
 ## Dados

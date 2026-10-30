@@ -10,6 +10,7 @@
 - **Estado da task** acompanha o trabalho (timer rodando → Active, pausada → Stopped, concluída → Closed),
   com motivos de pausa e próximo passo comentados na task e na US.
 - **Hub TicTask** (Boards): resumo de horas por pessoa, WI pai (US, Bug…), task e atividade (por dia,
-  semana ou mês, com a lista detalhada de apontamentos), calendário e configurações.
+  semana ou mês, com a lista detalhada de apontamentos e exportação em PDF ou CSV), calendário e
+  configurações.
 - Auditoria: cada apontamento guarda início/fim/pausas, quem apontou e o snapshot antes/depois da task.
 - **Migração**: importa o histórico da extensão Time Log pelo CSV dela, sem alterar os work items.

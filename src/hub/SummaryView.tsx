@@ -24,6 +24,7 @@ import { listByRange } from "../common/data/entriesRepo";
 import { entriesToCsv, summaryToCsv } from "../common/domain/csv";
 import { findActivity } from "../common/domain/settings";
 import { DIMS, buildSummary, type Bucket, type Dim } from "../common/domain/summary";
+import { summaryPdfTable } from "../common/domain/summaryPdf";
 import { addDays, addMonths, daysBetween, formatDateBr, formatMinutes, monthEnd, monthStart, toLocalDate, weekStart } from "../common/domain/time";
 import type { TimeEntry } from "../common/domain/types";
 import { EntriesTable, ErrorBar } from "../common/ui/components";
@@ -31,7 +32,8 @@ import { DateInput } from "../common/ui/dateTime";
 import { errorMessage, useRunner, useTrackerEvents } from "../common/ui/hooks";
 import { EmptyState, PageCard, Toolbar } from "../common/ui/page";
 import { coreClient } from "../common/sdk";
-import { downloadText } from "./download";
+import { downloadBlob, downloadText } from "./download";
+import { loadPdf } from "./pdf/loadPdf";
 import { SummaryTable } from "./SummaryTable";
 
 const useStyles = makeStyles({
@@ -192,6 +194,22 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
   const facts = [`${tasks} ${tasks === 1 ? "task" : "tasks"}`, `${days} ${days === 1 ? "dia" : "dias"} com apontamento`];
   if (!onePerson) facts.unshift(`${people.length} ${people.length === 1 ? "pessoa" : "pessoas"}`);
 
+  const exportPdf = async () => {
+    const pdf = await loadPdf();
+    const who = singleUser ? ctx.user.displayName : `${scopeLabel}${onePerson ? ` · ${people.find(([id]) => id === person)?.[1] ?? ""}` : ""}`;
+    const generated = new Date();
+    const blob = pdf.renderSummaryPdf(summaryPdfTable(summary, dims), {
+      title: `Resumo de horas · ${ctx.projectName}`,
+      lines: [
+        `${formatDateBr(from)} a ${formatDateBr(to)} · ${BUCKETS.find((b) => b.value === prefs.bucket)!.label.toLowerCase()} · total ${formatMinutes(summary.total)}`,
+        `Quem: ${who} · ${facts.join(" · ")}`,
+        `Linhas: ${dimsText}${prefs.hideEmpty ? " · só colunas com horas" : ""}`,
+      ],
+      footer: `Gerado por ${ctx.user.displayName} em ${formatDateBr(toLocalDate(generated))} ${generated.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · TicTask`,
+    });
+    downloadBlob(`resumo_${from}_${to}.pdf`, blob);
+  };
+
   return (
     <div className={st.root}>
       <Toolbar
@@ -205,6 +223,9 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
               </MenuTrigger>
               <MenuPopover>
                 <MenuList>
+                  <MenuItem onClick={() => run(exportPdf)} disabled={!summary.rows.length}>
+                    Resumo (PDF)
+                  </MenuItem>
                   <MenuItem onClick={() => run(() => downloadText(`resumo_${from}_${to}.csv`, summaryToCsv(summary, dims)))}>Resumo (CSV)</MenuItem>
                   <MenuItem onClick={() => run(() => downloadText(`apontamentos_${from}_${to}.csv`, entriesToCsv(visible)))}>Apontamentos detalhados (CSV)</MenuItem>
                 </MenuList>

@@ -1,4 +1,5 @@
-// Bundles each contribution page (src/pages/*.tsx) into dist/<page>.js + dist/<page>.html.
+// Bundles each contribution page (src/pages/*.tsx) into dist/<page>.js + dist/<page>.html, plus
+// dist/pdf.js, loaded on demand by the hub.
 import * as esbuild from "esbuild";
 import { mkdir, rm, writeFile } from "node:fs/promises";
 
@@ -38,7 +39,10 @@ await mkdir("dist", { recursive: true });
 await Promise.all(Object.entries(pages).map(([page, title]) => writeFile(`dist/${page}.html`, html(page, title))));
 
 const options = {
-  entryPoints: Object.fromEntries(Object.keys(pages).map((p) => [p, `src/pages/${p}.tsx`])),
+  // pdf.js has no page of its own: the hub loads it when a PDF is exported (hub/pdf/loadPdf.ts).
+  entryPoints: { ...Object.fromEntries(Object.keys(pages).map((p) => [p, `src/pages/${p}.tsx`])), pdf: "src/pages/pdf.ts" },
+  // Optional jsPDF dependencies, only used by doc.html() and SVG: never called here.
+  external: ["html2canvas", "canvg", "dompurify"],
   outdir: "dist",
   bundle: true,
   format: "iife",

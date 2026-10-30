@@ -1,3 +1,15 @@
+/** Saves a binary file (e.g. a PDF). */
+export function downloadBlob(filename: string, blob: Blob): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
 /** Saves text as a file; falls back to the clipboard when the iframe sandbox blocks downloads. */
 export async function downloadText(filename: string, content: string, mime = "text/csv;charset=utf-8"): Promise<"downloaded" | "copied"> {
   try {
