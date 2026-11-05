@@ -1,6 +1,7 @@
 import { errorMessage } from "./errors";
 import { emit } from "./events";
-import { getSettings } from "./data/settingsRepo";
+import { findProject } from "./data/projects";
+import { getSettings, peekSettings } from "./data/settingsRepo";
 import { listByWorkItem, newEntryId, removeEntry, saveEntry } from "./data/entriesRepo";
 import { listPresence, publishPaused } from "./data/presenceRepo";
 import { clearTimer, getTimer, isOlder, readTimerDoc, saveTimer, timerOf } from "./data/timerRepo";
@@ -29,6 +30,23 @@ export async function loadCtx(writer: WorkItemWriter = restWriter): Promise<Ctx>
   const project = await getProject();
   return { projectId: project.id, projectName: project.name, user: getUser(), settings: await getSettings(project.id), writer };
 }
+
+/**
+ * The context of the project a timer, entry or task belongs to: its settings (states, activities,
+ * edit limit) and its name (queries). The hub shows the user's hours of every project, and acting
+ * on one of another project with the page's context would store the entry in the wrong project and
+ * write a Completed without that project's entries. `ref` is a project id or name; unknown → ctx.
+ */
+export async function ctxFor(ctx: Ctx, ref: { id?: string; name?: string }): Promise<Ctx> {
+  if (ref.id ? ref.id === ctx.projectId : !ref.name || ref.name === ctx.projectName) return ctx;
+  const project = await findProject(ref);
+  if (!project) throw new Error(`Sem acesso ao projeto ${ref.name ?? ref.id} do item.`);
+  if (project.id === ctx.projectId) return ctx;
+  return { ...ctx, projectId: project.id, projectName: project.name, settings: await getSettings(project.id) };
+}
+
+/** Context of the task's project (System.TeamProject). */
+export const taskCtx = (ctx: Ctx, task: { project?: string }) => ctxFor(ctx, { name: task.project });
 
 const snapshot = (t: TaskInfo): WorkItemSnapshot => ({ original: t.original, remaining: t.remaining, completed: t.completed, state: t.state });
 const now = () => new Date().toISOString();
@@ -107,6 +125,7 @@ export async function ensureCanStart(ctx: Ctx, targetId?: number): Promise<boole
 
 /** Starts the timer on a task (after ensureCanStart). Returns the new timer, or null when cancelled. */
 export async function startTimer(ctx: Ctx, task: TaskInfo, activity?: string): Promise<ActiveTimer | null> {
+  ctx = await taskCtx(ctx, task);
   const existing = await getTimer();
   if (existing && existing.workItem.id === task.id) {
     return existing.status === "paused" ? resumeTimer(ctx, existing) : existing;
@@ -181,6 +200,7 @@ async function reworkTask(ctx: Ctx, task: TaskInfo): Promise<TaskInfo | null> {
 export async function resumeTimer(ctx: Ctx, shown: ActiveTimer): Promise<ActiveTimer | null> {
   const timer = await currentTimer(shown);
   if (!timer) return null;
+  ctx = await ctxFor(ctx, { id: timer.projectId });
   const paused = timer.pauses?.at(-1)?.state;
   if (paused) {
     await ctx.writer.apply(timer.workItem.id, (current) => (current.state === paused ? { state: ctx.settings.states.active } : null));
@@ -239,6 +259,8 @@ function timerDraft(timer: ActiveTimer, segments: TimeSegment[]): LogDraft {
 export async function pauseTimer(ctx: Ctx, shown: ActiveTimer, withReason = false): Promise<TimeEntry | true | null> {
   const timer = await currentTimer(shown);
   if (!timer) return null;
+  // The timer may run on a task of another project than the page's.
+  ctx = await ctxFor(ctx, { id: timer.projectId });
   const segments = closedSegments(timer, now());
   const task = await getWorkItem(timer.workItem.id);
   const pauseState = (await pauseStatesFor(ctx, task.type))[0];
@@ -285,6 +307,7 @@ export async function pauseTimer(ctx: Ctx, shown: ActiveTimer, withReason = fals
 export async function concludeTimer(ctx: Ctx, shown: ActiveTimer): Promise<TimeEntry | null> {
   const timer = await currentTimer(shown);
   if (!timer) return null;
+  ctx = await ctxFor(ctx, { id: timer.projectId });
   const task = await getWorkItem(timer.workItem.id);
   const note = isForgotten(timer, ctx.settings)
     ? `O timer está rodando desde ${formatDateBr(toLocalDate(timer.segments.at(-1)!.start))} ${toLocalTime(timer.segments.at(-1)!.start)}. Confira o horário de fim em "editar horário manualmente".`
@@ -301,6 +324,7 @@ export async function concludeTimer(ctx: Ctx, shown: ActiveTimer): Promise<TimeE
 
 /** Opens the log dialog for a task (manual entry: work done without the timer). */
 export async function logTime(ctx: Ctx, task: TaskInfo | null, preset?: Partial<LogDraft>, source: TimeEntry["source"] = "manual"): Promise<TimeEntry | null> {
+  if (task) ctx = await taskCtx(ctx, task);
   if (task && !(await confirmStart(ctx, task))) return null;
   const end = new Date();
   const start = new Date(end.getTime() - 60 * 60_000);
@@ -316,6 +340,7 @@ export async function logTime(ctx: Ctx, task: TaskInfo | null, preset?: Partial<
   };
   const result = await openDialog(task ? `Apontar #${task.id}` : "Apontar horas", { kind: "log", mode: "create", task, draft, settings: ctx.settings, projectName: ctx.projectName });
   if (!result) return null;
+  if (!task) ctx = await taskCtx(ctx, result.task);
   if (!task && !(await confirmStart(ctx, result.task))) return null;
   // Work logged without the timer: nobody is on the task now, so a task that starts here is left paused.
   const pauseState = (await pauseStatesFor(ctx, result.task.type))[0];
@@ -386,6 +411,7 @@ async function refused(taskId: number, e: unknown, change: { title: string; what
  * the sum of the task's entries.
  */
 export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["source"], opts: EntryOptions = {}): Promise<TimeEntry> {
+  ctx = await taskCtx(ctx, r.task);
   if (source !== "timer") assertOpenDate(ctx, r.draft.date);
   const hours = minutesToHours(r.draft.minutes);
   const reasonLine = reasonText(r.reason, r.reasonDetail);
@@ -481,8 +507,10 @@ function assertOpenDate(ctx: Ctx, date: string): void {
   if (date < first) throw new Error(`Apontamentos antes de ${formatDateBr(first)} não podem ser criados nem alterados (limite de ${ctx.settings.lockDays} dias em Configurações › Geral).`);
 }
 
+/** The author's own entry within the edit limit of its project (settings of another project must be loaded). */
 export function canEdit(ctx: Ctx, entry: TimeEntry, today = toLocalDate(new Date())): boolean {
-  return entry.userId === ctx.user.id && !entry.deleted && daysBetween(entry.date, today) <= ctx.settings.lockDays;
+  const settings = !entry.projectId || entry.projectId === ctx.projectId ? ctx.settings : peekSettings(entry.projectId);
+  return !!settings && entry.userId === ctx.user.id && !entry.deleted && daysBetween(entry.date, today) <= settings.lockDays;
 }
 
 export function draftOf(entry: TimeEntry): LogDraft {
@@ -504,6 +532,7 @@ export function draftOf(entry: TimeEntry): LogDraft {
 }
 
 export async function editEntry(ctx: Ctx, entry: TimeEntry): Promise<TimeEntry | null> {
+  ctx = await ctxFor(ctx, { id: entry.projectId });
   const task = await getWorkItem(entry.workItemId);
   const result = await openDialog(`Editar apontamento #${task.id}`, { kind: "log", mode: "edit", task, draft: draftOf(entry), previousMinutes: entry.minutes, settings: ctx.settings, projectName: ctx.projectName });
   if (!result) return null;
@@ -516,6 +545,7 @@ export async function editEntry(ctx: Ctx, entry: TimeEntry): Promise<TimeEntry |
  * back when the task cannot be saved.
  */
 export async function updateEntry(ctx: Ctx, entry: TimeEntry, draft: LogDraft, remaining?: number): Promise<TimeEntry> {
+  ctx = await ctxFor(ctx, { id: entry.projectId });
   if (draft.date !== entry.date) assertOpenDate(ctx, draft.date);
   const changes: string[] = [];
   if (draft.minutes !== entry.minutes) changes.push(`${formatMinutes(entry.minutes)} → ${formatMinutes(draft.minutes)}`);
@@ -557,6 +587,7 @@ export async function updateEntry(ctx: Ctx, entry: TimeEntry, draft: LogDraft, r
 
 /** Soft delete: keeps the document (compliance) and gives the hours back to the task. */
 export async function deleteEntry(ctx: Ctx, entry: TimeEntry): Promise<boolean> {
+  ctx = await ctxFor(ctx, { id: entry.projectId });
   const ok = await confirmDialog(
     `Excluir o apontamento de ${formatMinutes(entry.minutes)} em #${entry.workItemId}? As horas saem do Completed e voltam para o Remaining. O registro fica no histórico de auditoria.`,
     "Excluir apontamento",
@@ -618,6 +649,7 @@ export async function createChildTask(ctx: Ctx, parent: TaskInfo, input: NewTask
  * description), creates what is needed and starts the timer or opens the log dialog.
  */
 export async function startOnParent(ctx: Ctx, parent: TaskInfo, purpose: "timer" | "log"): Promise<void> {
+  ctx = await taskCtx(ctx, parent);
   // A timer running elsewhere is paused by startTimer, after the choice: cancelling here keeps it running.
   const children = (await getChildren(parent.id)).filter((c) => isTask(ctx, c));
   const choice = await openDialog(purpose === "timer" ? `Iniciar apontamento – #${parent.id}` : `Apontar horas – #${parent.id}`, {

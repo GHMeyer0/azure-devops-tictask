@@ -7,11 +7,12 @@ import FullCalendar from "@fullcalendar/react";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import { useEffect, useMemo, useState } from "react";
 import { canEdit, deleteEntry, draftOf, editEntry, logTime, updateEntry, type Ctx } from "../common/actions";
-import { listByRange } from "../common/data/entriesRepo";
+import { loadEntries } from "../common/data/crossProject";
+import { peekSettings } from "../common/data/settingsRepo";
 import { sum } from "../common/domain/aggregate";
 import { findActivity } from "../common/domain/settings";
 import { addDays, firstOpenDate, formatMinutes, toLocalDate, toLocalTime } from "../common/domain/time";
-import type { TimeEntry } from "../common/domain/types";
+import type { Settings, TimeEntry } from "../common/domain/types";
 import { ErrorBar, openWorkItem } from "../common/ui/components";
 import { PageCard, Toolbar } from "../common/ui/page";
 import { errorMessage, useRunner, useTimer, useTrackerEvents } from "../common/ui/hooks";
@@ -62,11 +63,16 @@ const useStyles = makeStyles({
   } as never,
 });
 
-/** Week calendar (like the 7pace calendar): select a range to log, drag/resize to edit, duplicate. */
+/**
+ * Week calendar (like the 7pace calendar): select a range to log, drag/resize to edit, duplicate.
+ * Shows the hours of every project the user can open (other people's only where the user is a
+ * manager); each entry follows its project's settings (colors, edit limit).
+ */
 export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
   const st = useStyles();
   const [range, setRange] = useState<{ from: string; to: string } | null>(null);
   const [entries, setEntries] = useState<TimeEntry[] | null>(null);
+  const [projectNames, setProjectNames] = useState<Map<string, string>>(new Map());
   const [userId, setUserId] = useState(ctx.user.id);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
@@ -76,10 +82,18 @@ export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
 
   useEffect(() => {
     if (!range) return;
-    listByRange(ctx.projectId, range.from, range.to)
-      .then(setEntries)
-      .catch((e) => setLoadError(errorMessage(e)));
-  }, [ctx.projectId, range, version]);
+    let current = true;
+    loadEntries(ctx, range.from, range.to, { allProjects: true, others: manager, manager })
+      .then((r) => current && (setEntries(r.entries), setProjectNames(r.projects), setLoadError(null)))
+      .catch((e) => current && setLoadError(errorMessage(e)));
+    return () => {
+      current = false;
+    };
+  }, [ctx, manager, range, version]);
+
+  const settingsOf = (e: TimeEntry): Settings => (e.projectId === ctx.projectId ? ctx.settings : (peekSettings(e.projectId) ?? ctx.settings));
+  // The project is named on the blocks only when the period has hours of more than one project.
+  const projectOf = (e: TimeEntry): string => (manyProjects ? (projectNames.get(e.projectId) ?? "") : "");
   useTrackerEvents(null, () => setVersion((v) => v + 1));
 
   const users = useMemo(() => {
@@ -91,13 +105,14 @@ export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
   const mine = userId === ctx.user.id;
   const visible = useMemo(() => (entries ?? []).filter((e) => e.userId === userId), [entries, userId]);
   const selected = visible.find((e) => e.id === selectedId) ?? null;
+  const manyProjects = new Set(visible.map((e) => e.projectId)).size > 1;
 
   const events: EventInput[] = useMemo(() => {
     const list: EventInput[] = visible.flatMap((e) => {
-      const color = findActivity(ctx.settings, e.activity)?.color ?? tokens.colorBrandBackground;
+      const color = findActivity(settingsOf(e), e.activity)?.color ?? findActivity(ctx.settings, e.activity)?.color ?? tokens.colorBrandBackground;
       const single = e.segments.length <= 1;
       const segments = e.segments.length ? e.segments : [{ start: e.start, end: e.end }];
-      const parent = e.parentId ? `#${e.parentId} ${e.parentTitle ?? ""}`.trim() : "";
+      const parent = [projectOf(e), e.parentId ? `#${e.parentId} ${e.parentTitle ?? ""}`.trim() : ""].filter(Boolean).join(" · ");
       const task = `#${e.workItemId} ${e.workItemTitle}`;
       return segments.map((s, i) => ({
         id: `${e.id}#${i}`,
@@ -135,7 +150,7 @@ export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
     return list;
     // elapsedMs is rounded to minutes so the calendar does not re-render every second
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, selectedId, mine, timer, Math.round(elapsedMs / 60000), ctx]);
+  }, [visible, selectedId, mine, timer, Math.round(elapsedMs / 60000), ctx, projectNames, manyProjects]);
 
   // Block content: parent item (Bug/US/TS) on top, then the task, then time and activity — tasks
   // named "Revisão" or "Desenvolvimento" repeat across parents. The full text is the hover tooltip.
@@ -203,7 +218,11 @@ export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
         end={
           <Tooltip
             relationship="description"
-            content={mine ? "Arraste num horário vazio para apontar. Arraste ou redimensione um bloco para corrigir. Clique num bloco para editar, duplicar ou excluir." : "Calendário de outra pessoa: somente leitura."}
+            content={
+              mine
+                ? "Mostra suas horas de todos os projetos. Arraste num horário vazio para apontar numa task deste projeto. Arraste ou redimensione um bloco para corrigir. Clique num bloco para editar, duplicar ou excluir."
+                : "Calendário de outra pessoa: somente leitura. Mostra as horas dos projetos em que você é gestor."
+            }
           >
             <Button appearance="subtle" icon={<QuestionCircleRegular />}>
               Como usar
@@ -240,6 +259,7 @@ export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
       {selected && (
         <div className={st.selected}>
           <Text weight="semibold">
+            {manyProjects || selected.projectId !== ctx.projectId ? `${projectNames.get(selected.projectId) ?? ""} · ` : ""}
             {selected.parentId ? `#${selected.parentId} ${selected.parentTitle ?? ""} › ` : ""}#{selected.workItemId} {selected.workItemTitle}
           </Text>
           <Text size={200}>
@@ -299,7 +319,10 @@ export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
           select={onSelect}
           // Days before the edit limit (Configurações › Geral) take no new or moved entries.
           selectAllow={(s) => toLocalDate(s.start) >= firstOpenDate(ctx.settings.lockDays, toLocalDate(new Date()))}
-          eventAllow={(s) => toLocalDate(s.start) >= firstOpenDate(ctx.settings.lockDays, toLocalDate(new Date()))}
+          eventAllow={(s, moving) => {
+            const entry = visible.find((e) => e.id === moving?.extendedProps.entryId);
+            return toLocalDate(s.start) >= firstOpenDate((entry ? settingsOf(entry) : ctx.settings).lockDays, toLocalDate(new Date()));
+          }}
           eventDrop={onChange}
           eventResize={onChange}
           eventClick={onClick}

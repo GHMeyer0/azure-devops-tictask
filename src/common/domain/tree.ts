@@ -9,6 +9,8 @@ export interface ParentRef {
   /** Work item type; empty when the parent could not be read. */
   type: string;
   title: string;
+  /** Project name, when read with the work item. */
+  project?: string;
 }
 
 export interface ParentGroup<T> {

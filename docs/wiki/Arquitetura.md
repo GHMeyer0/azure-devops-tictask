@@ -31,7 +31,7 @@ flowchart LR
 
 | Coleção / documento | Escopo | Conteúdo |
 |---|---|---|
-| `te-{projeto}-{yyyyMM}` | Compartilhado | Apontamentos do mês: fonte do Resumo e do Calendário |
+| `te-{projeto}-{yyyyMM}` | Compartilhado | Apontamentos do mês: fonte do Resumo, do Calendário e do Meu tempo (de todos os projetos) |
 | `tw-{projeto}-{workItemId}` | Compartilhado | Índice por work item (mesmo id do apontamento), usado pelas abas |
 | `timer/active` | Usuário | Timer em andamento: só o trecho que está rodando (timestamps), por isso continua contando com o navegador fechado |
 | `presence-{projeto}` | Compartilhado | Um documento por usuário: status do timer e a última pausa (task e motivo), para o Time agora. Desligável nas Configurações |
@@ -40,6 +40,21 @@ flowchart LR
 Cada apontamento guarda início, fim e trechos, usuário, atividade, comentário, motivo (pausa ou
 próximo passo), estado e horas da task antes e depois e um histórico de alterações. A exclusão é
 lógica (`deleted: true`).
+
+### Vários projetos
+
+O Extension Data Service é um só para a organização: o nome das coleções é que separa os projetos.
+Meu tempo, Resumo e Calendário leem as coleções `te-` de todos os projetos que a pessoa acessa (lista
+do `getProjects`, que já vem filtrada pelas permissões dela) e juntam tudo. As horas de outras pessoas
+só entram dos projetos em que ela é gestora. Paradas e Sem apontamento recente vêm de uma consulta WIQL
+na organização inteira, com o tipo de task e os estados do projeto aberto, conferidos depois com as
+configurações do projeto de cada task.
+
+Toda ação usa o contexto do projeto do item (`ctxFor` em `actions.ts`): o timer guarda o projeto da
+task, o apontamento guarda `projectId`, e a task traz `System.TeamProject`. Assim, pausar pela página de
+outro projeto, editar um apontamento de outro projeto ou retomar uma task de lá grava no projeto certo,
+com as configurações dele, e a soma do Completed lê os apontamentos daquele projeto. Até a 0.10, pausar
+um timer pela página de outro projeto gravava o apontamento no projeto da página.
 
 ## Regras de horas e estado
 
@@ -63,8 +78,8 @@ lógica (`deleted: true`).
 - **Uma revisão por apontamento**: horas, Remaining e estado vão num único patch com `test /rev`
   (em conflito, relê e reaplica). Exceção: quando o apontamento também define a estimativa, são duas
   revisões (estimativa, depois estado), porque o processo pode travar o Original Estimate em Active.
-- **Timer**: um por usuário. Iniciar outro pausa o atual (aponta o trecho). Trecho com menos de
-  1 minuto não é apontado.
+- **Timer**: um por usuário, em toda a organização. Iniciar outro pausa o atual (aponta o trecho, no
+  projeto da task dele). Trecho com menos de 1 minuto não é apontado.
 - **Estados**: iniciar → Active; pausar → Stopped; concluir → Closed; apontamento manual numa task
   New → Stopped; iniciar trabalho numa task filha leva o WI pai de New/Ready for Development para Active.
   O diagrama está em [Usar numa Task](Usar-numa-Task.md#estado-da-task).

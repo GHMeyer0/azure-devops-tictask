@@ -1,8 +1,9 @@
-import { Button, Caption1, Spinner, Text, Tooltip, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
+import { Badge, Button, Caption1, Spinner, Text, Tooltip, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
 import { AddRegular, CalendarClockRegular, CheckmarkCircleRegular, DeleteRegular, EditRegular, PlayRegular } from "@fluentui/react-icons";
 import { useCallback, useEffect, useState } from "react";
-import { canEdit, deleteEntry, editEntry, logTime, startTimer, type Ctx } from "../common/actions";
-import { listByRange } from "../common/data/entriesRepo";
+import { canEdit, ctxFor, deleteEntry, editEntry, logTime, startTimer, type Ctx } from "../common/actions";
+import { loadEntries } from "../common/data/crossProject";
+import { peekSettings } from "../common/data/settingsRepo";
 import { lastEntryByWorkItem, sum } from "../common/domain/aggregate";
 import { addDays, businessDaysBetween, daysBetween, formatDateBr, formatMinutes, toLocalDate, toLocalTime, weekStart } from "../common/domain/time";
 import { buildTodayTree, groupByParent, idleTasks, type ParentRef, type TodayGroup } from "../common/domain/tree";
@@ -49,6 +50,7 @@ const useStyles = makeStyles({
   num: { fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
   idle: { color: tokens.colorNeutralForeground3, fontStyle: "italic" },
   stale: { color: tokens.colorPaletteDarkOrangeForeground1, fontWeight: tokens.fontWeightSemibold },
+  project: { flexShrink: 0, maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
 });
 
 interface Data {
@@ -67,13 +69,27 @@ interface Data {
 const EMPTY: Data = { entries: [], paused: [], pauseReason: new Map(), forgotten: [], parents: new Map(), taskParent: new Map(), idle: new Map() };
 const unique = (ids: (number | undefined)[]) => [...new Set(ids.filter((id): id is number => !!id))];
 
+/**
+ * Everything "Meu tempo" shows, across the projects the user can open: entries of the last 30 days
+ * and my tasks paused or active in any project. The tasks are queried with this project's task type
+ * and states, then each one is checked against its own project's settings.
+ */
 async function loadData(ctx: Ctx): Promise<Data> {
   const today = toLocalDate(new Date());
-  const [entries, paused, active] = await Promise.all([
-    listByRange(ctx.projectId, addDays(today, -30), today, ctx.user.id),
-    myTasksInStates(ctx.projectName, ctx.settings.taskType, ctx.settings.states.pauseStates),
-    myTasksInStates(ctx.projectName, ctx.settings.taskType, [ctx.settings.states.active]),
+  const { pauseStates, active: activeState } = ctx.settings.states;
+  const [{ entries }, mine] = await Promise.all([
+    loadEntries(ctx, addDays(today, -30), today, { allProjects: true, others: false, manager: false }),
+    myTasksInStates(null, ctx.settings.taskType, [...new Set([...pauseStates, activeState])], 200),
   ]);
+  const settingsOf = new Map<string, Settings>();
+  await Promise.all(
+    [...new Set(mine.map((t) => t.project ?? ctx.projectName))].map(async (name) => {
+      settingsOf.set(name, (await ctxFor(ctx, { name }).catch(() => ctx)).settings);
+    }),
+  );
+  const states = (t: TaskInfo) => (settingsOf.get(t.project ?? ctx.projectName) ?? ctx.settings).states;
+  const paused = mine.filter((t) => states(t).pauseStates.includes(t.state));
+  const active = mine.filter((t) => t.state === states(t).active);
   const last = lastEntryByWorkItem(entries);
   const forgotten = active.map((task) => ({ task, last: last.get(task.id) })).filter((f) => !f.last || daysBetween(f.last, today) >= FORGOTTEN_DAYS);
   const pauseReason = new Map<number, string>();
@@ -94,8 +110,13 @@ async function loadData(ctx: Ctx): Promise<Data> {
     parentIds.length ? getWorkItems(parentIds).catch(() => []) : Promise.resolve([]),
     Promise.all(todayParentIds.map((id) => getChildren(id).then((c) => [id, c] as const, () => [id, [] as TaskInfo[]] as const))),
   ]);
-  const parents = new Map(parentItems.map((p) => [p.id, { id: p.id, type: p.type, title: p.title }]));
-  const idle = new Map(children.map(([id, c]) => [id, idleTasks(c, ctx.user, ctx.settings.taskType, ctx.settings.states, logged)]));
+  const parents = new Map(parentItems.map((p) => [p.id, { id: p.id, type: p.type, title: p.title, project: p.project }]));
+  // My other open tasks of the parent, by the parent's project settings.
+  const settingsOfParent = (id: number) => {
+    const projectId = todayEntries.find((e) => (taskParent.has(e.workItemId) ? taskParent.get(e.workItemId) : e.parentId) === id)?.projectId;
+    return (projectId && peekSettings(projectId)) || ctx.settings;
+  };
+  const idle = new Map(children.map(([id, c]) => [id, idleTasks(c, ctx.user, settingsOfParent(id).taskType, settingsOfParent(id).states, logged)]));
   return { entries, paused, pauseReason, forgotten, parents, taskParent, idle };
 }
 
@@ -181,9 +202,10 @@ export function MyTimeView() {
       <div className={st.cols}>
         <PageCard
           title={`Paradas (${data.paused.length})`}
-          description={`Suas tasks em ${ctx.settings.states.pauseStates.join(" ou ")}: começadas, ninguém trabalhando nelas agora. Em destaque as paradas há ${ctx.settings.states.pausedAlertDays} dias úteis ou mais.`}
+          description={`Suas tasks em ${ctx.settings.states.pauseStates.join(" ou ")}, em todos os projetos: começadas, ninguém trabalhando nelas agora. Em destaque as paradas há ${ctx.settings.states.pausedAlertDays} dias úteis ou mais.`}
         >
           <TaskTree
+            here={ctx.projectName}
             empty={`Nenhuma task sua em ${ctx.settings.states.pauseStates.join("/")}.`}
             items={data.paused.map((t) => ({ task: t, note: <PausedNote task={t} reason={data.pauseReason.get(t.id)} settings={ctx.settings} /> }))}
             parents={data.parents}
@@ -193,8 +215,9 @@ export function MyTimeView() {
             startLabel="Retomar"
           />
         </PageCard>
-        <PageCard title={`Sem apontamento recente (${data.forgotten.length})`} description={`Suas tasks ${ctx.settings.states.active} sem apontamento há ${FORGOTTEN_DAYS} dias ou mais.`}>
+        <PageCard title={`Sem apontamento recente (${data.forgotten.length})`} description={`Suas tasks ${ctx.settings.states.active}, em todos os projetos, sem apontamento há ${FORGOTTEN_DAYS} dias ou mais.`}>
           <TaskTree
+            here={ctx.projectName}
             empty={`Todas as suas tasks ${ctx.settings.states.active} tiveram apontamento nos últimos ${FORGOTTEN_DAYS} dias.`}
             items={data.forgotten.map((f) => ({
               task: f.task,
@@ -213,8 +236,9 @@ export function MyTimeView() {
         </PageCard>
       </div>
 
-      <PageCard title={`Hoje · ${formatMinutes(todayMin)}`} description="Por WI pai → task → apontamentos. Suas outras tasks abertas do mesmo WI pai aparecem como não apontadas.">
+      <PageCard title={`Hoje · ${formatMinutes(todayMin)}`} description="Por WI pai → task → apontamentos, de todos os projetos. Suas outras tasks abertas do mesmo WI pai aparecem como não apontadas.">
         <TodayTree
+          here={ctx.projectName}
           groups={tree}
           settings={ctx.settings}
           busy={busy}
@@ -229,13 +253,18 @@ export function MyTimeView() {
   );
 }
 
-/** Parent line of a tree group: type, #id and title (link), or "(sem item pai)". */
-function ParentLine({ parent, right }: { parent: ParentRef | null; right?: React.ReactNode }) {
+/** Parent line of a tree group: type, #id and title (link), or "(sem item pai)"; the project when not this one. */
+function ParentLine({ parent, right, here }: { parent: ParentRef | null; right?: React.ReactNode; here: string }) {
   const st = useStyles();
   return (
     <div className={st.parent}>
       {parent ? (
         <>
+          {parent.project && parent.project !== here && (
+            <Badge appearance="tint" color="informative" size="small" className={st.project} title={`Projeto ${parent.project}`}>
+              {parent.project}
+            </Badge>
+          )}
           <TypeBadge type={parent.type} />
           <span className={st.parentTitle}>
             <WorkItemLink id={parent.id} title={parent.title} />
@@ -279,7 +308,8 @@ function StartButton({ task, busy, runningId, onStart, label = "Iniciar timer" }
 }
 
 /** Paradas / Sem apontamento recente: tasks under their parent. */
-function TaskTree({ empty, items, parents, busy, runningId, onStart, startLabel }: {
+function TaskTree({ empty, items, parents, busy, runningId, onStart, startLabel, here }: {
+  here: string;
   empty: string;
   items: { task: TaskInfo; note: React.ReactNode }[];
   parents: Map<number, ParentRef>;
@@ -294,7 +324,7 @@ function TaskTree({ empty, items, parents, busy, runningId, onStart, startLabel 
     <div>
       {groupByParent(items, (i) => i.task.parentId, parents).map((g) => (
         <div key={g.parent?.id ?? "none"} className={st.group}>
-          <ParentLine parent={g.parent} />
+          <ParentLine parent={g.parent} here={here} />
           <div className={st.children}>
             {g.items.map(({ task, note }) => (
               <div key={task.id} className={st.task}>
@@ -315,7 +345,8 @@ function TaskTree({ empty, items, parents, busy, runningId, onStart, startLabel 
 }
 
 /** Hoje: parent → task → today's entries, plus my other open tasks of the parent not logged today. */
-function TodayTree({ groups, settings, busy, runningId, canEdit, onEdit, onDelete, onStart }: {
+function TodayTree({ groups, settings, busy, runningId, canEdit, onEdit, onDelete, onStart, here }: {
+  here: string;
   groups: TodayGroup[];
   settings: Settings;
   busy: boolean;
@@ -336,7 +367,7 @@ function TodayTree({ groups, settings, busy, runningId, canEdit, onEdit, onDelet
     <div>
       {groups.map((g) => (
         <div key={g.parent?.id ?? "none"} className={st.group}>
-          <ParentLine parent={g.parent} right={<span className={st.subtotal}>{formatMinutes(g.minutes)}</span>} />
+          <ParentLine parent={g.parent} here={here} right={<span className={st.subtotal}>{formatMinutes(g.minutes)}</span>} />
           <div className={st.children}>
             {g.tasks.map((t) => (
               <div key={t.taskId}>

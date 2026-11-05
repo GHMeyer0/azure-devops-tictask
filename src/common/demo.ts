@@ -50,6 +50,8 @@ const PEOPLE = [
 
 const COMMENTS = ["Ajustes após a revisão", "Alinhamento com o time", "Testes em homologação", "Correções apontadas no PR", "Validação com o cliente"];
 const TEAMS = ["Time Produto", "Time Plataforma", "Time Financeiro", "Time Mobile"];
+const PROJECTS = ["Fabrikam", "Northwind", "Tailspin", "Woodgrove", "Litware", "Proseware", "Wingtip", "Adatum", "Lucerne", "Trey Research"];
+let projects = 0;
 
 const EMAIL = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 
@@ -119,7 +121,8 @@ function register(kind: Kind, real: string | undefined | null, fakeName?: string
       fake = pick(TEAMS, value, kind);
       break;
     case "project":
-      fake = "Contoso";
+      // The current project (registered first) is Contoso; the others get other fictitious names.
+      fake = projects++ === 0 ? "Contoso" : pick(PROJECTS, value, kind);
       break;
     case "name": {
       if (EMAIL.test(value)) return register("email", value);

@@ -51,6 +51,13 @@ Ele é calculado como Remaining − horas apontadas, mas você pode digitar outr
 **Não vejo Time agora nem Configurações.**
 São só para gestores (administradores de time ou e-mails listados nas configurações).
 
+**Trabalho em vários projetos. Preciso abrir o TicTask em cada um?**
+Não. Meu tempo, Resumo e Calendário mostram as suas horas de todos os projetos que você acessa, em
+qualquer projeto em que você abrir o hub. No Resumo, deixe **Todos os projetos** e marque **Projeto**
+em Linhas para ver o dia separado por projeto (bom para lançar em outro sistema de horas). Pausar,
+editar ou retomar algo de outro projeto grava naquele projeto, com as configurações dele. Para apontar
+uma task nova de outro projeto pelo Calendário ou por **Apontar horas**, abra o TicTask naquele projeto.
+
 **Usávamos o Time Log. Dá para trazer o histórico?**
 Sim, pelo CSV dele: veja [Migrar dados](Migrar-dados.md#do-time-log).
 

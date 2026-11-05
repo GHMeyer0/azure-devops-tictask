@@ -3,14 +3,15 @@ import { addDays, dayRange, formatDayMonth, formatDayShort, formatMonth, isWeeke
 import type { TimeEntry } from "./types";
 
 // "Resumo" (hub): like the TimeLog "Time Log Summary", a flat table with one column per dimension
-// (Pessoa, WI pai, Task, Atividade) and one per day, week or month. Repeated dimension values are
+// (Pessoa, Projeto, WI pai, Task, Atividade) and one per day, week or month. Repeated dimension values are
 // merged (rowSpan) instead of nested in a tree.
 
 export type Bucket = "day" | "week" | "month";
-export type Dim = "user" | "parent" | "task" | "activity";
+export type Dim = "user" | "project" | "parent" | "task" | "activity";
 
 export const DIMS: { value: Dim; label: string }[] = [
   { value: "user", label: "Pessoa" },
+  { value: "project", label: "Projeto" },
   { value: "parent", label: "WI pai" },
   { value: "task", label: "Task" },
   { value: "activity", label: "Atividade" },
@@ -89,10 +90,12 @@ function columnsOf(from: string, to: string, bucket: Bucket): SummaryColumn[] {
   return cols;
 }
 
-function cellOf(e: TimeEntry, dim: Dim): SummaryCell {
+function cellOf(e: TimeEntry, dim: Dim, projectNames?: Map<string, string>): SummaryCell {
   switch (dim) {
     case "user":
       return { key: e.userId, label: e.userName };
+    case "project":
+      return { key: e.projectId, label: projectNames?.get(e.projectId) ?? e.projectId };
     case "parent":
       return e.parentId
         ? { key: String(e.parentId), label: `#${e.parentId} ${e.parentTitle ?? ""}`.trim(), workItemId: e.parentId, title: e.parentTitle }
@@ -104,7 +107,7 @@ function cellOf(e: TimeEntry, dim: Dim): SummaryCell {
   }
 }
 
-/** Work items by id (no parent last), people and activities by name. */
+/** Work items by id (no parent last), people, projects and activities by name. */
 function compareCells(dim: Dim, a: SummaryCell, b: SummaryCell): number {
   if (dim === "parent" || dim === "task") {
     if (!a.workItemId || !b.workItemId) return (a.workItemId ? 0 : 1) - (b.workItemId ? 0 : 1);
@@ -118,7 +121,7 @@ function compareCells(dim: Dim, a: SummaryCell, b: SummaryCell): number {
  * at least one). `hideEmpty` drops columns without hours. Deleted entries and days outside the
  * range are ignored.
  */
-export function buildSummary(entries: TimeEntry[], opts: { from: string; to: string; bucket: Bucket; dims: Dim[]; hideEmpty: boolean }): Summary {
+export function buildSummary(entries: TimeEntry[], opts: { from: string; to: string; bucket: Bucket; dims: Dim[]; hideEmpty: boolean; projectNames?: Map<string, string> }): Summary {
   const { from, to, dims } = opts;
   let columns = columnsOf(from, to, opts.bucket);
   const colOfDay = new Map<string, number>();
@@ -129,7 +132,7 @@ export function buildSummary(entries: TimeEntry[], opts: { from: string; to: str
     const ci = colOfDay.get(e.date);
     if (e.deleted || ci === undefined) continue;
     const cells: Partial<Record<Dim, SummaryCell>> = {};
-    for (const d of dims) cells[d] = cellOf(e, d);
+    for (const d of dims) cells[d] = cellOf(e, d, opts.projectNames);
     const key = dims.map((d) => cells[d]!.key).join("\u0001");
     let item = items.get(key);
     if (!item) {

@@ -20,7 +20,8 @@ Service* do próprio Azure DevOps.
 - **Na US/Bug**: escolha uma task sua ou crie uma nova pela descrição; crie as tasks padrão com um clique.
 - **Estado da task** acompanha o trabalho, com motivos de pausa e próximo passo comentados na task e na US.
 - **Hub TicTask** (Boards): Meu tempo, Resumo (com exportação em PDF e CSV), Calendário e, para
-  gestores, Time agora e Configurações.
+  gestores, Time agora e Configurações. Meu tempo, Resumo e Calendário juntam as horas de todos os
+  projetos da organização.
 - **Auditoria**: cada apontamento guarda início, fim e pausas, quem apontou e a task antes e depois.
 - **Migração**: importa o histórico da extensão Time Log pelo CSV dela.
 

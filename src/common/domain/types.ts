@@ -205,4 +205,6 @@ export interface TaskInfo extends WorkItemSnapshot {
   rev?: number;
   /** Microsoft.VSTS.Common.StateChangeDate (ISO), when read. */
   stateChangedAt?: string;
+  /** Name of the project the work item belongs to (System.TeamProject), when read. */
+  project?: string;
 }

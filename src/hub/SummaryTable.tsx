@@ -6,8 +6,8 @@ import { WorkItemLink } from "../common/ui/components";
 
 // Widths of the dimension columns: fixed, so they can stay pinned on the left (sticky) while the
 // period columns scroll sideways. Narrower on HD screens, where the hub is ~1100px wide.
-const WIDE: Record<Dim, number> = { user: 170, parent: 240, task: 240, activity: 150 };
-const NARROW: Record<Dim, number> = { user: 140, parent: 190, task: 190, activity: 120 };
+const WIDE: Record<Dim, number> = { user: 170, project: 150, parent: 240, task: 240, activity: 150 };
+const NARROW: Record<Dim, number> = { user: 140, project: 120, parent: 190, task: 190, activity: 120 };
 const NARROW_QUERY = "(max-width: 1400px)";
 
 function useNarrow(): boolean {

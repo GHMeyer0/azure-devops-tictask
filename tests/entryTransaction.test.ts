@@ -29,7 +29,11 @@ vi.mock("azure-devops-extension-api", () => ({ getClient: () => ({}) }));
 vi.mock("azure-devops-extension-api/WorkItemTracking", () => ({ WorkItemTrackingServiceIds: { WorkItemFormService: "form" } }));
 vi.mock("../src/common/wit/witService", () => ({ applyWithRetry: async () => undefined, titlesOf: async () => new Map([[100, "Rotinas – Sprint 62"]]) }));
 
-const { createEntry, deleteEntry } = await import("../src/common/actions");
+vi.mock("../src/common/data/projects", () => ({
+  findProject: async (ref: { id?: string; name?: string }) => [{ id: "q", name: "Outro" }].find((p) => p.id === ref.id || p.name === ref.name),
+}));
+
+const { canEdit, createEntry, deleteEntry } = await import("../src/common/actions");
 
 const task: TaskInfo = { id: 11304, title: "Configurar máquina", type: "Task", state: "Active", parentId: 100, original: 4, remaining: 4, completed: 3 };
 
@@ -85,5 +89,32 @@ describe("deleteEntry", () => {
     await expect(deleteEntry(ctx, entry)).rejects.toThrow(/A exclusão do apontamento foi desfeito/);
     expect(live("tw-p-11304").map((e) => e.id)).toEqual(["e1"]);
     expect(live("te-p-202610").map((e) => e.id)).toEqual(["e1"]);
+  });
+});
+
+describe("task of another project", () => {
+  // The hub shows (and pauses the timer of) tasks of every project: the entry belongs to the task's
+  // project, and the Completed is the sum of that project's entries.
+  it("stores the entry in the task's project and sums that project's entries", async () => {
+    store.set("tw-q-11304", new Map([["old", { id: "old", projectId: "q", workItemId: 11304, minutes: 30, date: "2026-10-22", start: "x" } as TimeEntry]]));
+    store.set("tw-p-11304", new Map([["stray", { id: "stray", projectId: "p", workItemId: 11304, minutes: 600, date: "2026-10-22", start: "x" } as TimeEntry]]));
+    const writes: Record<string, unknown>[] = [];
+    const ctx = ctxWith(async (id, compute) => {
+      const changes = compute({ ...task, id });
+      if (changes) writes.push({ ...changes });
+      return { before: task, after: { ...task, ...changes } as TaskInfo };
+    });
+    const entry = await createEntry(ctx, { task: { ...task, project: "Outro" }, draft, close: false }, "timer");
+    expect(entry.projectId).toBe("q");
+    expect(live("te-q-202610").map((e) => e.id)).toEqual([entry.id]);
+    expect(live("te-p-202610")).toEqual([]);
+    expect(writes[0]).toMatchObject({ completed: 1.5 });
+  });
+
+  it("is not editable before its project's settings are read", () => {
+    const ctx = ctxWith(async () => ({ before: task, after: task }));
+    const e = { id: "e", projectId: "z", userId: "u1", date: "2026-11-05" } as TimeEntry;
+    expect(canEdit(ctx, e, "2026-11-05")).toBe(false);
+    expect(canEdit(ctx, { ...e, projectId: "p" }, "2026-11-05")).toBe(true);
   });
 });

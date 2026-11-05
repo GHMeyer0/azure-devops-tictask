@@ -16,9 +16,9 @@ export interface SummaryPdfMeta {
 }
 
 const MARGIN = 36;
-const DIM_WIDTH: Record<Dim, number> = { user: 95, parent: 160, task: 160, activity: 118 };
+const DIM_WIDTH: Record<Dim, number> = { user: 95, project: 80, parent: 160, task: 160, activity: 118 };
 /** Narrower dimensions when the period does not fit the page: more days per page. */
-const DIM_WIDTH_NARROW: Record<Dim, number> = { user: 70, parent: 88, task: 93, activity: 100 };
+const DIM_WIDTH_NARROW: Record<Dim, number> = { user: 70, project: 62, parent: 88, task: 93, activity: 100 };
 const PERIOD_WIDTH = 36;
 const TOTAL_WIDTH = 46;
 const ADO_BLUE: [number, number, number] = [0, 120, 212];

@@ -98,3 +98,26 @@ describe("month helpers", () => {
     expect(formatMonth("2026-10-26")).toBe("out/2026");
   });
 });
+
+describe("Projeto", () => {
+  const names = new Map([
+    ["p", "Contoso"],
+    ["q", "Fabrikam"],
+  ]);
+  const both = [entry({ minutes: 60 }), entry({ minutes: 30, projectId: "q", parentId: 2, parentTitle: "US B", workItemId: 30 }), entry({ minutes: 15, projectId: "q", parentId: 2, parentTitle: "US B", workItemId: 30 })];
+
+  it("groups by project name, with a subtotal per project", () => {
+    const s = buildSummary(both, { from: "2026-10-19", to: "2026-10-19", bucket: "day", dims: ["project", "parent"], hideEmpty: true, projectNames: names });
+    const items = s.rows.filter((r): r is SummaryItemRow => r.kind === "item");
+    expect(items.map((r) => [r.cells.project!.label, r.cells.parent!.label, r.total])).toEqual([
+      ["Contoso", "#1 US A", 60],
+      ["Fabrikam", "#2 US B", 45],
+    ]);
+    expect(summaryToCsv(s, ["project", "parent"]).split("\r\n")[0]).toContain("Projeto");
+  });
+
+  it("shows the id when the project name is unknown", () => {
+    const s = buildSummary(both, { from: "2026-10-19", to: "2026-10-19", bucket: "day", dims: ["project"], hideEmpty: true });
+    expect(s.rows.map((r) => (r.kind === "item" ? r.cells.project!.label : ""))).toEqual(["p", "q"]);
+  });
+});

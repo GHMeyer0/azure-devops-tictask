@@ -20,10 +20,12 @@ import { ArrowDownloadRegular, ChevronLeftRegular, ChevronRightRegular, TableSim
 import type { WebApiTeam } from "azure-devops-extension-api/Core";
 import { useEffect, useMemo, useState } from "react";
 import { canEdit, deleteEntry, editEntry, type Ctx } from "../common/actions";
-import { listByRange } from "../common/data/entriesRepo";
+import { loadEntries } from "../common/data/crossProject";
+import { peekSettings } from "../common/data/settingsRepo";
 import { entriesToCsv, summaryToCsv } from "../common/domain/csv";
 import { findActivity } from "../common/domain/settings";
 import { DIMS, buildSummary, type Bucket, type Dim } from "../common/domain/summary";
+import { PRESETS, presetRange, readPrefs, savePrefs, scopeOf, type Preset, type Prefs } from "./summaryPrefs";
 import { summaryPdfTable } from "../common/domain/summaryPdf";
 import { addDays, addMonths, daysBetween, formatDateBr, formatMinutes, monthEnd, monthStart, toLocalDate, weekStart } from "../common/domain/time";
 import type { TimeEntry } from "../common/domain/types";
@@ -52,98 +54,61 @@ const BUCKETS: { value: Bucket; label: string }[] = [
   { value: "month", label: "Por mês" },
 ];
 
-type Preset = "week" | "lastWeek" | "month" | "lastMonth";
-const PRESETS: { value: Preset; label: string }[] = [
-  { value: "week", label: "Esta semana" },
-  { value: "lastWeek", label: "Semana passada" },
-  { value: "month", label: "Este mês" },
-  { value: "lastMonth", label: "Mês passado" },
-];
-
-function presetRange(p: Preset, today: string): { from: string; to: string } {
-  const ws = weekStart(today);
-  switch (p) {
-    case "week":
-      return { from: ws, to: addDays(ws, 6) };
-    case "lastWeek":
-      return { from: addDays(ws, -7), to: addDays(ws, -1) };
-    case "month":
-      return { from: monthStart(today), to: monthEnd(today) };
-    case "lastMonth": {
-      const m = addMonths(monthStart(today), -1);
-      return { from: m, to: monthEnd(m) };
-    }
-  }
-}
-
-type Scope = { kind: "me" } | { kind: "all" } | { kind: "team"; teamId: string };
-
-interface Prefs {
-  bucket: Bucket;
-  dims: Dim[];
-  hideEmpty: boolean;
-  /** Also lists each entry (edit/delete), below the table. */
-  detailed: boolean;
-}
-const PREFS_KEY = "tt-summary";
-const DEFAULT_PREFS: Prefs = { bucket: "day", dims: ["user", "parent", "task", "activity"], hideEmpty: true, detailed: false };
-
-function readPrefs(): Prefs {
-  try {
-    const p = JSON.parse(localStorage.getItem(PREFS_KEY) ?? "null") as Partial<Prefs> | null;
-    const dims = p?.dims?.filter((d) => DIMS.some((x) => x.value === d));
-    return { ...DEFAULT_PREFS, ...p, dims: dims?.length ? dims : DEFAULT_PREFS.dims };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
-
 /**
- * Hours per person / US / task / activity across days, weeks or months (like the TimeLog "Time Log
- * Summary"), and optionally each entry with edit/delete ("Detalhado"). Non-managers only see their
- * own hours.
+ * Hours per person / project / US / task / activity across days, weeks or months (like the TimeLog
+ * "Time Log Summary"), and optionally each entry with edit/delete ("Detalhado"). Everyone sees their
+ * own hours in every project; other people's hours only where the user is a manager.
  */
 export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
   const st = useStyles();
   const today = toLocalDate(new Date());
-  const [{ from, to }, setRange] = useState(() => presetRange("month", today));
   const [prefs, setPrefs] = useState<Prefs>(readPrefs);
-  const [scope, setScope] = useState<Scope>({ kind: "me" });
-  const [person, setPerson] = useState("");
+  const [{ from, to }, setRange] = useState(() => presetRange(prefs.period, today));
+  const scope = scopeOf(prefs.scope);
+  const person = prefs.person;
+  const setPerson = (v: string) => setPrefs((p) => ({ ...p, person: v }));
   const [teams, setTeams] = useState<WebApiTeam[]>([]);
   const [members, setMembers] = useState<Set<string> | null>(null);
   const [entries, setEntries] = useState<TimeEntry[] | null>(null);
+  const [projectNames, setProjectNames] = useState<Map<string, string>>(new Map());
   const [loadError, setLoadError] = useState<string | null>(null);
   const [version, setVersion] = useState(0);
   const { busy, error, run } = useRunner();
 
-  useEffect(() => {
-    try {
-      localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
-    } catch {
-      /* storage unavailable */
-    }
-  }, [prefs]);
+  useEffect(() => savePrefs(prefs), [prefs]);
 
   useEffect(() => {
-    if (manager) coreClient().getTeams(ctx.projectId).then(setTeams).catch(() => setTeams([]));
+    if (!manager) return;
+    coreClient()
+      .getTeams(ctx.projectId)
+      .then((list) => {
+        setTeams(list);
+        // A saved team that no longer exists goes back to "Eu".
+        setPrefs((p) => (p.scope.startsWith("team:") && !list.some((t) => `team:${t.id}` === p.scope) ? { ...p, scope: "me", person: "" } : p));
+      })
+      .catch(() => setTeams([]));
   }, [ctx.projectId, manager]);
 
+  const teamId = scope.kind === "team" ? scope.teamId : null;
   useEffect(() => {
-    if (scope.kind !== "team") return setMembers(null);
+    if (!teamId) return setMembers(null);
     coreClient()
-      .getTeamMembersWithExtendedProperties(ctx.projectId, scope.teamId)
+      .getTeamMembersWithExtendedProperties(ctx.projectId, teamId)
       .then((m) => setMembers(new Set(m.map((x) => x.identity.id))))
       .catch(() => setMembers(new Set()));
-  }, [scope, ctx.projectId]);
+  }, [teamId, ctx.projectId]);
 
   useEffect(() => {
+    let current = true;
     setEntries(null);
     setLoadError(null);
-    listByRange(ctx.projectId, from, to)
-      .then(setEntries)
-      .catch((e) => setLoadError(errorMessage(e)));
-  }, [ctx.projectId, from, to, version]);
+    loadEntries(ctx, from, to, { allProjects: prefs.allProjects, others: manager, manager })
+      .then((r) => current && (setEntries(r.entries), setProjectNames(r.projects)))
+      .catch((e) => current && setLoadError(errorMessage(e)));
+    return () => {
+      current = false;
+    };
+  }, [ctx, manager, from, to, prefs.allProjects, version]);
   useTrackerEvents(null, () => setVersion((v) => v + 1));
 
   const singleUser = scope.kind === "me" || !manager;
@@ -168,7 +133,18 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
     const d = onePerson ? prefs.dims.filter((x) => x !== "user") : prefs.dims;
     return d.length ? d : (["task"] as Dim[]);
   }, [prefs.dims, onePerson]);
-  const summary = useMemo(() => buildSummary(visible, { from, to, bucket: prefs.bucket, dims, hideEmpty: prefs.hideEmpty }), [visible, from, to, prefs.bucket, prefs.hideEmpty, dims]);
+  const summary = useMemo(
+    () => buildSummary(visible, { from, to, bucket: prefs.bucket, dims, hideEmpty: prefs.hideEmpty, projectNames }),
+    [visible, from, to, prefs.bucket, prefs.hideEmpty, dims, projectNames],
+  );
+  // Activity colors: this project's settings first, then the other projects' (activities may differ).
+  const colorOf = (activity: string) => {
+    for (const s of [ctx.settings, ...[...projectNames.keys()].map(peekSettings)]) {
+      const color = s ? findActivity(s, activity)?.color : undefined;
+      if (color) return color;
+    }
+    return undefined;
+  };
 
   const preset = PRESETS.find((p) => {
     const r = presetRange(p.value, today);
@@ -199,7 +175,7 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
     const who = singleUser ? ctx.user.displayName : `${scopeLabel}${onePerson ? ` · ${people.find(([id]) => id === person)?.[1] ?? ""}` : ""}`;
     const generated = new Date();
     const blob = pdf.renderSummaryPdf(summaryPdfTable(summary, dims), {
-      title: `Resumo de horas · ${ctx.projectName}`,
+      title: `Resumo de horas · ${prefs.allProjects ? "todos os projetos" : ctx.projectName}`,
       lines: [
         `${formatDateBr(from)} a ${formatDateBr(to)} · ${BUCKETS.find((b) => b.value === prefs.bucket)!.label.toLowerCase()} · total ${formatMinutes(summary.total)}`,
         `Quem: ${who} · ${facts.join(" · ")}`,
@@ -227,7 +203,7 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
                     Resumo (PDF)
                   </MenuItem>
                   <MenuItem onClick={() => run(() => downloadText(`resumo_${from}_${to}.csv`, summaryToCsv(summary, dims)))}>Resumo (CSV)</MenuItem>
-                  <MenuItem onClick={() => run(() => downloadText(`apontamentos_${from}_${to}.csv`, entriesToCsv(visible)))}>Apontamentos detalhados (CSV)</MenuItem>
+                  <MenuItem onClick={() => run(() => downloadText(`apontamentos_${from}_${to}.csv`, entriesToCsv(visible, projectNames)))}>Apontamentos detalhados (CSV)</MenuItem>
                 </MenuList>
               </MenuPopover>
             </Menu>
@@ -237,7 +213,17 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
         <Tooltip content={`${unit[0].toUpperCase()}${unit.slice(1)} anterior`} relationship="label">
           <Button appearance="subtle" icon={<ChevronLeftRegular />} onClick={() => shift(-1)} />
         </Tooltip>
-        <Dropdown className={st.picker} aria-label="Período" value={preset?.label ?? "Personalizado"} selectedOptions={preset ? [preset.value] : []} onOptionSelect={(_, d) => setRange(presetRange(d.optionValue as Preset, today))}>
+        <Dropdown
+          className={st.picker}
+          aria-label="Período"
+          value={preset?.label ?? "Personalizado"}
+          selectedOptions={preset ? [preset.value] : []}
+          onOptionSelect={(_, d) => {
+            const p = d.optionValue as Preset;
+            setRange(presetRange(p, today));
+            setPrefs((x) => ({ ...x, period: p }));
+          }}
+        >
           {PRESETS.map((p) => (
             <Option key={p.value} value={p.value}>
               {p.label}
@@ -251,17 +237,25 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
         <span className={st.muted}>até</span>
         <DateInput className={st.date} ariaLabel="Até" value={to} minDate={from} onChange={(v) => v >= from && setRange({ from, to: v })} />
         <ToolbarDivider />
+        <Tooltip content="Suas horas aparecem em todos os projetos que você acessa; as de outras pessoas, nos projetos em que você é gestor." relationship="description">
+          <Dropdown
+            className={st.picker}
+            aria-label="Projetos"
+            value={prefs.allProjects ? "Todos os projetos" : "Este projeto"}
+            selectedOptions={[prefs.allProjects ? "all" : "this"]}
+            onOptionSelect={(_, d) => setPrefs((p) => ({ ...p, allProjects: d.optionValue === "all" }))}
+          >
+            <Option value="this">Este projeto</Option>
+            <Option value="all">Todos os projetos</Option>
+          </Dropdown>
+        </Tooltip>
         {manager && (
           <Dropdown
             className={st.picker}
             aria-label="Quem"
             value={`Quem: ${scopeLabel}`}
             selectedOptions={[scopeKey]}
-            onOptionSelect={(_, d) => {
-              const v = d.optionValue ?? "me";
-              setScope(v.startsWith("team:") ? { kind: "team", teamId: v.slice(5) } : { kind: v as "me" | "all" });
-              setPerson("");
-            }}
+            onOptionSelect={(_, d) => setPrefs((p) => ({ ...p, scope: d.optionValue ?? "me", person: "" }))}
           >
             <Option value="me">Eu</Option>
             <Option value="all">Todos</Option>
@@ -325,14 +319,21 @@ export function SummaryView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
             <EmptyState icon={<TableSimpleRegular />} title="Nenhum apontamento no período" />
           ) : (
             <div className={st.scroll}>
-              <SummaryTable summary={summary} dims={dims} colorOf={(a) => findActivity(ctx.settings, a)?.color} />
+              <SummaryTable summary={summary} dims={dims} colorOf={colorOf} />
             </div>
           )}
         </PageCard>
       )}
       {prefs.detailed && entries && (
-        <PageCard title={`Apontamentos (${visible.length})`} description="Cada apontamento com horário, atividade e comentário. Os seus podem ser editados ou excluídos até o limite de dias.">
-          <EntriesTable entries={visible} showTask canEdit={(e) => canEdit(ctx, e)} onEdit={(e) => run(() => editEntry(ctx, e))} onDelete={(e) => run(() => deleteEntry(ctx, e))} />
+        <PageCard title={`Apontamentos (${visible.length})`} description="Cada apontamento com horário, atividade e comentário. Os seus podem ser editados ou excluídos até o limite de dias do projeto dele.">
+          <EntriesTable
+            entries={visible}
+            showTask
+            projectOf={prefs.allProjects ? (e) => projectNames.get(e.projectId) ?? "" : undefined}
+            canEdit={(e) => canEdit(ctx, e)}
+            onEdit={(e) => run(() => editEntry(ctx, e))}
+            onDelete={(e) => run(() => deleteEntry(ctx, e))}
+          />
         </PageCard>
       )}
       {busy && <Spinner size="tiny" />}

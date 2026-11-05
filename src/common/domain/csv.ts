@@ -11,8 +11,10 @@ function cell(value: string | number | undefined | null): string {
   return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function entriesToCsv(entries: TimeEntry[]): string {
-  const header = ["Data", "Início", "Fim", "Horas", "Pausas", "Usuário", "E-mail", "Task", "Título", "WI pai", "Título do WI pai", "Atividade", "Comentário", "Motivo", "Origem", "Estado antes", "Estado depois", "Remaining depois", "Apontado em"];
+/** `projectNames` (by id) adds a Projeto column. */
+export function entriesToCsv(entries: TimeEntry[], projectNames?: Map<string, string>): string {
+  const project = projectNames ? ["Projeto"] : [];
+  const header = ["Data", "Início", "Fim", "Horas", "Pausas", "Usuário", "E-mail", ...project, "Task", "Título", "WI pai", "Título do WI pai", "Atividade", "Comentário", "Motivo", "Origem", "Estado antes", "Estado depois", "Remaining depois", "Apontado em"];
   const lines = [...entries]
     .filter((e) => !e.deleted)
     .sort((a, b) => a.start.localeCompare(b.start))
@@ -25,6 +27,7 @@ export function entriesToCsv(entries: TimeEntry[]): string {
         Math.max(0, e.segments.length - 1),
         e.userName,
         e.userEmail,
+        ...(projectNames ? [projectNames.get(e.projectId) ?? e.projectId] : []),
         e.workItemId,
         e.workItemTitle,
         e.parentId,

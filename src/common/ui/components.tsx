@@ -230,9 +230,11 @@ export function BreakdownBars({ items, colorOf }: { items: Breakdown[]; colorOf?
 }
 
 /** Entries list with start/end, pauses, who and actions (like the TimeLog "Time Log" tab). */
-export function EntriesTable({ entries, showTask, canEdit, onEdit, onDelete }: {
+export function EntriesTable({ entries, showTask, projectOf, canEdit, onEdit, onDelete }: {
   entries: TimeEntry[];
   showTask?: boolean;
+  /** Shows a Projeto column (entries of several projects). */
+  projectOf?: (e: TimeEntry) => string;
   canEdit: (e: TimeEntry) => boolean;
   onEdit: (e: TimeEntry) => void;
   onDelete: (e: TimeEntry) => void;
@@ -248,6 +250,7 @@ export function EntriesTable({ entries, showTask, canEdit, onEdit, onDelete }: {
           <TableHeaderCell style={{ width: 110 }}>Horário</TableHeaderCell>
           <TableHeaderCell style={{ width: 70 }}>Horas</TableHeaderCell>
           <TableHeaderCell>Usuário</TableHeaderCell>
+          {projectOf && <TableHeaderCell>Projeto</TableHeaderCell>}
           {showTask && <TableHeaderCell>Task</TableHeaderCell>}
           <TableHeaderCell>Atividade</TableHeaderCell>
           <TableHeaderCell>Comentário</TableHeaderCell>
@@ -275,6 +278,7 @@ export function EntriesTable({ entries, showTask, canEdit, onEdit, onDelete }: {
                   <Text weight="semibold">{formatMinutes(e.minutes)}</Text>
                 </TableCell>
                 <TableCell>{e.userName}</TableCell>
+                {projectOf && <TableCell>{projectOf(e)}</TableCell>}
                 {showTask && (
                   <TableCell>
                     <WorkItemLink id={e.workItemId} title={e.workItemTitle} />

@@ -21,9 +21,10 @@ export const F = {
   completed: "Microsoft.VSTS.Scheduling.CompletedWork",
   activity: "Microsoft.VSTS.Common.Activity",
   stateChangeDate: "Microsoft.VSTS.Common.StateChangeDate",
+  project: "System.TeamProject",
 } as const;
 
-export const INFO_FIELDS = [F.id, F.title, F.type, F.state, F.assignedTo, F.parent, F.area, F.iteration, F.rev, F.original, F.remaining, F.completed, F.activity, F.stateChangeDate];
+export const INFO_FIELDS = [F.id, F.title, F.type, F.state, F.assignedTo, F.parent, F.area, F.iteration, F.rev, F.original, F.remaining, F.completed, F.activity, F.stateChangeDate, F.project];
 
 /** Field changes the extension writes to a work item. */
 export interface FieldChanges {
@@ -67,6 +68,7 @@ export function toTaskInfo(fields: Record<string, unknown>, id: number): TaskInf
     completed: num(fields[F.completed]),
     // REST returns an ISO string, the form service a Date.
     stateChangedAt: fields[F.stateChangeDate] ? new Date(fields[F.stateChangeDate] as string).toISOString() : undefined,
+    project: (fields[F.project] as string | undefined) || undefined,
   };
 }
 
@@ -243,12 +245,13 @@ export async function searchTasks(projectName: string, taskType: string, closedS
   return ids.length ? getWorkItems(ids).then((list) => ids.map((id) => list.find((t) => t.id === id)!).filter(Boolean)) : [];
 }
 
-/** My tasks currently in one of `states` (e.g. Stopped/Waiting, or Active). */
-export async function myTasksInStates(projectName: string, taskType: string, states: string[]): Promise<TaskInfo[]> {
+/** My tasks currently in one of `states` (e.g. Stopped/Waiting, or Active), in a project or (null) in all of them. */
+export async function myTasksInStates(projectName: string | null, taskType: string, states: string[], top = 50): Promise<TaskInfo[]> {
   if (!states.length) return [];
   const esc = (s: string) => s.replace(/'/g, "''");
-  const query = `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project AND [System.WorkItemType] = '${esc(taskType)}' AND [System.AssignedTo] = @Me AND [System.State] IN (${states.map((s) => `'${esc(s)}'`).join(",")}) ORDER BY [System.ChangedDate] DESC`;
-  const result = await witClient().queryByWiql({ query }, projectName, undefined, false, 50);
+  const inProject = projectName ? "[System.TeamProject] = @project AND " : "";
+  const query = `SELECT [System.Id] FROM WorkItems WHERE ${inProject}[System.WorkItemType] = '${esc(taskType)}' AND [System.AssignedTo] = @Me AND [System.State] IN (${states.map((s) => `'${esc(s)}'`).join(",")}) ORDER BY [System.ChangedDate] DESC`;
+  const result = await witClient().queryByWiql({ query }, projectName ?? undefined, undefined, false, top);
   const ids = result.workItems.map((w) => w.id);
   return ids.length ? getWorkItems(ids) : [];
 }
