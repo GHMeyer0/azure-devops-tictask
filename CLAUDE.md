@@ -24,6 +24,14 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
   Wiki do GitHub pelo `wiki.yml`; links entre páginas `Pagina.md`, imagens `../img/…`, diagramas
   Mermaid), `README.md`, `overview.md` (página do marketplace, vai no .vsix: reempacotar se mudar),
   o site em `site/` (português e inglês, GitHub Pages pelo `site.yml`) e prints de `docs/img/`.
+- **Testes cobrindo os cenários:** toda mudança vem com testes automatizados (vitest) do cenário
+  inteiro, não só das funções auxiliares: o fluxo pelas ações (`actions.ts`) com Extension Data e
+  clientes do ADO em memória, como em `tests/multiProject.test.ts` e `tests/entryTransaction.test.ts`.
+  Cada bug corrigido ganha um teste que falha sem a correção (confira desligando a correção).
+- **Teste completo no ADO:** além dos automatizados, exercitar o comportamento com dados reais
+  (criar → ver em todas as telas afetadas → editar/excluir → conferir Completed/Remaining pela API) e
+  limpar depois. Em mudanças que envolvem projetos, testar também num projeto com outro processo
+  (Scrum/Basic, sem Active nem Stopped).
 - **Testar nas telas:** 1280×720, 1366×768, 1920×1080 e 1920×1200 (notebook do usuário, 2880×1800 a
   150%). Celular está fora de escopo.
 - **Antes de implementar algo grande**, discutir o desenho com o usuário; ele costuma querer revisar.
