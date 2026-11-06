@@ -37,7 +37,9 @@ retrabalho de revisão aparecer à parte.
 
 - **Estados**: o estado ativo (Active) e de quais estados a task vai para ele ao iniciar; os de pausa
   (vale o primeiro que o tipo de task tiver, ex.: Stopped); o de conclusão e os considerados fechados
-  (Closed). Estados configurados que o tipo de task não tem são ignorados.
+  (Closed). Estados de pausa que o tipo de task não tem são ignorados; o ativo e o de conclusão,
+  quando não existem no processo do projeto, viram o equivalente (In Progress, Done…: veja
+  [Projetos com outro processo](Preparar-o-processo.md#projetos-com-outro-processo)).
 - **Task fechada**: ao iniciar ou apontar numa task Closed, pedir confirmação e reabrir, ou bloquear.
 - **Motivos de pausa** e **próximos passos** ao concluir, cada um com a opção **Comenta no WI pai**.
   "Outro…", com texto livre, sempre aparece.

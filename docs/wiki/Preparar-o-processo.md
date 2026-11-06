@@ -18,6 +18,22 @@ pausa válido, a pausa aponta o tempo mas não muda o estado.
 > A extensão não cria estados: isso exige ser administrador do processo e daria a todos os usuários
 > da extensão permissão para alterar o processo da organização.
 
+## Projetos com outro processo
+
+Numa organização com vários projetos, cada um pode usar um processo diferente. Desde a 0.11.1 o
+TicTask confere os estados que o tipo de work item tem no projeto dele e troca o estado configurado
+pelo equivalente quando ele não existe ali:
+
+| Configurado | Usado quando não existe (o primeiro que o tipo tiver) |
+|---|---|
+| Em andamento (padrão **Active**) | In Progress (Scrum), Doing (Basic), Committed (PBI do Scrum) |
+| Concluída (padrão **Closed**) | Done, Completed, Resolved |
+| Pausa (padrão **Stopped**) | nenhum: a pausa aponta o tempo e a task fica como está |
+
+Assim, apontar numa task "To Do" de um projeto Scrum leva a task para **In Progress** e o PBI pai para
+**Committed**, em vez de uma gravação recusada. Até a 0.11.0 o TicTask tentava gravar "Active" e o
+Azure DevOps recusava (o apontamento era desfeito, com aviso).
+
 ## Regras de estimativa
 
 Alguns processos herdados têm regras na Task como:

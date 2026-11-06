@@ -56,6 +56,11 @@ outro projeto, editar um apontamento de outro projeto ou retomar uma task de lá
 com as configurações dele, e a soma do Completed lê os apontamentos daquele projeto. Até a 0.10, pausar
 um timer pela página de outro projeto gravava o apontamento no projeto da página.
 
+Os estados configurados também se adaptam ao tipo de work item no processo do projeto (`adaptStates`
+em `domain/state.ts`, aplicado por `taskCtx`/`forType`): sem **Active**, vale In Progress, Doing ou
+Committed; sem **Closed**, Done; estados de pausa ausentes saem da lista. Os testes de
+`tests/multiProject.test.ts` simulam uma organização com um projeto Agile e um Scrum.
+
 ## Regras de horas e estado
 
 - **Completed = soma dos apontamentos da task** (os excluídos não entram). Vale também para horas

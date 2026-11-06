@@ -1,13 +1,14 @@
 import { Badge, Button, Caption1, Spinner, Text, Tooltip, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
 import { AddRegular, CalendarClockRegular, CheckmarkCircleRegular, DeleteRegular, EditRegular, PlayRegular } from "@fluentui/react-icons";
 import { useCallback, useEffect, useState } from "react";
-import { canEdit, ctxFor, deleteEntry, editEntry, logTime, startTimer, type Ctx } from "../common/actions";
+import { canEdit, deleteEntry, editEntry, logTime, startTimer, taskCtx, type Ctx } from "../common/actions";
+import { ACTIVE_STATES } from "../common/domain/state";
 import { loadEntries } from "../common/data/crossProject";
 import { peekSettings } from "../common/data/settingsRepo";
 import { lastEntryByWorkItem, sum } from "../common/domain/aggregate";
 import { addDays, businessDaysBetween, daysBetween, formatDateBr, formatMinutes, toLocalDate, toLocalTime, weekStart } from "../common/domain/time";
 import { buildTodayTree, groupByParent, idleTasks, type ParentRef, type TodayGroup } from "../common/domain/tree";
-import type { Settings, TaskInfo, TimeEntry } from "../common/domain/types";
+import type { Settings, StateSettings, TaskInfo, TimeEntry } from "../common/domain/types";
 import { entryNote, ErrorBar, StateBadge, TimerControls, TypeBadge, WorkItemLink } from "../common/ui/components";
 import { EmptyState, PageCard } from "../common/ui/page";
 import { useCtx, useRunner, useTimer, useTimerHandlers, useTrackerEvents } from "../common/ui/hooks";
@@ -72,24 +73,25 @@ const unique = (ids: (number | undefined)[]) => [...new Set(ids.filter((id): id 
 /**
  * Everything "Meu tempo" shows, across the projects the user can open: entries of the last 30 days
  * and my tasks paused or active in any project. The tasks are queried with this project's task type
- * and states, then each one is checked against its own project's settings.
+ * and states (plus the usual "in progress" states of other processes), then each one is checked
+ * against its own project's settings, adapted to the states its type has there.
  */
 async function loadData(ctx: Ctx): Promise<Data> {
   const today = toLocalDate(new Date());
   const { pauseStates, active: activeState } = ctx.settings.states;
   const [{ entries }, mine] = await Promise.all([
     loadEntries(ctx, addDays(today, -30), today, { allProjects: true, others: false, manager: false }),
-    myTasksInStates(null, ctx.settings.taskType, [...new Set([...pauseStates, activeState])], 200),
+    myTasksInStates(null, ctx.settings.taskType, [...new Set([...pauseStates, activeState, ...ACTIVE_STATES])], 200),
   ]);
-  const settingsOf = new Map<string, Settings>();
+  const statesOf = new Map<number, StateSettings>();
   await Promise.all(
-    [...new Set(mine.map((t) => t.project ?? ctx.projectName))].map(async (name) => {
-      settingsOf.set(name, (await ctxFor(ctx, { name }).catch(() => ctx)).settings);
+    mine.map(async (t) => {
+      const c = await taskCtx(ctx, t).catch(() => null);
+      if (c) statesOf.set(t.id, c.settings.states);
     }),
   );
-  const states = (t: TaskInfo) => (settingsOf.get(t.project ?? ctx.projectName) ?? ctx.settings).states;
-  const paused = mine.filter((t) => states(t).pauseStates.includes(t.state));
-  const active = mine.filter((t) => t.state === states(t).active);
+  const paused = mine.filter((t) => statesOf.get(t.id)?.pauseStates.includes(t.state));
+  const active = mine.filter((t) => t.state === statesOf.get(t.id)?.active);
   const last = lastEntryByWorkItem(entries);
   const forgotten = active.map((task) => ({ task, last: last.get(task.id) })).filter((f) => !f.last || daysBetween(f.last, today) >= FORGOTTEN_DAYS);
   const pauseReason = new Map<number, string>();

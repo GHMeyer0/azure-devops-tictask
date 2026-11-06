@@ -45,6 +45,11 @@ function isNotFound(e: unknown): boolean {
 const RECENT_MS = 3 * 60_000;
 const recent = new Map<string, { entry: TimeEntry; removed?: boolean; at: number }>();
 
+/** Forgets the recent writes (tests: each scenario starts with an empty store). */
+export function forgetRecentWrites(): void {
+  recent.clear();
+}
+
 function remember(entry: TimeEntry, removed = false): void {
   recent.set(entry.id, { entry, removed, at: Date.now() });
 }

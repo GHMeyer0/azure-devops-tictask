@@ -13,13 +13,38 @@ export function decideStart(state: string, s: StateSettings): StartDecision {
   return { kind: "none" };
 }
 
+/** "Work in progress" states of the usual processes (Agile, Scrum, Basic, CMMI…), in order of preference. */
+export const ACTIVE_STATES = ["Active", "In Progress", "Doing", "Committed"];
+/** "Finished" states of the usual processes. */
+export const CLOSED_STATES = ["Closed", "Done", "Completed", "Resolved"];
+
+/**
+ * The configured states as a work item type really has them (`existing`: the type's states). A
+ * project with another process (e.g. Scrum: To Do / In Progress / Done, no Active or Stopped) gets
+ * the equivalent state instead of a save the process refuses ("The field 'State' contains the value
+ * 'Active' that is not in the list of supported values"). Unknown states (`existing` empty) keep
+ * the configuration; with no equivalent either, the configured state is kept.
+ */
+export function adaptStates(s: StateSettings, existing: string[]): StateSettings {
+  if (!existing.length) return s;
+  const has = (x: string) => existing.includes(x);
+  const pick = (configured: string, candidates: string[]) => (has(configured) ? configured : (candidates.find(has) ?? configured));
+  return {
+    ...s,
+    active: pick(s.active, ACTIVE_STATES),
+    closed: pick(s.closed, CLOSED_STATES),
+    pauseStates: s.pauseStates.filter(has),
+    parentActive: pick(s.parentActive, ACTIVE_STATES),
+  };
+}
+
 export function isClosedState(state: string, s: StateSettings): boolean {
   return s.closedStates.includes(state);
 }
 
 /** Parent (US/Bug) state to apply when work starts on one of its tasks, if any. */
 export function decideParentStart(parentState: string | undefined, s: StateSettings): string | null {
-  if (!parentState) return null;
+  if (!parentState || parentState === s.parentActive) return null;
   return s.parentAutoActivateFrom.includes(parentState) ? s.parentActive : null;
 }
 

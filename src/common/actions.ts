@@ -8,7 +8,7 @@ import { clearTimer, getTimer, isOlder, readTimerDoc, saveTimer, timerOf } from 
 import { openDialog, type LogDraft, type LogResult, type NewTaskInput } from "./dialogs";
 import { applyCreate, applyDelete, applyEdit, completedOf, currentRemaining, needsEstimate, withEntry } from "./domain/remaining";
 import { buildTaskTitle, CORRECTION, findActivity, guessActivity, reasonsOf } from "./domain/settings";
-import { decideParentStart, decideStart, isClosedState } from "./domain/state";
+import { adaptStates, decideParentStart, decideStart, isClosedState } from "./domain/state";
 import { addMinutesToTime, combineLocal, daysBetween, firstOpenDate, formatDateBr, formatMinutes, minutesBetweenTimes, minutesToHours, segmentsMs, toLocalDate, toLocalTime } from "./domain/time";
 import { closedSegments, isForgotten, MIN_LOG_MS } from "./domain/timer";
 import { isAssignedTo } from "./domain/tree";
@@ -45,8 +45,29 @@ export async function ctxFor(ctx: Ctx, ref: { id?: string; name?: string }): Pro
   return { ...ctx, projectId: project.id, projectName: project.name, settings: await getSettings(project.id) };
 }
 
-/** Context of the task's project (System.TeamProject). */
-export const taskCtx = (ctx: Ctx, task: { project?: string }) => ctxFor(ctx, { name: task.project });
+/**
+ * Context of the task's project (System.TeamProject), with the states adapted to the task's type
+ * in that project's process (e.g. In Progress / Done in a Scrum project): see adaptStates.
+ */
+export async function taskCtx(ctx: Ctx, task: { project?: string; type?: string }): Promise<Ctx> {
+  const c = await ctxFor(ctx, { name: task.project });
+  return task.type ? forType(c, task.type) : c;
+}
+
+/**
+ * The context with the states the work item type has in the context's project, always adapted
+ * from the project's configuration (not from states already adapted to another type).
+ */
+export async function forType(ctx: Ctx, type: string): Promise<Ctx> {
+  let existing: string[] = [];
+  try {
+    existing = await workItemTypeStates(ctx.projectName, type);
+  } catch {
+    /* unknown: the configuration is used as is */
+  }
+  const states = adaptStates(peekSettings(ctx.projectId)?.states ?? ctx.settings.states, existing);
+  return { ...ctx, settings: { ...ctx.settings, states } };
+}
 
 const snapshot = (t: TaskInfo): WorkItemSnapshot => ({ original: t.original, remaining: t.remaining, completed: t.completed, state: t.state });
 const now = () => new Date().toISOString();
@@ -84,6 +105,8 @@ function startStateChange(ctx: Ctx, current: TaskInfo): string | undefined {
 /** Moves the parent US/Bug to Active when it is still in a "proposed" state. */
 async function activateParent(ctx: Ctx, parentId: number | undefined): Promise<string | undefined> {
   if (!parentId) return undefined;
+  // The parent's own type decides its "active" state (Active, In Progress, Committed…).
+  ctx = await taskCtx(ctx, await getWorkItem(parentId));
   let stateAtStart: string | undefined;
   await ctx.writer.apply(parentId, (p) => {
     stateAtStart = p.state;
@@ -200,7 +223,7 @@ async function reworkTask(ctx: Ctx, task: TaskInfo): Promise<TaskInfo | null> {
 export async function resumeTimer(ctx: Ctx, shown: ActiveTimer): Promise<ActiveTimer | null> {
   const timer = await currentTimer(shown);
   if (!timer) return null;
-  ctx = await ctxFor(ctx, { id: timer.projectId });
+  ctx = await forType(await ctxFor(ctx, { id: timer.projectId }), timer.workItem.type);
   const paused = timer.pauses?.at(-1)?.state;
   if (paused) {
     await ctx.writer.apply(timer.workItem.id, (current) => (current.state === paused ? { state: ctx.settings.states.active } : null));
@@ -263,6 +286,7 @@ export async function pauseTimer(ctx: Ctx, shown: ActiveTimer, withReason = fals
   ctx = await ctxFor(ctx, { id: timer.projectId });
   const segments = closedSegments(timer, now());
   const task = await getWorkItem(timer.workItem.id);
+  ctx = await taskCtx(ctx, task);
   const pauseState = (await pauseStatesFor(ctx, task.type))[0];
 
   if (segmentsMs(segments) < MIN_LOG_MS && !withReason) {
@@ -309,6 +333,7 @@ export async function concludeTimer(ctx: Ctx, shown: ActiveTimer): Promise<TimeE
   if (!timer) return null;
   ctx = await ctxFor(ctx, { id: timer.projectId });
   const task = await getWorkItem(timer.workItem.id);
+  ctx = await taskCtx(ctx, task);
   const note = isForgotten(timer, ctx.settings)
     ? `O timer está rodando desde ${formatDateBr(toLocalDate(timer.segments.at(-1)!.start))} ${toLocalTime(timer.segments.at(-1)!.start)}. Confira o horário de fim em "editar horário manualmente".`
     : undefined;
@@ -649,7 +674,8 @@ export async function createChildTask(ctx: Ctx, parent: TaskInfo, input: NewTask
  * description), creates what is needed and starts the timer or opens the log dialog.
  */
 export async function startOnParent(ctx: Ctx, parent: TaskInfo, purpose: "timer" | "log"): Promise<void> {
-  ctx = await taskCtx(ctx, parent);
+  // The parent's project; the states follow each task's type later (startTimer / logTime).
+  ctx = await ctxFor(ctx, { name: parent.project });
   // A timer running elsewhere is paused by startTimer, after the choice: cancelling here keeps it running.
   const children = (await getChildren(parent.id)).filter((c) => isTask(ctx, c));
   const choice = await openDialog(purpose === "timer" ? `Iniciar apontamento – #${parent.id}` : `Apontar horas – #${parent.id}`, {
