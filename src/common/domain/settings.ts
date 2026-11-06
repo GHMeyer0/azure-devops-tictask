@@ -33,6 +33,7 @@ export const DEFAULT_SETTINGS: Settings = {
   titleWithActivityPrefix: false,
   lockDays: 7,
   postComment: false,
+  writeOriginalEstimate: true,
   teamPresence: true,
   managers: [],
   chat: {

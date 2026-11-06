@@ -87,7 +87,7 @@ export function PauseDialog({ request, onDone }: { request: PauseRequest; onDone
 
       {askEstimate && (
         <div style={{ width: 180 }}>
-          <DurationInput label="Estimativa da task" required minutes={estimate} onChange={setEstimate} hint="Task sem estimativa" />
+          <DurationInput label="Estimativa da task" required minutes={estimate} onChange={setEstimate} hint={settings.writeOriginalEstimate === false ? "Task sem estimativa: vai para o Remaining" : "Task sem estimativa"} />
         </div>
       )}
       {askRemaining && (

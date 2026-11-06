@@ -190,7 +190,7 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
         <div className={st.row}>
           {askEstimate && (
             <div style={{ width: 160 }}>
-              <DurationInput label="Estimativa da task" required minutes={estimate} onChange={setEstimate} hint="Task sem estimativa" />
+              <DurationInput label="Estimativa da task" required minutes={estimate} onChange={setEstimate} hint={settings.writeOriginalEstimate === false ? "Task sem estimativa: vai para o Remaining" : "Task sem estimativa"} />
             </div>
           )}
           <div style={{ width: 180 }}>

@@ -19,6 +19,10 @@ Configurações.
 - **Tipo de task**: o tipo onde as horas são apontadas (por padrão Task).
 - **Gestores adicionais**: e-mails que também são gestores.
 - **Registrar na discussão**: cada apontamento vira um comentário na task.
+- **Gravar o Original Estimate** (padrão ligado): a estimativa pedida numa task sem estimativa, e a das
+  tasks criadas, vai para o Original Estimate e o Remaining. Desligue quando o processo deixa o
+  Original Estimate somente leitura: ela vai só para o Remaining. Ligado, se o processo recusar o campo,
+  o TicTask grava sem ele e avisa (veja [Regras de estimativa](Preparar-o-processo.md#regras-de-estimativa)).
 - **Dias até bloquear a edição** (padrão 7): depois disso o autor não edita nem exclui o apontamento,
   e também não cria nem move apontamentos para antes dessa data. O tempo de um timer é sempre
   apontado, mesmo que tenha começado antes do limite.

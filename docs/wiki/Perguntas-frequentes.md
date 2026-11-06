@@ -8,9 +8,12 @@ Clique em **Pausar**: o TicTask percebe e pergunta até que horas você trabalho
 o bloco depois pelo **Calendário**.
 
 **Apareceu "TF401320: Rule Error for field Original Estimate".**
-O processo deixa o Original Estimate somente leitura quando a task está Active. Desde a 0.7.3 o
-TicTask grava a estimativa antes de mudar o estado, então o erro não deve mais aparecer. Se aparecer,
-tente de novo e avise quem administra a extensão. Veja [Preparar o processo](Preparar-o-processo.md#regras-de-estimativa).
+O processo deixa o Original Estimate somente leitura (sempre, ou com a task Active). Desde a 0.7.3 o
+TicTask grava a estimativa antes de mudar o estado e, desde a 0.11.3, quando o processo recusa o campo
+("Error code: ReadOnly"), grava de novo sem ele: a estimativa fica só no Remaining e aparece um aviso.
+Antes disso, pausar um timer numa task sem estimativa podia falhar e o timer não parava. Para não
+tentar gravar o campo, um gestor desliga *Configurações › Geral › Gravar o Original Estimate*. Veja
+[Preparar o processo](Preparar-o-processo.md#regras-de-estimativa).
 
 **Preciso pausar para tomar café?**
 Não. Pausar é largar a task por agora (outra task, reunião, almoço, fim do dia). O TicTask mede o

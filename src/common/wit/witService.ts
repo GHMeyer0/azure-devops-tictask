@@ -155,6 +155,8 @@ export interface NewTask {
   title: string;
   activityWit?: string;
   estimate?: number;
+  /** The estimate also goes to Original Estimate (not when the process keeps it read-only). */
+  writeOriginal?: boolean;
   assignedToEmail: string;
   taskType: string;
 }
@@ -170,7 +172,7 @@ export async function createTask(projectName: string, t: NewTask): Promise<TaskI
   if (t.parent.areaPath) ops.push({ op: "add", path: `/fields/${F.area}`, value: t.parent.areaPath });
   if (t.parent.iterationPath) ops.push({ op: "add", path: `/fields/${F.iteration}`, value: t.parent.iterationPath });
   if (t.estimate) {
-    ops.push({ op: "add", path: `/fields/${F.original}`, value: t.estimate });
+    if (t.writeOriginal !== false) ops.push({ op: "add", path: `/fields/${F.original}`, value: t.estimate });
     ops.push({ op: "add", path: `/fields/${F.remaining}`, value: t.estimate });
   }
   if (t.activityWit && allowed.includes(t.activityWit)) ops.push({ op: "add", path: `/fields/${F.activity}`, value: t.activityWit });

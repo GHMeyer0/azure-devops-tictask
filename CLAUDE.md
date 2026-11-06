@@ -131,7 +131,10 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
   New para Active e, com a task Active, deixar o Original Estimate somente leitura (até na mesma
   gravação). Por isso a estimativa é gravada antes do estado (duas revisões) e iniciar timer em task
   sem estimativa pede a estimativa.
-  Erro visto: `TF401320: Rule Error for field Original Estimate`.
+  Erro visto: `TF401320: Rule Error for field Original Estimate`. Há processos com o campo **sempre**
+  somente leitura (`Error code: ReadOnly, InvalidNotOldValue`): a gravação é repetida sem ele
+  (`withOriginalEstimate` em `actions.ts`, `isOriginalEstimateLocked` em `errors.ts`), e
+  `settings.writeOriginalEstimate` desliga o campo. Antes da 0.11.3 o timer não pausava.
 - O processo precisa do estado **Stopped** na Task; a extensão não cria estados.
 - `Microsoft.VSTS.Common.StateChangeDate` é lido com os campos da task (dias parada em Paradas).
 

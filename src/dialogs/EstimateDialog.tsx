@@ -26,7 +26,7 @@ export function EstimateDialog({ request, onDone }: { request: EstimateRequest; 
         <Caption1 className={st.muted}>A task ainda não tem estimativa, e o processo exige uma para começar o trabalho.</Caption1>
       </div>
       <div style={{ width: 180 }}>
-        <DurationInput label="Estimativa da task" required minutes={minutes} onChange={setMinutes} hint="Vira o Original Estimate e o Remaining" />
+        <DurationInput label="Estimativa da task" required minutes={minutes} onChange={setMinutes} hint={request.settings.writeOriginalEstimate === false ? "Vai para o Remaining (o Original Estimate não é gravado neste projeto)" : "Vira o Original Estimate e o Remaining"} />
       </div>
     </DialogShell>
   );

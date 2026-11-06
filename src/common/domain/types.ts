@@ -159,6 +159,11 @@ export interface Settings {
   lockDays: number;
   /** Also writes a line in the work item discussion for each entry. */
   postComment: boolean;
+  /**
+   * Writes the estimate asked for a task without one (and of created tasks) to Original Estimate,
+   * besides Remaining. Off for processes that keep Original Estimate read-only.
+   */
+  writeOriginalEstimate: boolean;
   /** Shares each user's timer status (running/paused, which task) with managers ("Time agora"). */
   teamPresence: boolean;
   /** Extra managers (e-mails) besides team administrators: see the team views and edit settings. */

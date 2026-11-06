@@ -4,3 +4,14 @@ export function errorMessage(e: unknown): string {
   const err = e as { message?: string; serverError?: { message?: string } };
   return err.serverError?.message ?? err.message ?? String(e);
 }
+
+/**
+ * The process refused the Original Estimate (e.g. "TF401320: Rule Error for field Original Estimate.
+ * Error code: ReadOnly, InvalidNotOldValue": a rule makes the field read-only). Seen in another
+ * organization on 05/11/2026: pausing a forgotten timer on a task without estimate was refused and
+ * the timer could not be stopped. The save is then repeated without the field.
+ */
+export function isOriginalEstimateLocked(e: unknown): boolean {
+  const m = errorMessage(e);
+  return /TF401320/.test(m) && /Original Estimate/i.test(m) && /ReadOnly|InvalidNotOldValue/i.test(m);
+}

@@ -45,6 +45,18 @@ O TicTask lida com isso: iniciar o timer numa task sem estimativa pede a estimat
 gravada numa revisão separada, antes da mudança de estado. Sem essa ordem, o ADO responde
 `TF401320: Rule Error for field Original Estimate`.
 
+Há processos que deixam o *Original Estimate* **sempre** somente leitura (`Error code: ReadOnly,
+InvalidNotOldValue`). Nesse caso a estimativa pedida pelo TicTask (ao iniciar, apontar ou pausar
+numa task sem estimativa, e ao criar tasks) não pode ir para o campo. Desde a 0.11.3:
+
+- o TicTask tenta gravar e, se o processo recusar, grava de novo sem o Original Estimate: a estimativa
+  fica só no *Remaining Work* e aparece um aviso;
+- para nem tentar, desligue *Configurações › Geral › Gravar o Original Estimate*. Os diálogos passam a
+  dizer que a estimativa vai para o Remaining.
+
+Não desligue num processo que **exige** o Original Estimate para começar (de New para Active): sem o
+campo, a mudança de estado é recusada.
+
 ## Tipos de WI pai
 
 O grupo do TicTask funciona como "US" (escolher ou criar a task, somar as horas das filhas) nos tipos

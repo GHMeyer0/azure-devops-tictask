@@ -207,6 +207,12 @@ export function SettingsView({ ctx, onSaved, initialSection }: { ctx: Ctx; onSav
               <SettingRow label="Registrar na discussão" description="Cada apontamento também vira uma linha na discussão da task.">
                 <Switch checked={s.postComment} onChange={(_, d) => set({ postComment: d.checked })} />
               </SettingRow>
+              <SettingRow
+                label="Gravar o Original Estimate"
+                description="A estimativa pedida numa task sem estimativa (e a das tasks criadas) vai para o Original Estimate e o Remaining. Desligue se o processo deixa o Original Estimate somente leitura: a estimativa vai só para o Remaining. Ligado, se o processo recusar o campo, o TicTask grava sem ele e avisa."
+              >
+                <Switch checked={s.writeOriginalEstimate} onChange={(_, d) => set({ writeOriginalEstimate: d.checked })} />
+              </SettingRow>
             </SettingsCard>
             <SettingsCard title="Visão do time">
               <SettingRow first label="Time agora" description="Gestores veem quem está com timer rodando ou pausado e em qual task. Desligado, o status de ninguém é compartilhado.">

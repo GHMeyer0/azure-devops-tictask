@@ -1,4 +1,4 @@
-import { errorMessage } from "./errors";
+import { errorMessage, isOriginalEstimateLocked } from "./errors";
 import { emit } from "./events";
 import { findProject } from "./data/projects";
 import { getSettings, peekSettings } from "./data/settingsRepo";
@@ -97,6 +97,23 @@ function startStateChange(ctx: Ctx, current: TaskInfo): string | undefined {
   return d.kind === "activate" || d.kind === "reopen" ? d.to : undefined;
 }
 
+/**
+ * Runs a save that may write Original Estimate. A process can keep the field read-only (rule
+ * "ReadOnly"): the save is repeated without it, the estimate stays only in Remaining and the user is
+ * told. With "Gravar o Original Estimate" off (Configurações › Geral) the field is never written.
+ */
+async function withOriginalEstimate<T>(ctx: Ctx, what: string, save: (writeOriginal: boolean) => Promise<T>): Promise<T> {
+  if (!ctx.settings.writeOriginalEstimate) return save(false);
+  try {
+    return await save(true);
+  } catch (e) {
+    if (!isOriginalEstimateLocked(e)) throw e;
+    const result = await save(false);
+    void toast(`O processo não deixa gravar o Original Estimate ${what}: a estimativa ficou só no Remaining.`);
+    return result;
+  }
+}
+
 /** Moves the parent US/Bug to Active when it is still in a "proposed" state. */
 async function activateParent(ctx: Ctx, parentId: number | undefined): Promise<string | undefined> {
   if (!parentId) return undefined;
@@ -158,7 +175,9 @@ export async function startTimer(ctx: Ctx, task: TaskInfo, activity?: string): P
   if (startStateChange(ctx, task) && needsEstimate(task)) {
     const answer = await openDialog(`Estimativa #${task.id}`, { kind: "estimate", task, settings: ctx.settings, activity: activity ?? defaultActivityFor(ctx, task) });
     if (!answer) return null;
-    await ctx.writer.apply(task.id, (current) => (needsEstimate(current) ? { original: answer.estimate, remaining: answer.estimate } : null));
+    await withOriginalEstimate(ctx, `da #${task.id}`, (writeOriginal) =>
+      ctx.writer.apply(task.id, (current) => (needsEstimate(current) ? { ...(writeOriginal ? { original: answer.estimate } : {}), remaining: answer.estimate } : null)),
+    );
   }
   let stateAtStart = task.state;
   await ctx.writer.apply(task.id, (current) => {
@@ -464,12 +483,12 @@ export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["sou
 
   let laterState: string | undefined;
   let first: { before: TaskInfo; after: TaskInfo };
-  try {
-    first = await ctx.writer.apply(r.task.id, (current) => {
+  const save = (writeOriginal: boolean) =>
+    ctx.writer.apply(r.task.id, (current) => {
       laterState = undefined;
       const upd = applyCreate(current, hours, r.estimate);
       const changes: FieldChanges = { completed, remaining: r.remaining ?? upd.remaining };
-      if (upd.original !== undefined) changes.original = upd.original;
+      if (upd.original !== undefined && writeOriginal) changes.original = upd.original;
       const starts = startStateChange(ctx, current);
       const to = r.close ? ctx.settings.states.closed : opts.pausing ? opts.pauseState : starts && (opts.pauseState ?? starts);
       // A process may lock Original Estimate by state (e.g. read-only once Active), also inside the
@@ -485,6 +504,8 @@ export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["sou
       if (lines.length) changes.history = lines.join("<br>");
       return changes;
     });
+  try {
+    first = await withOriginalEstimate(ctx, `da #${r.task.id}`, save);
   } catch (e) {
     throw await refused(r.task.id, e, { title: "Apontamento não registrado", what: "O apontamento" }, () => removeEntry(entry));
   }
@@ -654,14 +675,18 @@ export async function syncCompleted(ctx: Ctx, taskId: number): Promise<number | 
 
 export async function createChildTask(ctx: Ctx, parent: TaskInfo, input: NewTaskInput): Promise<TaskInfo> {
   const activity = findActivity(ctx.settings, input.activity);
-  return createTask(ctx.projectName, {
-    parent,
-    title: buildTaskTitle(ctx.settings, input.activity, input.description),
-    activityWit: activity?.witActivity,
-    estimate: input.estimate,
-    assignedToEmail: ctx.user.email,
-    taskType: ctx.settings.taskType,
-  });
+  const created = await withOriginalEstimate(ctx, "da task nova", (writeOriginal) =>
+    createTask(ctx.projectName, {
+      parent,
+      title: buildTaskTitle(ctx.settings, input.activity, input.description),
+      activityWit: activity?.witActivity,
+      estimate: input.estimate,
+      writeOriginal,
+      assignedToEmail: ctx.user.email,
+      taskType: ctx.settings.taskType,
+    }),
+  );
+  return created;
 }
 
 /**
