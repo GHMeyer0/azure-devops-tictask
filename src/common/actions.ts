@@ -8,7 +8,8 @@ import { clearTimer, getTimer, isOlder, readTimerDoc, saveTimer, timerOf } from 
 import { openDialog, type LogDraft, type LogResult, type NewTaskInput } from "./dialogs";
 import { applyCreate, applyDelete, applyEdit, completedOf, currentRemaining, needsEstimate, withEntry } from "./domain/remaining";
 import { buildTaskTitle, CORRECTION, findActivity, guessActivity, reasonsOf } from "./domain/settings";
-import { adaptStates, decideParentStart, decideStart, isClosedState } from "./domain/state";
+import { decideParentStart, decideStart, isClosedState } from "./domain/state";
+import { statesFor } from "./wit/typeStates";
 import { addMinutesToTime, combineLocal, daysBetween, firstOpenDate, formatDateBr, formatMinutes, minutesBetweenTimes, minutesToHours, segmentsMs, toLocalDate, toLocalTime } from "./domain/time";
 import { closedSegments, isForgotten, MIN_LOG_MS } from "./domain/timer";
 import { isAssignedTo } from "./domain/tree";
@@ -59,13 +60,7 @@ export async function taskCtx(ctx: Ctx, task: { project?: string; type?: string 
  * from the project's configuration (not from states already adapted to another type).
  */
 export async function forType(ctx: Ctx, type: string): Promise<Ctx> {
-  let existing: string[] = [];
-  try {
-    existing = await workItemTypeStates(ctx.projectName, type);
-  } catch {
-    /* unknown: the configuration is used as is */
-  }
-  const states = adaptStates(peekSettings(ctx.projectId)?.states ?? ctx.settings.states, existing);
+  const states = await statesFor(ctx.projectName, type, peekSettings(ctx.projectId)?.states ?? ctx.settings.states);
   return { ...ctx, settings: { ...ctx.settings, states } };
 }
 

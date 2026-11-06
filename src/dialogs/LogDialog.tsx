@@ -11,6 +11,7 @@ import type { TaskInfo } from "../common/domain/types";
 import { StateBadge, TypeBadge } from "../common/ui/components";
 import { DateInput, EndTimeInput, TimeInput } from "../common/ui/dateTime";
 import { errorMessage } from "../common/ui/hooks";
+import { statesFor } from "../common/wit/typeStates";
 import { getWorkItems, searchTasks } from "../common/wit/witService";
 import { DialogShell } from "./DialogShell";
 import { ActivityField, DurationInput, NO_REASON, ReasonField, reasonProblem, reasonResult, type ReasonValue } from "./fields";
@@ -49,6 +50,16 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
   const [remainingTouched, setRemainingTouched] = useState(false);
   const [close, setClose] = useState(!!request.conclude);
   const [nextStep, setNextStep] = useState<ReasonValue>(NO_REASON);
+  // The closed state of the chosen task's type in its project (e.g. Done in a Scrum/Basic project).
+  const [closedState, setClosedState] = useState(settings.states.closed);
+  useEffect(() => {
+    if (!task) return setClosedState(settings.states.closed);
+    let current = true;
+    void statesFor(task.project ?? request.projectName, task.type, settings.states).then((s) => current && setClosedState(s.closed));
+    return () => {
+      current = false;
+    };
+  }, [task, settings.states, request.projectName]);
 
   const bySegments = segments.length > 0;
   const hours = minutesToHours(minutes ?? 0);
@@ -193,7 +204,7 @@ export function LogDialog({ request, onDone }: { request: LogRequest; onDone: (r
         </div>
       )}
       {task && request.mode === "create" && !request.conclude && (
-        <Checkbox checked={close} onChange={(_, d) => changeClose(!!d.checked)} label={`Concluir a task (${settings.states.closed}): o trabalho terminou`} />
+        <Checkbox checked={close} onChange={(_, d) => changeClose(!!d.checked)} label={`Concluir a task (${closedState}): o trabalho terminou`} />
       )}
       {task && request.mode === "create" && remainingMinutes === 0 && !close && <Caption1 className={st.muted}>Remaining zerado: marque "Concluir a task" se o trabalho terminou.</Caption1>}
       {close && <ReasonField settings={settings} kind="conclude" label="Próximo passo" optional value={nextStep} onChange={setNextStep} />}

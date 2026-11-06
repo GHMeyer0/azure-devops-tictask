@@ -10,6 +10,7 @@ import { canEdit, deleteEntry, draftOf, editEntry, logTime, updateEntry, type Ct
 import { loadEntries } from "../common/data/crossProject";
 import { peekSettings } from "../common/data/settingsRepo";
 import { sum } from "../common/domain/aggregate";
+import { projectLabel } from "../common/domain/projectLabel";
 import { findActivity } from "../common/domain/settings";
 import { addDays, firstOpenDate, formatMinutes, toLocalDate, toLocalTime } from "../common/domain/time";
 import type { Settings, TimeEntry } from "../common/domain/types";
@@ -92,8 +93,8 @@ export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
   }, [ctx, manager, range, version]);
 
   const settingsOf = (e: TimeEntry): Settings => (e.projectId === ctx.projectId ? ctx.settings : (peekSettings(e.projectId) ?? ctx.settings));
-  // The project is named on the blocks only when the period has hours of more than one project.
-  const projectOf = (e: TimeEntry): string => (manyProjects ? (projectNames.get(e.projectId) ?? "") : "");
+  // Blocks of another project are always named; with several projects in the week, all of them are.
+  const projectOf = (e: TimeEntry): string => projectLabel(e.projectId, ctx.projectId, manyProjects, projectNames);
   useTrackerEvents(null, () => setVersion((v) => v + 1));
 
   const users = useMemo(() => {
@@ -259,7 +260,7 @@ export function CalendarView({ ctx, manager }: { ctx: Ctx; manager: boolean }) {
       {selected && (
         <div className={st.selected}>
           <Text weight="semibold">
-            {manyProjects || selected.projectId !== ctx.projectId ? `${projectNames.get(selected.projectId) ?? ""} · ` : ""}
+            {projectOf(selected) ? `${projectOf(selected)} · ` : ""}
             {selected.parentId ? `#${selected.parentId} ${selected.parentTitle ?? ""} › ` : ""}#{selected.workItemId} {selected.workItemTitle}
           </Text>
           <Text size={200}>

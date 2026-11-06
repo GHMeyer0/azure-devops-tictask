@@ -88,7 +88,8 @@ pai*). Até a versão 0.8 havia também a aba Timesheet, que virou o Resumo.
 ### Calendário
 
 Seus apontamentos na semana ou no dia, de todos os projetos, como uma agenda. Cada bloco mostra o item
-pai, a task, o horário e a atividade (e o projeto, quando a semana tem horas em mais de um).
+pai, a task, o horário e a atividade. Um bloco de outro projeto mostra também o nome do projeto (e,
+quando a semana mistura projetos, todos os blocos mostram).
 
 ![Calendário](../img/hub-calendario.jpg)
 
