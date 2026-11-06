@@ -15,6 +15,12 @@ Antes disso, pausar um timer numa task sem estimativa podia falhar e o timer nã
 tentar gravar o campo, um gestor desliga *Configurações › Geral › Gravar o Original Estimate*. Veja
 [Preparar o processo](Preparar-o-processo.md#regras-de-estimativa).
 
+**Apareceu "The field 'State' contains the value '…' that is not in the list of supported values".**
+O processo do projeto não tem esse estado (por exemplo, a task usa Aberto / Em Desenvolvimento /
+Fechado em vez de New / Active / Closed). Desde a 0.11.4 o TicTask acha o equivalente pela categoria do
+estado e, se ainda assim o estado for recusado, aponta as horas sem mudar o estado e avisa. Veja
+[Projetos com outro processo](Preparar-o-processo.md#projetos-com-outro-processo).
+
 **Preciso pausar para tomar café?**
 Não. Pausar é largar a task por agora (outra task, reunião, almoço, fim do dia). O TicTask mede o
 esforço em cada task, não é ponto.

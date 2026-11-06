@@ -1,4 +1,4 @@
-import { errorMessage, isOriginalEstimateLocked } from "./errors";
+import { errorMessage, isOriginalEstimateLocked, unsupportedState } from "./errors";
 import { emit } from "./events";
 import { findProject } from "./data/projects";
 import { getSettings, peekSettings } from "./data/settingsRepo";
@@ -97,20 +97,40 @@ function startStateChange(ctx: Ctx, current: TaskInfo): string | undefined {
   return d.kind === "activate" || d.kind === "reopen" ? d.to : undefined;
 }
 
+/** What a save may leave out when the process refuses it. */
+interface SaveParts {
+  /** Original Estimate (refused when the process keeps it read-only). */
+  original: boolean;
+  /** The state change (refused when the state does not exist for the type). */
+  state: boolean;
+}
+
 /**
- * Runs a save that may write Original Estimate. A process can keep the field read-only (rule
- * "ReadOnly"): the save is repeated without it, the estimate stays only in Remaining and the user is
- * told. With "Gravar o Original Estimate" off (Configurações › Geral) the field is never written.
+ * Runs a save of the task without losing the hours to a process rule about something else:
+ * - Original Estimate read-only ("ReadOnly"): saved again without it, the estimate stays only in
+ *   Remaining. With "Gravar o Original Estimate" off (Configurações › Geral) it is never written.
+ * - a state the type does not have ("not in the list of supported values", e.g. "Closed" in a
+ *   process with states of its own): saved again without the state change.
+ * Each case is told to the user. Any other refusal goes to the caller (the entry is undone).
  */
-async function withOriginalEstimate<T>(ctx: Ctx, what: string, save: (writeOriginal: boolean) => Promise<T>): Promise<T> {
-  if (!ctx.settings.writeOriginalEstimate) return save(false);
-  try {
-    return await save(true);
-  } catch (e) {
-    if (!isOriginalEstimateLocked(e)) throw e;
-    const result = await save(false);
-    void toast(`O processo não deixa gravar o Original Estimate ${what}: a estimativa ficou só no Remaining.`);
-    return result;
+async function tolerantSave<T>(ctx: Ctx, what: string, save: (parts: SaveParts) => Promise<T>): Promise<T> {
+  const parts: SaveParts = { original: ctx.settings.writeOriginalEstimate, state: true };
+  const notices: string[] = [];
+  for (;;) {
+    try {
+      const result = await save({ ...parts });
+      for (const n of notices) void toast(n);
+      return result;
+    } catch (e) {
+      const state = unsupportedState(e);
+      if (parts.original && isOriginalEstimateLocked(e)) {
+        parts.original = false;
+        notices.push(`O processo não deixa gravar o Original Estimate ${what}: a estimativa ficou só no Remaining.`);
+      } else if (parts.state && state !== null) {
+        parts.state = false;
+        notices.push(`O estado "${state}" não existe ${what} neste processo: as horas foram apontadas e o estado ficou como estava. Ajuste o estado na task.`);
+      } else throw e;
+    }
   }
 }
 
@@ -175,18 +195,20 @@ export async function startTimer(ctx: Ctx, task: TaskInfo, activity?: string): P
   if (startStateChange(ctx, task) && needsEstimate(task)) {
     const answer = await openDialog(`Estimativa #${task.id}`, { kind: "estimate", task, settings: ctx.settings, activity: activity ?? defaultActivityFor(ctx, task) });
     if (!answer) return null;
-    await withOriginalEstimate(ctx, `da #${task.id}`, (writeOriginal) =>
-      ctx.writer.apply(task.id, (current) => (needsEstimate(current) ? { ...(writeOriginal ? { original: answer.estimate } : {}), remaining: answer.estimate } : null)),
+    await tolerantSave(ctx, `da #${task.id}`, ({ original }) =>
+      ctx.writer.apply(task.id, (current) => (needsEstimate(current) ? { ...(original ? { original: answer.estimate } : {}), remaining: answer.estimate } : null)),
     );
   }
   let stateAtStart = task.state;
-  await ctx.writer.apply(task.id, (current) => {
-    stateAtStart = current.state;
-    const to = startStateChange(ctx, current);
-    if (!to) return null;
-    // Remaining is required with the estimate when work starts: fill it from the estimate when empty.
-    return current.remaining == null && current.original != null ? { state: to, remaining: currentRemaining(current) } : { state: to };
-  });
+  await tolerantSave(ctx, `da #${task.id}`, ({ state }) =>
+    ctx.writer.apply(task.id, (current) => {
+      stateAtStart = current.state;
+      const to = state ? startStateChange(ctx, current) : undefined;
+      if (!to) return null;
+      // Remaining is required with the estimate when work starts: fill it from the estimate when empty.
+      return current.remaining == null && current.original != null ? { state: to, remaining: currentRemaining(current) } : { state: to };
+    }),
+  );
   const parentStateAtStart = await activateParent(ctx, task.parentId);
   const parent = await withParentTitle(task);
 
@@ -240,7 +262,9 @@ export async function resumeTimer(ctx: Ctx, shown: ActiveTimer): Promise<ActiveT
   ctx = await forType(await ctxFor(ctx, { id: timer.projectId }), timer.workItem.type);
   const paused = timer.pauses?.at(-1)?.state;
   if (paused) {
-    await ctx.writer.apply(timer.workItem.id, (current) => (current.state === paused ? { state: ctx.settings.states.active } : null));
+    await tolerantSave(ctx, `da #${timer.workItem.id}`, ({ state }) =>
+      ctx.writer.apply(timer.workItem.id, (current) => (state && current.state === paused ? { state: ctx.settings.states.active } : null)),
+    );
     emit({ type: "workitems", workItemIds: [timer.workItem.id] });
   }
   return saveTimer({ ...timer, status: "running", segments: [...timer.segments, { start: now() }] });
@@ -483,17 +507,17 @@ export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["sou
 
   let laterState: string | undefined;
   let first: { before: TaskInfo; after: TaskInfo };
-  const save = (writeOriginal: boolean) =>
+  const save = (parts: SaveParts) =>
     ctx.writer.apply(r.task.id, (current) => {
       laterState = undefined;
       const upd = applyCreate(current, hours, r.estimate);
       const changes: FieldChanges = { completed, remaining: r.remaining ?? upd.remaining };
-      if (upd.original !== undefined && writeOriginal) changes.original = upd.original;
+      if (upd.original !== undefined && parts.original) changes.original = upd.original;
       const starts = startStateChange(ctx, current);
       const to = r.close ? ctx.settings.states.closed : opts.pausing ? opts.pauseState : starts && (opts.pauseState ?? starts);
       // A process may lock Original Estimate by state (e.g. read-only once Active), also inside the
       // save that sets it: the estimate goes first and the state in a second save.
-      if (to && to !== current.state) {
+      if (to && to !== current.state && parts.state) {
         if (changes.original !== undefined) laterState = to;
         else changes.state = to;
       }
@@ -505,7 +529,7 @@ export async function createEntry(ctx: Ctx, r: LogResult, source: TimeEntry["sou
       return changes;
     });
   try {
-    first = await withOriginalEstimate(ctx, `da #${r.task.id}`, save);
+    first = await tolerantSave(ctx, `da #${r.task.id}`, save);
   } catch (e) {
     throw await refused(r.task.id, e, { title: "Apontamento não registrado", what: "O apontamento" }, () => removeEntry(entry));
   }
@@ -675,7 +699,7 @@ export async function syncCompleted(ctx: Ctx, taskId: number): Promise<number | 
 
 export async function createChildTask(ctx: Ctx, parent: TaskInfo, input: NewTaskInput): Promise<TaskInfo> {
   const activity = findActivity(ctx.settings, input.activity);
-  const created = await withOriginalEstimate(ctx, "da task nova", (writeOriginal) =>
+  const created = await tolerantSave(ctx, "da task nova", ({ original: writeOriginal }) =>
     createTask(ctx.projectName, {
       parent,
       title: buildTaskTitle(ctx.settings, input.activity, input.description),

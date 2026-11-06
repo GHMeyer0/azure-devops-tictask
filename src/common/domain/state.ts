@@ -18,23 +18,39 @@ export const ACTIVE_STATES = ["Active", "In Progress", "Doing", "Committed"];
 /** "Finished" states of the usual processes. */
 export const CLOSED_STATES = ["Closed", "Done", "Completed", "Resolved"];
 
+/** A state of the work item type: its name, or name and category (Proposed, InProgress, Completed…). */
+export type ExistingState = string | { name: string; category?: string };
+
 /**
  * The configured states as a work item type really has them (`existing`: the type's states). A
  * project with another process (e.g. Scrum: To Do / In Progress / Done, no Active or Stopped) gets
  * the equivalent state instead of a save the process refuses ("The field 'State' contains the value
- * 'Active' that is not in the list of supported values"). Unknown states (`existing` empty) keep
- * the configuration; with no equivalent either, the configured state is kept.
+ * 'Active' that is not in the list of supported values"). The usual names come first; then the
+ * state category decides, which also covers states with names of their own (e.g. "Em andamento",
+ * "Concluído": seen in another organization on 06/11/2026 with "Closed" refused). Unknown states
+ * (`existing` empty) keep the configuration; with no equivalent either, the configured state is kept.
  */
-export function adaptStates(s: StateSettings, existing: string[]): StateSettings {
+export function adaptStates(s: StateSettings, existing: ExistingState[]): StateSettings {
   if (!existing.length) return s;
-  const has = (x: string) => existing.includes(x);
-  const pick = (configured: string, candidates: string[]) => (has(configured) ? configured : (candidates.find(has) ?? configured));
+  const states = existing.map((x) => (typeof x === "string" ? { name: x, category: undefined } : x));
+  const names = states.map((x) => x.name);
+  const has = (x: string) => names.includes(x);
+  const inCategory = (...categories: string[]) => states.filter((x) => x.category && categories.includes(x.category)).map((x) => x.name);
+  // A pause state (e.g. Stopped, category In Progress) is never the "working" state.
+  const working = inCategory("InProgress").filter((x) => !s.pauseStates.includes(x));
+  const pick = (configured: string, candidates: string[], byCategory: string[]) =>
+    has(configured) ? configured : (candidates.find(has) ?? byCategory[0] ?? configured);
+  const union = (a: string[], b: string[]) => [...new Set([...a, ...b])];
   return {
     ...s,
-    active: pick(s.active, ACTIVE_STATES),
-    closed: pick(s.closed, CLOSED_STATES),
+    active: pick(s.active, ACTIVE_STATES, working),
+    closed: pick(s.closed, CLOSED_STATES, inCategory("Completed")),
     pauseStates: s.pauseStates.filter(has),
-    parentActive: pick(s.parentActive, ACTIVE_STATES),
+    parentActive: pick(s.parentActive, ACTIVE_STATES, working),
+    // States of the process that mean "not started" or "finished", whatever their names.
+    autoActivateFrom: union(s.autoActivateFrom, inCategory("Proposed")),
+    closedStates: union(s.closedStates, inCategory("Completed", "Removed")),
+    parentAutoActivateFrom: union(s.parentAutoActivateFrom, inCategory("Proposed")),
   };
 }
 

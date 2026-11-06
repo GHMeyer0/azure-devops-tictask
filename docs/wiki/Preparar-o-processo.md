@@ -34,6 +34,13 @@ Assim, apontar numa task "To Do" de um projeto Scrum leva a task para **In Progr
 **Committed**, em vez de uma gravação recusada. Até a 0.11.0 o TicTask tentava gravar "Active" e o
 Azure DevOps recusava (o apontamento era desfeito, com aviso).
 
+**Estados com nomes próprios** (ex.: Aberto / Em Desenvolvimento / Fechado / Removido, com os
+herdados ocultos): desde a 0.11.4, quando nenhum nome da tabela existe, vale a **categoria** do estado
+no processo: o primeiro estado *In Progress* (que não seja de pausa) é o de andamento, o primeiro
+*Completed* é o de conclusão, os *Proposed* começam o trabalho e os *Completed*/*Removed* contam como
+fechados. Se mesmo assim o processo recusar o estado ("not in the list of supported values"), as horas
+são apontadas, o estado da task fica como estava e aparece um aviso para ajustar o estado à mão.
+
 ## Regras de estimativa
 
 Alguns processos herdados têm regras na Task como:

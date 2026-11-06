@@ -56,6 +56,7 @@ vi.mock("../src/common/wit/witService", () => ({
   getWorkItem: async (id: number) => structuredClone(items.get(id)!),
   titlesOf: async (ids: number[]) => new Map(ids.map((id) => [id, items.get(id)?.title ?? ""])),
   workItemTypeStates: async (project: string, type: string) => STATES[project]?.[type] ?? [],
+  workItemTypeStateInfo: async (project: string, type: string) => STATES[project]?.[type] ?? [],
 }));
 vi.mock("../src/common/data/timerRepo", () => ({
   readTimerDoc: async () => timerDoc,

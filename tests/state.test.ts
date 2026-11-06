@@ -35,3 +35,27 @@ describe("adaptStates", () => {
     expect(adaptStates(s, ["Open", "Fixed"])).toMatchObject({ active: "Active", closed: "Closed" });
   });
 });
+
+describe("adaptStates by state category", () => {
+  const OWN = [
+    { name: "Novo", category: "Proposed" },
+    { name: "Parado", category: "InProgress" },
+    { name: "Em andamento", category: "InProgress" },
+    { name: "Concluído", category: "Completed" },
+    { name: "Removido", category: "Removed" },
+  ];
+
+  it("finds Active/Closed in a process with states of its own", () => {
+    const a = adaptStates({ ...s, pauseStates: ["Stopped", "Parado"] }, OWN);
+    // "Parado" is a pause state, so it is never the working state even being In Progress.
+    expect(a).toMatchObject({ active: "Em andamento", closed: "Concluído", pauseStates: ["Parado"] });
+    expect(decideStart("Novo", a)).toEqual({ kind: "activate", to: "Em andamento" });
+    expect(decideStart("Concluído", a)).toEqual({ kind: "reopen", to: "Em andamento" });
+    expect(decideStart("Removido", a)).toEqual({ kind: "reopen", to: "Em andamento" });
+  });
+
+  it("prefers the usual names over the category order", () => {
+    const a = adaptStates(s, [{ name: "New", category: "Proposed" }, { name: "Stopped", category: "InProgress" }, { name: "Active", category: "InProgress" }, { name: "Closed", category: "Completed" }]);
+    expect(a).toMatchObject({ active: "Active", closed: "Closed", pauseStates: ["Stopped"] });
+  });
+});

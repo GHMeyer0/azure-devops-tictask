@@ -17,6 +17,10 @@ const attempts: FieldChanges[] = [];
 const toasts: string[] = [];
 const created: NewTask[] = [];
 let refuse: string | null = LOCKED;
+/** States the process accepts on the task (null: any); others are refused like ADO does. */
+let accepted: string[] | null = null;
+/** States of the type as the API reports them (empty: could not be read). */
+let stateInfo: { name: string; category: string }[] = [];
 let timerDoc: ActiveTimer | null = null;
 
 vi.mock("../src/common/sdk", () => ({
@@ -47,6 +51,7 @@ vi.mock("../src/common/wit/witService", () => ({
   getWorkItem: async (id: number) => structuredClone(items.get(id)!),
   titlesOf: async (ids: number[]) => new Map(ids.map((id) => [id, items.get(id)?.title ?? ""])),
   workItemTypeStates: async () => ["New", "Active", "Stopped", "Closed"],
+  workItemTypeStateInfo: async () => stateInfo,
   getChildren: async () => [],
   // A process with the rule refuses a new task that sets Original Estimate too.
   createTask: async (_project: string, t: NewTask) => {
@@ -88,6 +93,8 @@ function ctx(writeOriginalEstimate = true): Ctx {
         if (!changes) return { before, after: before };
         attempts.push(changes);
         if (refuse && changes.original !== undefined) throw new Error(refuse);
+        if (accepted && changes.state && !accepted.includes(changes.state))
+          throw new Error(`The field 'State' contains the value '${changes.state}' that is not in the list of supported values`);
         const { history: _h, ...fields } = changes;
         const after = { ...before, ...fields } as TaskInfo;
         items.set(id, after);
@@ -107,6 +114,8 @@ beforeEach(() => {
   toasts.length = 0;
   created.length = 0;
   refuse = LOCKED;
+  accepted = null;
+  stateInfo = [];
   timerDoc = null;
   items.set(100, { id: 100, title: "História", type: "User Story", state: "Active", original: null, remaining: null, completed: null });
   // No estimate at all (neither Original Estimate nor Remaining), like the friend's #19100.
@@ -179,5 +188,45 @@ describe("Original Estimate read-only in the process", () => {
     await expect(createEntry(ctx(), { task: items.get(19100)!, draft, close: false, estimate: 2 }, "manual")).rejects.toThrow(/O apontamento foi desfeito/);
     expect(attempts).toHaveLength(1);
     expect(live("tw-p-19100")).toEqual([]);
+  });
+});
+
+// The friend's process: Aberto / Em Desenvolvimento / Fechado / Removido, inherited New/Active/Closed hidden (seen in another organization on 06/11/2026: "The field 'State'
+// contains the value 'Closed' that is not in the list of supported values" on Concluir).
+const OWN = [
+  { name: "Aberto", category: "Proposed" },
+  { name: "Em Desenvolvimento", category: "InProgress" },
+  { name: "Fechado", category: "Completed" },
+  { name: "Removido", category: "Removed" },
+];
+const draft = { date: "2026-11-06", startTime: "09:00", endTime: "10:00", minutes: 60, segments: [], activity: "Testes", comment: "" };
+
+describe("states the process does not have", () => {
+  beforeEach(() => {
+    refuse = null;
+    accepted = OWN.map((x) => x.name);
+    items.set(19100, { ...items.get(19100)!, state: "Em Desenvolvimento", original: 4, remaining: 4 });
+  });
+
+  it("concludes with the process's own Completed state (Fechado)", async () => {
+    stateInfo = OWN;
+    await createEntry(ctx(), { task: items.get(19100)!, draft, close: true }, "timer");
+    expect(items.get(19100)).toMatchObject({ state: "Fechado", completed: 1 });
+    expect(toasts).toEqual([]);
+  });
+
+  it("starts work with its own In Progress state (Em Desenvolvimento)", async () => {
+    stateInfo = OWN;
+    items.set(19102, { id: 19102, title: "Outra", type: "Task", state: "Aberto", parentId: 100, original: 2, remaining: 2, completed: null });
+    await startTimer(ctx(), items.get(19102)!);
+    expect(items.get(19102)!.state).toBe("Em Desenvolvimento");
+  });
+
+  it("keeps the hours when the state is refused anyway (states could not be read)", async () => {
+    stateInfo = [];
+    const entry = await createEntry(ctx(), { task: items.get(19100)!, draft, close: true }, "timer");
+    expect(live("tw-p-19100").map((e) => e.id)).toEqual([entry.id]);
+    expect(items.get(19100)).toMatchObject({ state: "Em Desenvolvimento", completed: 1, remaining: 3 });
+    expect(toasts).toEqual(['O estado "Closed" não existe da #19100 neste processo: as horas foram apontadas e o estado ficou como estava. Ajuste o estado na task.']);
   });
 });

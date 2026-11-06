@@ -216,6 +216,36 @@ export function workItemTypes(projectName: string): Promise<string[]> {
   );
 }
 
+/** A state of a work item type and its category (Proposed, InProgress, Resolved, Completed, Removed). */
+export interface TypeState {
+  name: string;
+  category: string;
+}
+
+const stateInfoCache = new Map<string, Promise<TypeState[]>>();
+
+/**
+ * States of a work item type with their categories, in the process order. The category does not
+ * depend on the name the process gave the state (e.g. "Concluído" is Completed), so it finds the
+ * equivalent of Active/Closed in any process. Failures resolve to [] and are not cached.
+ */
+export function workItemTypeStateInfo(projectName: string, type: string): Promise<TypeState[]> {
+  if (!type.trim()) return Promise.resolve([]);
+  const key = `${projectName}/${type}`;
+  let p = stateInfoCache.get(key);
+  if (!p) {
+    p = witClient()
+      .getWorkItemTypeStates(projectName, type)
+      .then((states) => states.map((s) => ({ name: s.name, category: s.category })))
+      .catch(() => {
+        stateInfoCache.delete(key);
+        return [];
+      });
+    stateInfoCache.set(key, p);
+  }
+  return p;
+}
+
 /** States of a work item type, in the process order. */
 export function workItemTypeStates(projectName: string, type: string): Promise<string[]> {
   if (!type.trim()) return Promise.resolve([]);

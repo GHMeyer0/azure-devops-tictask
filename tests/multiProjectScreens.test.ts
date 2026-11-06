@@ -9,7 +9,7 @@ const STATES: Record<string, Record<string, string[]>> = {
   Infraestrutura: { Task: ["To Do", "Doing", "Done"] },
 };
 vi.mock("../src/common/wit/witService", () => ({
-  workItemTypeStates: async (project: string, type: string) => {
+  workItemTypeStateInfo: async (project: string, type: string) => {
     if (project === "Fora do ar") throw new Error("503");
     return STATES[project]?.[type] ?? [];
   },
