@@ -21,6 +21,11 @@ Fechado em vez de New / Active / Closed). Desde a 0.11.4 o TicTask acha o equiva
 estado e, se ainda assim o estado for recusado, aponta as horas sem mudar o estado e avisa. Veja
 [Projetos com outro processo](Preparar-o-processo.md#projetos-com-outro-processo).
 
+**Apareceu "Rule Error for field Description. Error code: Required, InvalidEmpty".**
+O processo exige descrição na task. Desde a 0.11.5 o TicTask cria tasks com descrição e, numa task
+existente sem descrição, preenche com o título e avisa. Para outro campo obrigatório, o aviso diz qual
+preencher na task. Veja [Campos obrigatórios](Preparar-o-processo.md#campos-obrigatórios).
+
 **Preciso pausar para tomar café?**
 Não. Pausar é largar a task por agora (outra task, reunião, almoço, fim do dia). O TicTask mede o
 esforço em cada task, não é ponto.

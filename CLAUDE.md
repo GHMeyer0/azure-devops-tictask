@@ -135,6 +135,10 @@ Idioma: UI, guia, commits e conversa em português; comentários de código em i
   somente leitura (`Error code: ReadOnly, InvalidNotOldValue`): a gravação é repetida sem ele
   (`withOriginalEstimate` em `actions.ts`, `isOriginalEstimateLocked` em `errors.ts`), e
   `settings.writeOriginalEstimate` desliga o campo. Antes da 0.11.3 o timer não pausava.
+- **Outros processos:** estados com nomes próprios são achados pela categoria (`adaptStates`); estado
+  recusado mesmo assim não desfaz as horas (`tolerantSave`). Description obrigatória
+  (`Required, InvalidEmpty`): tasks criadas já levam descrição e o writer regrava com o título
+  (`withRequiredDescription` em `wit/writer.ts`); outro campo obrigatório vira aviso dizendo qual.
 - O processo precisa do estado **Stopped** na Task; a extensão não cria estados.
 - `Microsoft.VSTS.Common.StateChangeDate` é lido com os campos da task (dias parada em Paradas).
 

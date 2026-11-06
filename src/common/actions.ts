@@ -1,4 +1,4 @@
-import { errorMessage, isOriginalEstimateLocked, unsupportedState } from "./errors";
+import { errorMessage, isOriginalEstimateLocked, requiredEmptyField, unsupportedState } from "./errors";
 import { emit } from "./events";
 import { findProject } from "./data/projects";
 import { getSettings, peekSettings } from "./data/settingsRepo";
@@ -458,8 +458,12 @@ async function refused(taskId: number, e: unknown, change: { title: string; what
     () => true,
     (err) => (console.warn("entry rollback", err), false),
   );
+  // A field the process requires and the task has empty (other than Description, filled by the
+  // writer): the TicTask cannot guess it, so the message says which one to fill.
+  const field = requiredEmptyField(e);
+  const why = field ? `o processo exige o campo "${field}" preenchido. Preencha na task.` : errorMessage(e);
   const message =
-    `A task #${taskId} não aceitou a gravação: ${errorMessage(e)} ` +
+    `A task #${taskId} não aceitou a gravação: ${why} ` +
     (undone
       ? `${change.what} foi desfeito: nada mudou na task nem nos apontamentos. Corrija o que o Azure DevOps pediu e tente de novo.`
       : `${change.what} não pôde ser desfeito e ficou diferente das horas da task: abra a task e use "Ajustar" no TicTask.`);
@@ -705,6 +709,8 @@ export async function createChildTask(ctx: Ctx, parent: TaskInfo, input: NewTask
       title: buildTaskTitle(ctx.settings, input.activity, input.description),
       activityWit: activity?.witActivity,
       estimate: input.estimate,
+      // Always filled: a process may require it ("Rule Error for field Description … Required").
+      description: `${escapeHtml(input.description || input.activity)}<br>Criada pelo TicTask a partir de #${parent.id}.`,
       writeOriginal,
       assignedToEmail: ctx.user.email,
       taskType: ctx.settings.taskType,

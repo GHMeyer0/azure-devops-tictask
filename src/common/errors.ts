@@ -21,6 +21,21 @@ export function unsupportedState(e: unknown): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * The field a process rule requires and the save left empty ("TF401320: Rule Error for field
+ * Description. Error code: Required, InvalidEmpty": seen in another organization on 06/11/2026), or
+ * null for any other error.
+ */
+export function requiredEmptyField(e: unknown): string | null {
+  const m = /Rule Error for field ([^.]+)\. Error code: [^.]*\bRequired\b/i.exec(errorMessage(e));
+  return m ? m[1].trim() : null;
+}
+
+/** The required empty field is the description (System.Description, "Descrição" in Portuguese). */
+export function isDescriptionRequired(e: unknown): boolean {
+  return /^(Description|Descrição)$/i.test(requiredEmptyField(e) ?? "");
+}
+
 export function isOriginalEstimateLocked(e: unknown): boolean {
   const m = errorMessage(e);
   return /TF401320/.test(m) && /Original Estimate/i.test(m) && /ReadOnly|InvalidNotOldValue/i.test(m);

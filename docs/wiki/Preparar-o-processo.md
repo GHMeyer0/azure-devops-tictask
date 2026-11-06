@@ -64,6 +64,18 @@ numa task sem estimativa, e ao criar tasks) não pode ir para o campo. Desde a 0
 Não desligue num processo que **exige** o Original Estimate para começar (de New para Active): sem o
 campo, a mudança de estado é recusada.
 
+## Campos obrigatórios
+
+Processos podem exigir campos preenchidos na Task (`Rule Error for field … Error code: Required,
+InvalidEmpty`). Uma regra assim recusa qualquer gravação de um item com o campo vazio, inclusive as
+horas de uma task antiga. Desde a 0.11.5:
+
+- **Description**: as tasks criadas pelo TicTask já nascem com descrição (o texto digitado e "Criada
+  pelo TicTask a partir de #…"). Numa task ou WI pai existente sem descrição, se o processo exigir, o
+  TicTask grava de novo com o título como descrição e avisa.
+- **Outros campos** (por exemplo, um campo personalizado): o TicTask não tem como adivinhar o valor. O
+  aviso diz qual campo preencher na task; o apontamento é desfeito para ser feito de novo depois.
+
 ## Tipos de WI pai
 
 O grupo do TicTask funciona como "US" (escolher ou criar a task, somar as horas das filhas) nos tipos

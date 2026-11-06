@@ -16,6 +16,7 @@ export const F = {
   iteration: "System.IterationPath",
   rev: "System.Rev",
   history: "System.History",
+  description: "System.Description",
   original: "Microsoft.VSTS.Scheduling.OriginalEstimate",
   remaining: "Microsoft.VSTS.Scheduling.RemainingWork",
   completed: "Microsoft.VSTS.Scheduling.CompletedWork",
@@ -34,6 +35,8 @@ export interface FieldChanges {
   state?: string;
   /** Line added to the work item discussion. */
   history?: string;
+  /** Description (HTML), only when the process requires one and the item has none. */
+  description?: string;
 }
 
 const num = (v: unknown): number | null => (v === null || v === undefined || v === "" ? null : Number(v));
@@ -124,6 +127,7 @@ function patchFor(changes: FieldChanges, expectedRev?: number): PatchOp[] {
   if (changes.original !== undefined) set(F.original, changes.original);
   if (changes.state !== undefined) set(F.state, changes.state);
   if (changes.history) set(F.history, changes.history);
+  if (changes.description) set(F.description, changes.description);
   return ops;
 }
 
@@ -155,6 +159,8 @@ export interface NewTask {
   title: string;
   activityWit?: string;
   estimate?: number;
+  /** Description (HTML): always filled, processes may require it ("Required, InvalidEmpty"). */
+  description?: string;
   /** The estimate also goes to Original Estimate (not when the process keeps it read-only). */
   writeOriginal?: boolean;
   assignedToEmail: string;
@@ -176,6 +182,7 @@ export async function createTask(projectName: string, t: NewTask): Promise<TaskI
     ops.push({ op: "add", path: `/fields/${F.remaining}`, value: t.estimate });
   }
   if (t.activityWit && allowed.includes(t.activityWit)) ops.push({ op: "add", path: `/fields/${F.activity}`, value: t.activityWit });
+  if (t.description) ops.push({ op: "add", path: `/fields/${F.description}`, value: t.description });
   const wi = await witClient().createWorkItem(asPatch(ops), projectName, t.taskType);
   return fromWorkItem(wi);
 }

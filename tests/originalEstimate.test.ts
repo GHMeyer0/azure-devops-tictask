@@ -177,6 +177,11 @@ describe("Original Estimate read-only in the process", () => {
     expect(toasts).toHaveLength(1);
   });
 
+  it("creates the task with a description (processes may require one)", async () => {
+    await createChildTask(ctx(false), items.get(100)!, { activity: "Testes", description: "Testes <e> ajustes", estimate: 2 });
+    expect(created[0].description).toBe("Testes &lt;e&gt; ajustes<br>Criada pelo TicTask a partir de #100.");
+  });
+
   it("creates a task without trying the field when the setting is off", async () => {
     await createChildTask(ctx(false), items.get(100)!, { activity: "Testes", description: "Testes", estimate: 2 });
     expect(created.map((t) => t.writeOriginal)).toEqual([false]);
@@ -228,5 +233,18 @@ describe("states the process does not have", () => {
     expect(live("tw-p-19100").map((e) => e.id)).toEqual([entry.id]);
     expect(items.get(19100)).toMatchObject({ state: "Em Desenvolvimento", completed: 1, remaining: 3 });
     expect(toasts).toEqual(['O estado "Closed" não existe da #19100 neste processo: as horas foram apontadas e o estado ficou como estava. Ajuste o estado na task.']);
+  });
+});
+
+describe("another required field", () => {
+  it("says which field to fill and undoes the entry", async () => {
+    refuse = null;
+    const draft = { date: "2026-11-06", startTime: "09:00", endTime: "10:00", minutes: 60, segments: [], activity: "Testes", comment: "" };
+    const c = ctx();
+    c.writer = { apply: async () => Promise.reject(new Error("TF401320: Rule Error for field Cliente. Error code: Required, InvalidEmpty.")) };
+    await expect(createEntry(c, { task: { ...items.get(19100)!, original: 2, remaining: 2 }, draft, close: false }, "manual")).rejects.toThrow(
+      'A task #19100 não aceitou a gravação: o processo exige o campo "Cliente" preenchido. Preencha na task. O apontamento foi desfeito',
+    );
+    expect(live("tw-p-19100")).toEqual([]);
   });
 });
